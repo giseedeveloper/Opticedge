@@ -14,6 +14,25 @@
                 <p class="admin-prod-eyebrow">Purchase</p>
                 <h1 class="admin-prod-title">{{ $purchase->name ?? 'Purchase #' . $purchase->id }}</h1>
                 <p class="admin-prod-subtitle">Model, category and IMEI. Click a row to expand details.</p>
+                @if(($purchase->lines ?? collect())->isNotEmpty())
+                    <div class="mt-3 text-sm text-slate-600 space-y-1">
+                        @foreach($purchase->lines as $line)
+                            @php $lp = $line->product; @endphp
+                            <div>
+                                <span class="font-medium text-slate-800">{{ $lp?->name ?? '—' }}</span>
+                                <span class="text-slate-500">· qty {{ $line->quantity }}</span>
+                                <span class="text-slate-500">· unit {{ number_format((float) $line->unit_price, 2) }}</span>
+                                @if($line->sell_price !== null)
+                                    <span class="text-slate-500">· sell {{ number_format((float) $line->sell_price, 2) }}</span>
+                                @endif
+                                <span class="text-slate-500">· slots left {{ (int) $line->limit_remaining }}</span>
+                            </div>
+                        @endforeach
+                    </div>
+                @endif
+                @if(!empty($purchase->note))
+                    <p class="mt-3 text-sm text-slate-700 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2"><span class="font-medium text-slate-900">Note:</span> {{ $purchase->note }}</p>
+                @endif
             </div>
         </div>
         @if($errors->any())

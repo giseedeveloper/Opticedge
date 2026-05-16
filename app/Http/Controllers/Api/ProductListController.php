@@ -36,6 +36,7 @@ class ProductListController extends Controller
             'stock_id' => 'nullable|exists:stocks,id',
             'category_id' => 'nullable|exists:brands,id',
             'model' => 'nullable|string|max:255',
+            'product_id' => 'nullable|exists:models,id',
             'imei_number' => 'required|string|max:512|unique:product_list,imei_number',
         ]);
 
@@ -43,66 +44,114 @@ class ProductListController extends Controller
         $stockId = null;
         $categoryId = null;
         $model = null;
+        $purchaseLine = null;
+        $catalogProduct = null;
 
-        if (!empty($validated['purchase_id'])) {
-            // Use purchase: get category and model from the purchase's product
-            $purchase = Purchase::with('product')->findOrFail($validated['purchase_id']);
+        if (! empty($validated['purchase_id'])) {
+            $purchase = Purchase::with(['product', 'lines'])->findOrFail($validated['purchase_id']);
             if ($purchase->limit_status !== 'pending' || $purchase->limit_remaining <= 0) {
                 return response()->json([
                     'message' => 'This purchase has no remaining limit.',
                 ], 422);
             }
-            if (!$purchase->product_id) {
-                return response()->json([
-                    'message' => 'Purchase has no product linked.',
-                ], 422);
+
+            if ($purchase->lines->isNotEmpty()) {
+                if (empty($validated['product_id'])) {
+                    return response()->json([
+                        'message' => 'This purchase has multiple models. Send product_id for the line you are adding to.',
+                    ], 422);
+                }
+                $catalogProduct = Product::findOrFail((int) $validated['product_id']);
+                $purchaseLine = $purchase->lines->firstWhere('product_id', $catalogProduct->id);
+                if (! $purchaseLine || (int) $purchaseLine->limit_remaining <= 0) {
+                    return response()->json([
+                        'message' => 'No remaining IMEI slots for that model on this purchase.',
+                    ], 422);
+                }
+                $stockId = $purchase->stock_id;
+                $categoryId = (int) $catalogProduct->category_id;
+                $model = (string) $catalogProduct->name;
+            } else {
+                if (! $purchase->product_id) {
+                    return response()->json([
+                        'message' => 'Purchase has no product linked.',
+                    ], 422);
+                }
+                $stockId = $purchase->stock_id;
+                $categoryId = $purchase->product->category_id;
+                $model = $purchase->product->name;
+                $catalogProduct = $purchase->product;
             }
-            $stockId = $purchase->stock_id;
-            $categoryId = $purchase->product->category_id;
-            $model = $purchase->product->name;
         } else {
-            // Legacy: stock_id + category_id + model
-            if (empty($validated['stock_id']) || empty($validated['category_id']) || empty($validated['model'])) {
+            if (empty($validated['stock_id'])) {
                 return response()->json([
-                    'message' => 'Provide either purchase_id or stock_id, category_id and model.',
+                    'message' => 'Provide either purchase_id or stock_id (with model fields or product_id).',
                 ], 422);
             }
             $stock = \App\Models\Stock::findOrFail($validated['stock_id']);
-            $purchase = Purchase::where('stock_id', $stock->id)
+            $purchase = Purchase::with(['product', 'lines'])
+                ->where('stock_id', $stock->id)
                 ->where('limit_status', 'pending')
                 ->where('limit_remaining', '>', 0)
                 ->latest('date')
                 ->latest('id')
                 ->first();
-            if (!$purchase) {
+            if (! $purchase) {
                 return response()->json([
                     'message' => 'No pending purchase limit for this stock.',
                 ], 422);
             }
             $stockId = $validated['stock_id'];
-            $categoryId = $validated['category_id'];
-            $model = $validated['model'];
+
+            if ($purchase->lines->isNotEmpty()) {
+                if (empty($validated['product_id'])) {
+                    return response()->json([
+                        'message' => 'This stock\'s purchase has multiple models. Send product_id for the catalog model.',
+                    ], 422);
+                }
+                $catalogProduct = Product::findOrFail((int) $validated['product_id']);
+                $purchaseLine = $purchase->lines->firstWhere('product_id', $catalogProduct->id);
+                if (! $purchaseLine || (int) $purchaseLine->limit_remaining <= 0) {
+                    return response()->json([
+                        'message' => 'No remaining IMEI slots for that model on the linked purchase.',
+                    ], 422);
+                }
+                $categoryId = (int) $catalogProduct->category_id;
+                $model = (string) $catalogProduct->name;
+            } else {
+                if (empty($validated['category_id']) || empty($validated['model'])) {
+                    return response()->json([
+                        'message' => 'Provide category_id and model, or product_id when the purchase has multiple models.',
+                    ], 422);
+                }
+                $categoryId = (int) $validated['category_id'];
+                $model = (string) $validated['model'];
+            }
         }
 
-        // Use sell_price if available, otherwise use unit_price
-        $productPrice = $purchase->sell_price ?? $purchase->unit_price ?? 0;
+        $productPrice = $purchaseLine
+            ? (float) ($purchaseLine->sell_price ?? $purchaseLine->unit_price)
+            : (float) ($purchase->sell_price ?? $purchase->unit_price ?? 0);
+
+        $imageSource = $catalogProduct ?? $purchase->product;
+
         $product = Product::firstOrCreate(
             [
                 'category_id' => $categoryId,
                 'name' => $model,
             ],
             [
-                'price' => (float) $productPrice,
+                'price' => $productPrice,
                 'stock_quantity' => 0,
                 'rating' => 5.0,
                 'description' => 'From product list',
-                'images' => $purchase->product?->images ?? [],
+                'images' => $imageSource?->images ?? [],
             ]
         );
-        
-        // Update product price if sell_price is available
-        if ($purchase->sell_price && $product->price != $purchase->sell_price) {
-            $product->update(['price' => (float) $purchase->sell_price]);
+
+        $sellToApply = $purchaseLine ? $purchaseLine->sell_price : $purchase->sell_price;
+        if ($sellToApply && (float) $product->price != (float) $sellToApply) {
+            $product->update(['price' => (float) $sellToApply]);
         }
 
         $item = ProductListItem::create([
@@ -114,9 +163,14 @@ class ProductListController extends Controller
             'product_id' => $product->id,
         ]);
 
-        $purchase->decrement('limit_remaining');
-        if ($purchase->fresh()->limit_remaining <= 0) {
-            $purchase->update(['limit_status' => 'complete']);
+        if ($purchaseLine) {
+            $purchaseLine->decrement('limit_remaining');
+            $purchase->syncAggregatesFromLines();
+        } else {
+            $purchase->decrement('limit_remaining');
+            if ($purchase->fresh()->limit_remaining <= 0) {
+                $purchase->update(['limit_status' => 'complete']);
+            }
         }
 
         return response()->json([
@@ -138,17 +192,35 @@ class ProductListController extends Controller
     {
         $validated = $request->validate([
             'purchase_id' => 'required|exists:purchases,id',
+            'product_id' => 'nullable|exists:models,id',
             'imei_numbers' => 'required|array|min:1',
             'imei_numbers.*' => 'required|string|max:65535',
         ]);
 
-        $purchase = Purchase::with('product')->findOrFail($validated['purchase_id']);
+        $purchase = Purchase::with(['product', 'lines'])->findOrFail($validated['purchase_id']);
         if ($purchase->limit_status !== 'pending' || $purchase->limit_remaining <= 0) {
             return response()->json([
                 'message' => 'This purchase has no remaining limit.',
             ], 422);
         }
-        if (! $purchase->product_id) {
+
+        $purchaseLine = null;
+        $catalogProduct = null;
+
+        if ($purchase->lines->isNotEmpty()) {
+            if (empty($validated['product_id'])) {
+                return response()->json([
+                    'message' => 'This purchase has multiple models. Send product_id for the line you are adding to.',
+                ], 422);
+            }
+            $catalogProduct = Product::findOrFail((int) $validated['product_id']);
+            $purchaseLine = $purchase->lines->firstWhere('product_id', $catalogProduct->id);
+            if (! $purchaseLine || (int) $purchaseLine->limit_remaining <= 0) {
+                return response()->json([
+                    'message' => 'No remaining IMEI slots for that model on this purchase.',
+                ], 422);
+            }
+        } elseif (! $purchase->product_id) {
             return response()->json([
                 'message' => 'Purchase has no product linked.',
             ], 422);
@@ -173,18 +245,81 @@ class ProductListController extends Controller
             ], 422);
         }
 
-        if (count($imeis) > $purchase->limit_remaining) {
+        $remainingForModel = $purchaseLine
+            ? (int) $purchaseLine->limit_remaining
+            : (int) $purchase->limit_remaining;
+
+        if (count($imeis) > $remainingForModel) {
             return response()->json([
-                'message' => 'Not enough purchase limit for this many IMEIs. Remaining: '.$purchase->limit_remaining.'.',
+                'message' => 'Not enough slots for this model. Remaining: '.$remainingForModel.'.',
             ], 422);
         }
 
         $created = [];
         $failed = [];
 
-        DB::transaction(function () use ($purchase, $imeis, &$created, &$failed) {
+        DB::transaction(function () use ($purchase, $purchaseLine, $catalogProduct, $imeis, &$created, &$failed) {
             $purchase->refresh();
             $stockId = $purchase->stock_id;
+
+            if ($purchaseLine) {
+                $categoryId = (int) $catalogProduct->category_id;
+                $model = (string) $catalogProduct->name;
+                $productPrice = (float) ($purchaseLine->sell_price ?? $purchaseLine->unit_price);
+                $product = Product::firstOrCreate(
+                    [
+                        'category_id' => $categoryId,
+                        'name' => $model,
+                    ],
+                    [
+                        'price' => $productPrice,
+                        'stock_quantity' => 0,
+                        'rating' => 5.0,
+                        'description' => 'From product list',
+                        'images' => $catalogProduct->images ?? [],
+                    ]
+                );
+
+                if ($purchaseLine->sell_price && (float) $product->price != (float) $purchaseLine->sell_price) {
+                    $product->update(['price' => (float) $purchaseLine->sell_price]);
+                }
+
+                foreach ($imeis as $imei) {
+                    if (ProductListItem::where('imei_number', $imei)->exists()) {
+                        $failed[] = ['imei_number' => $imei, 'message' => 'IMEI already in product list.'];
+
+                        continue;
+                    }
+
+                    $purchaseLine->refresh();
+                    if ((int) $purchaseLine->limit_remaining <= 0) {
+                        $failed[] = ['imei_number' => $imei, 'message' => 'Purchase limit exhausted for this model.'];
+
+                        break;
+                    }
+
+                    $item = ProductListItem::create([
+                        'stock_id' => $stockId,
+                        'purchase_id' => $purchase->id,
+                        'category_id' => $categoryId,
+                        'model' => $model,
+                        'imei_number' => $imei,
+                        'product_id' => $product->id,
+                    ]);
+
+                    $purchaseLine->decrement('limit_remaining');
+                    $purchase->syncAggregatesFromLines();
+
+                    $created[] = [
+                        'id' => $item->id,
+                        'imei_number' => $item->imei_number,
+                        'model' => $item->model,
+                    ];
+                }
+
+                return;
+            }
+
             $categoryId = $purchase->product->category_id;
             $model = $purchase->product->name;
             $productPrice = $purchase->sell_price ?? $purchase->unit_price ?? 0;

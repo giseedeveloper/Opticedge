@@ -21,7 +21,7 @@
         <div class="admin-clay-panel admin-prod-form-shell overflow-hidden">
             <div class="admin-prod-form-head">
                 <h2 class="admin-prod-form-title">Account</h2>
-                <p class="admin-prod-form-hint">Name, email, phone, branch, and password for sign-in.</p>
+                <p class="admin-prod-form-hint">Name, email, phone, branch, optional team leader, and password for sign-in.</p>
             </div>
             <form method="POST" action="{{ route('admin.agents.store') }}" class="admin-prod-form-body space-y-6">
                 @csrf
@@ -64,6 +64,23 @@
                         <p class="text-red-600 text-xs mt-1.5 font-semibold">{{ $message }}</p>
                     @enderror
                 </div>
+                @if(Schema::hasColumn('users', 'team_leader_id'))
+                    <div>
+                        <label for="team_leader_id" class="admin-prod-label">Team leader</label>
+                        <select name="team_leader_id" id="team_leader_id" class="admin-prod-select w-full max-w-xl">
+                            <option value="">— None —</option>
+                            @foreach($teamLeaders ?? [] as $tl)
+                                <option value="{{ $tl->id }}" @selected((string) old('team_leader_id') === (string) $tl->id)>
+                                    {{ $tl->name }}@if($tl->branch) ({{ $tl->branch->name }})@endif
+                                </option>
+                            @endforeach
+                        </select>
+                        <p class="admin-prod-form-hint !mt-1.5">If you set a branch, pick a team leader for that same branch when possible.</p>
+                        @error('team_leader_id')
+                            <p class="text-red-600 text-xs mt-1.5 font-semibold">{{ $message }}</p>
+                        @enderror
+                    </div>
+                @endif
                 <div>
                     <label for="password" class="admin-prod-label">Password</label>
                     <input type="password" id="password" name="password" required class="admin-prod-input"

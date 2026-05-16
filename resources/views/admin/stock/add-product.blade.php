@@ -70,13 +70,11 @@
                             @endif
                         </div>
                         <div>
-                            <label for="model" class="admin-prod-label">Model (from selected {{ ($addProductTarget ?? 'stock') === 'purchase' ? 'purchase' : 'stock' }})</label>
-                            <select name="model" id="model" required class="admin-prod-select">
+                            <label for="catalog_product_id" class="admin-prod-label">Model <span class="text-slate-500 font-normal">(from selected {{ ($addProductTarget ?? 'stock') === 'purchase' ? 'purchase' : 'stock' }})</span></label>
+                            <select name="catalog_product_id" id="catalog_product_id" required class="admin-prod-select">
                                 <option value="">{{ ($addProductTarget ?? 'stock') === 'purchase' ? 'Select purchase first' : 'Select stock first' }}</option>
                             </select>
-                            <input type="hidden" name="category_id" id="category_id" value="{{ old('category_id') }}">
-                            @error('model') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
-                            @error('category_id') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
+                            @error('catalog_product_id') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
                         </div>
                     </div>
                     <div class="admin-prod-form-footer !mt-6 !px-0 !border-0 !shadow-none">
@@ -91,11 +89,9 @@
             const targetId = this.value;
             const mode = this.dataset.modelsMode || 'stock';
             const urlTemplate = this.dataset.modelsUrlTemplate || '';
-            const modelSelect = document.getElementById('model');
-            const categoryInput = document.getElementById('category_id');
+            const modelSelect = document.getElementById('catalog_product_id');
             const emptyLabel = mode === 'purchase' ? 'Select purchase first' : 'Select stock first';
             modelSelect.innerHTML = '<option value="">Loading…</option>';
-            categoryInput.value = '';
             if (!targetId) {
                 modelSelect.innerHTML = '<option value="">' + emptyLabel + '</option>';
                 return;
@@ -107,30 +103,28 @@
                 const list = data.data || [];
                 modelSelect.innerHTML = '<option value="">Select model</option>';
                 list.forEach(item => {
+                    const pid = item.product_id;
+                    if (!pid) return;
                     const opt = document.createElement('option');
-                    opt.value = item.model;
-                    opt.textContent = item.model;
+                    opt.value = String(pid);
+                    opt.textContent = item.label || item.model || ('#' + pid);
                     opt.dataset.categoryId = item.category_id || '';
+                    opt.dataset.model = item.model || '';
                     modelSelect.appendChild(opt);
                 });
             }).catch(() => {
                 modelSelect.innerHTML = '<option value="">Error loading models</option>';
             });
         });
-        document.getElementById('model').addEventListener('change', function() {
-            const opt = this.selectedOptions[0];
-            document.getElementById('category_id').value = opt && opt.dataset.categoryId ? opt.dataset.categoryId : '';
-        });
         @if(old('stock_id') || old('purchase_id'))
             document.getElementById('add_product_target').dispatchEvent(new Event('change'));
             setTimeout(function() {
-                const modelSelect = document.getElementById('model');
-                const m = @json(old('model'));
+                const modelSelect = document.getElementById('catalog_product_id');
+                const m = @json(old('catalog_product_id'));
                 if (m && modelSelect.options.length) {
                     for (let i = 0; i < modelSelect.options.length; i++) {
-                        if (modelSelect.options[i].value === m) {
+                        if (modelSelect.options[i].value === String(m)) {
                             modelSelect.selectedIndex = i;
-                            modelSelect.dispatchEvent(new Event('change'));
                             break;
                         }
                     }

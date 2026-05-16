@@ -24,6 +24,16 @@
                     @if(request('role') == 'customer') aria-current="page" @endif>
                     Customers
                 </a>
+                <a href="{{ route('admin.customers.index', ['role' => 'teamleader']) }}"
+                    class="admin-prod-filter-tab {{ request('role') == 'teamleader' ? 'admin-prod-filter-tab--active' : '' }}"
+                    @if(request('role') == 'teamleader') aria-current="page" @endif>
+                    Team leaders
+                </a>
+                <a href="{{ route('admin.customers.index', ['role' => 'regional_manager']) }}"
+                    class="admin-prod-filter-tab {{ request('role') == 'regional_manager' ? 'admin-prod-filter-tab--active' : '' }}"
+                    @if(request('role') == 'regional_manager') aria-current="page" @endif>
+                    Regional managers
+                </a>
             </div>
         </div>
 
@@ -60,16 +70,21 @@
                                 <td>
                                     @php
                                         $role = $user->role ?? 'customer';
-                                        $roleClass =
-                                            $role === 'admin'
-                                                ? 'admin-prod-role-pill--admin'
-                                                : ($role === 'dealer'
-                                                    ? 'admin-prod-role-pill--dealer'
-                                                    : ($role === 'agent'
-                                                        ? 'admin-prod-role-pill--agent'
-                                                        : 'admin-prod-role-pill--customer'));
+                                        $roleClass = match ($role) {
+                                            'admin' => 'admin-prod-role-pill--admin',
+                                            'dealer' => 'admin-prod-role-pill--dealer',
+                                            'agent' => 'admin-prod-role-pill--agent',
+                                            'teamleader' => 'admin-prod-role-pill--teamleader',
+                                            'regional_manager' => 'admin-prod-role-pill--regional_manager',
+                                            default => 'admin-prod-role-pill--customer',
+                                        };
+                                        $roleLabel = match ($role) {
+                                            'regional_manager' => 'Regional manager',
+                                            'teamleader' => 'Team leader',
+                                            default => $role,
+                                        };
                                     @endphp
-                                    <span class="admin-prod-role-pill {{ $roleClass }}">{{ $role }}</span>
+                                    <span class="admin-prod-role-pill {{ $roleClass }}">{{ $roleLabel }}</span>
                                 </td>
                                 <td>
                                     @php

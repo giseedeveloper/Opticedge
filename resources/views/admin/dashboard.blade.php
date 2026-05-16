@@ -689,7 +689,7 @@
                     <div class="admin-dash-metric admin-dash-metric--green">
                         <p class="admin-dash-metric-label">Gross Profit</p>
                         <p class="admin-dash-metric-value text-emerald-800">{{ number_format($financialMetrics['gross_profit'], 0) }} TZS</p>
-                        <p class="admin-dash-metric-hint">Distribution Sales + Agent Sales profit</p>
+                        <p class="admin-dash-metric-hint">Distribution + Agent sales + Agent credit margin (sell − buy)</p>
                     </div>
                     <div class="admin-dash-metric admin-dash-metric--red">
                         <p class="admin-dash-metric-label">Total Expenses</p>

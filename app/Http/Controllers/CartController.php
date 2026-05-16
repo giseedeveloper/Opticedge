@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Support\TeamLeaderRoutes;
 use Illuminate\Http\Request;
 use App\Models\Cart;
 use App\Models\CartItem;
@@ -12,6 +13,10 @@ class CartController extends Controller
 {
     public function index()
     {
+        if (Auth::check() && TeamLeaderRoutes::isTeamLeader(Auth::user())) {
+            return redirect()->route('team-leader.cart');
+        }
+
         $cart = null;
         if (Auth::check()) {
             $cart = Cart::with(['items.product'])->firstOrCreate(

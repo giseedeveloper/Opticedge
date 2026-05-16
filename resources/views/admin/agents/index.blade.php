@@ -33,6 +33,9 @@
                             <th scope="col" class="admin-prod-th">Email</th>
                             <th scope="col" class="admin-prod-th">Phone</th>
                             <th scope="col" class="admin-prod-th">Branch</th>
+                            @if(\Illuminate\Support\Facades\Schema::hasColumn('users', 'team_leader_id'))
+                                <th scope="col" class="admin-prod-th">Team leader</th>
+                            @endif
                             <th scope="col" class="admin-prod-th">Status</th>
                             <th scope="col" class="admin-prod-th admin-prod-th--end">Actions</th>
                         </tr>
@@ -44,6 +47,9 @@
                                 <td class="text-slate-600">{{ $agent->email }}</td>
                                 <td class="text-slate-600">{{ $agent->phone ?? '—' }}</td>
                                 <td class="text-slate-600">{{ $agent->branch?->name ?? '—' }}</td>
+                                @if(\Illuminate\Support\Facades\Schema::hasColumn('users', 'team_leader_id'))
+                                    <td class="text-slate-600">{{ $agent->teamLeader?->name ?? '—' }}</td>
+                                @endif
                                 <td>
                                     @php
                                         $active = ($agent->status ?? '') === 'active';
@@ -56,6 +62,27 @@
                                 <td class="admin-prod-cell-actions">
                                     <div class="flex flex-col items-end gap-2 min-w-[260px]">
                                         <a href="{{ route('admin.agents.show', $agent) }}" class="admin-prod-link">View &amp; assign</a>
+                                        @if(\Illuminate\Support\Facades\Schema::hasColumn('users', 'team_leader_id'))
+                                        <details class="w-full">
+                                            <summary class="cursor-pointer text-xs font-semibold text-slate-600 hover:text-[#fa8900] list-none">
+                                                Team leader
+                                            </summary>
+                                            <form method="POST" action="{{ route('admin.agents.update-team-leader', $agent) }}"
+                                                class="mt-2 flex flex-wrap items-center justify-end gap-2">
+                                                @csrf
+                                                @method('PATCH')
+                                                <select name="team_leader_id" class="admin-prod-input w-44 py-1.5 text-sm">
+                                                    <option value="">None</option>
+                                                    @foreach($teamLeaders ?? [] as $tl)
+                                                        <option value="{{ $tl->id }}" @selected($agent->team_leader_id == $tl->id)>
+                                                            {{ $tl->name }}@if($tl->branch) ({{ $tl->branch->name }})@endif
+                                                        </option>
+                                                    @endforeach
+                                                </select>
+                                                <button type="submit" class="admin-prod-link whitespace-nowrap text-sm">Save</button>
+                                            </form>
+                                        </details>
+                                        @endif
                                         <details class="w-full">
                                             <summary class="cursor-pointer text-xs font-semibold text-slate-600 hover:text-[#fa8900] list-none">
                                                 Transfer branch
@@ -113,7 +140,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="6" class="text-center text-slate-500 py-10">
+                                <td colspan="{{ \Illuminate\Support\Facades\Schema::hasColumn('users', 'team_leader_id') ? 7 : 6 }}" class="text-center text-slate-500 py-10">
                                     No agents yet.
                                     <a href="{{ route('admin.agents.create') }}" class="admin-prod-link">Add an agent</a>.
                                 </td>

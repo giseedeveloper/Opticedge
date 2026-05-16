@@ -146,18 +146,30 @@
 
                 <div id="tab-total" class="{{ $assignType === 'total' ? '' : 'hidden' }} space-y-6">
                     <div>
-                        <label for="purchase_id" class="admin-prod-label">Purchase name</label>
-                        <select id="purchase_id" name="purchase_id" class="admin-prod-select">
+                        <label for="purchase_select_ui" class="admin-prod-label">Purchase &amp; model</label>
+                        <select id="purchase_select_ui" class="admin-prod-select">
                             <option value="">Select purchase</option>
                             @foreach($purchases as $purchase)
-                                <option value="{{ $purchase->id }}"
-                                    data-product-id="{{ $purchase->product_id }}"
-                                    data-model="{{ $purchase->product?->name ?? '' }}"
-                                    {{ (string) old('purchase_id') === (string) $purchase->id ? 'selected' : '' }}>
-                                    {{ $purchase->name ?? ('Purchase #' . $purchase->id) }}
-                                </option>
+                                @if(($purchase->lines ?? collect())->isNotEmpty())
+                                    @foreach($purchase->lines as $line)
+                                        @php($lp = $line->product)
+                                        @continue(!$lp)
+                                        <option value="{{ $purchase->id }}:{{ $line->product_id }}"
+                                            data-model="{{ $lp->name }}"
+                                            {{ (string) old('purchase_id') === (string) $purchase->id && (string) old('product_id') === (string) $line->product_id ? 'selected' : '' }}>
+                                            {{ $purchase->name ?? ('Purchase #' . $purchase->id) }} — {{ $lp->name }}
+                                        </option>
+                                    @endforeach
+                                @else
+                                    <option value="{{ $purchase->id }}:{{ $purchase->product_id }}"
+                                        data-model="{{ $purchase->product?->name ?? '' }}"
+                                        {{ (string) old('purchase_id') === (string) $purchase->id ? 'selected' : '' }}>
+                                        {{ $purchase->name ?? ('Purchase #' . $purchase->id) }}
+                                    </option>
+                                @endif
                             @endforeach
                         </select>
+                        <input type="hidden" name="purchase_id" id="purchase_id_for_total" value="{{ old('purchase_id') }}">
                         @error('purchase_id')
                             <p class="text-red-600 text-xs mt-1.5 font-semibold">{{ $message }}</p>
                         @enderror
@@ -201,9 +213,10 @@
                 const assignableUrl = @json(route('admin.assignable-imeis'));
                 const $agent = jQuery('#agent_id');
                 const $product = jQuery('#product_id');
-                const $purchase = jQuery('#purchase_id');
+                const $purchase = jQuery('#purchase_select_ui');
                 const $purchaseModel = jQuery('#purchase_model');
                 const $productTotal = jQuery('#product_id_total');
+                const $purchaseIdHidden = jQuery('#purchase_id_for_total');
                 const $imei = jQuery('#imei_select');
                 const $imeiWrap = jQuery('#imei-wrap');
                 const $modeOptions = jQuery('#assignment-type-group .assign-type-option');
@@ -241,11 +254,15 @@
                 }
 
                 function updatePurchaseDerivedFields() {
+                    const raw = ($purchase.val() || '').toString();
+                    const parts = raw.split(':');
+                    const pid = parts[0] || '';
+                    const prid = parts[1] || '';
+                    $purchaseIdHidden.val(pid);
+                    $productTotal.val(prid);
                     const selected = $purchase.find('option:selected');
                     const model = selected.data('model') || '';
-                    const productId = selected.data('product-id') || '';
                     $purchaseModel.val(model);
-                    $productTotal.val(productId);
                 }
 
                 function loadImeis(productId) {

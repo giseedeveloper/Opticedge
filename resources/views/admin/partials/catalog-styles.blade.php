@@ -646,6 +646,18 @@
                 border-color: rgba(147, 51, 234, 0.2);
             }
 
+            .admin-prod-role-pill--teamleader {
+                background: linear-gradient(145deg, rgba(254, 249, 195, 0.95), rgba(255, 255, 255, 0.98));
+                color: #854d0e;
+                border-color: rgba(234, 179, 8, 0.28);
+            }
+
+            .admin-prod-role-pill--regional_manager {
+                background: linear-gradient(145deg, rgba(224, 242, 254, 0.95), rgba(255, 255, 255, 0.98));
+                color: #0c4a6e;
+                border-color: rgba(14, 165, 233, 0.25);
+            }
+
             .admin-prod-user-status {
                 display: inline-flex;
                 padding: 0.28rem 0.65rem;

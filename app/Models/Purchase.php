@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Purchase extends Model
 {
@@ -24,6 +25,7 @@ class Purchase extends Model
         'limit_status',
         'limit_remaining',
         'sell_price',
+        'note',
     ];
 
     public function productListItems()
@@ -31,9 +33,30 @@ class Purchase extends Model
         return $this->hasMany(ProductListItem::class, 'purchase_id');
     }
 
+    public function lines(): HasMany
+    {
+        return $this->hasMany(PurchaseLine::class);
+    }
+
     public function product()
     {
         return $this->belongsTo(Product::class);
+    }
+
+    /**
+     * When this purchase has line items, keep header limit fields in sync with lines.
+     */
+    public function syncAggregatesFromLines(): void
+    {
+        if (! $this->lines()->exists()) {
+            return;
+        }
+
+        $sumRemaining = (int) $this->lines()->sum('limit_remaining');
+        $this->update([
+            'limit_remaining' => $sumRemaining,
+            'limit_status' => $sumRemaining <= 0 ? 'complete' : 'pending',
+        ]);
     }
 
     public function stock()

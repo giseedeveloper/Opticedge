@@ -81,7 +81,7 @@
                             @error('branch_id') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
                         </div>
 
-                        <!-- Category + model: from stock (read-only), or product picker (Select2) -->
+                        <!-- Category + model: from stock (read-only), or multiple catalog lines -->
                         @if($fromStock)
                             <div class="col-span-1">
                                 <label class="admin-prod-label">Category</label>
@@ -96,30 +96,71 @@
                                 @error('model') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
                             </div>
                         @else
+                            @php
+                                $initialLines = old('lines');
+                                if (! is_array($initialLines) || count($initialLines) === 0) {
+                                    $initialLines = [['product_id' => '', 'quantity' => '', 'unit_price' => '', 'sell_price' => '']];
+                                }
+                            @endphp
                             <div class="col-span-2">
-                                <label for="product_id" class="admin-prod-label">Model (product name) <span class="text-red-500">*</span></label>
-                                <select name="product_id" id="product_id" required class="admin-prod-select">
-                                    <option value="">Search or select…</option>
-                                    @foreach($productsForSelect as $p)
-                                        <option value="{{ $p->id }}" {{ (string) old('product_id') === (string) $p->id ? 'selected' : '' }}>
-                                            {{ ($p->category?->name ?? '—') }}-{{ $p->name }}
-                                        </option>
-                                    @endforeach
-                                </select>
-                                <p class="text-xs text-slate-500 mt-1">Options are listed as <span class="font-medium">category-model</span>. Search filters the list.</p>
-                                @error('product_id') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
+                                <label class="admin-prod-label">Models &amp; quantities <span class="text-red-500">*</span></label>
+                                <p class="text-xs text-slate-500 mb-2">Add one row per device model. Each row has its own unit cost, optional sell price, and IMEI slot count (quantity).</p>
+                                @error('lines') <span class="text-red-500 text-xs block mb-2">{{ $message }}</span> @enderror
+                                <div class="overflow-x-auto border border-slate-200 rounded-lg">
+                                    <table class="min-w-full text-sm">
+                                        <thead class="bg-slate-50 text-slate-700">
+                                            <tr>
+                                                <th class="text-left px-3 py-2 font-semibold">Model</th>
+                                                <th class="text-left px-3 py-2 font-semibold w-28">Qty</th>
+                                                <th class="text-left px-3 py-2 font-semibold w-32">Unit</th>
+                                                <th class="text-left px-3 py-2 font-semibold w-32">Sell</th>
+                                                <th class="w-10"></th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="purchase_line_rows">
+                                            @foreach($initialLines as $idx => $lineRow)
+                                                <tr class="purchase-line-row align-top" data-line-index="{{ $idx }}">
+                                                    <td class="px-3 py-2">
+                                                        <select name="lines[{{ $idx }}][product_id]" class="admin-prod-select js-line-product-select w-full min-w-[220px]" required>
+                                                            <option value="">Select model…</option>
+                                                            @foreach($productsForSelect as $p)
+                                                                <option value="{{ $p->id }}" {{ (string) ($lineRow['product_id'] ?? '') === (string) $p->id ? 'selected' : '' }}>
+                                                                    {{ ($p->category?->name ?? '—') }} — {{ $p->name }}
+                                                                </option>
+                                                            @endforeach
+                                                        </select>
+                                                        @error('lines.'.$idx.'.product_id') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
+                                                    </td>
+                                                    <td class="px-3 py-2">
+                                                        <input type="number" name="lines[{{ $idx }}][quantity]" value="{{ $lineRow['quantity'] ?? '' }}" min="1" required class="admin-prod-input line-qty w-full" oninput="calculateTotal()">
+                                                        @error('lines.'.$idx.'.quantity') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
+                                                    </td>
+                                                    <td class="px-3 py-2">
+                                                        <input type="number" step="0.01" name="lines[{{ $idx }}][unit_price]" value="{{ $lineRow['unit_price'] ?? '' }}" min="0.01" required class="admin-prod-input line-unit w-full" oninput="calculateTotal()">
+                                                        @error('lines.'.$idx.'.unit_price') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
+                                                    </td>
+                                                    <td class="px-3 py-2">
+                                                        <input type="number" step="0.01" name="lines[{{ $idx }}][sell_price]" value="{{ $lineRow['sell_price'] ?? '' }}" min="0" placeholder="—" class="admin-prod-input line-sell w-full" oninput="calculateTotal()">
+                                                        @error('lines.'.$idx.'.sell_price') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
+                                                    </td>
+                                                    <td class="px-1 py-2 text-right">
+                                                        <button type="button" class="text-rose-600 hover:text-rose-800 text-xs font-medium remove-line-row" title="Remove row">✕</button>
+                                                    </td>
+                                                </tr>
+                                            @endforeach
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <button type="button" id="add_purchase_line" class="mt-2 text-sm font-medium text-[#fa8900] hover:underline">+ Add another model</button>
                             </div>
                         @endif
 
-                        <!-- Quantity: from stock limit (read-only) or editable -->
+                        <!-- Quantity: from stock limit (read-only) or embedded in line rows -->
+                        @if($fromStock)
                         <div class="col-span-1">
                             <label for="quantity" class="admin-prod-label">Quantity <span class="text-red-500">*</span></label>
-                            @if($fromStock)
                                 <div class="admin-prod-readonly-box">{{ $fromStock->purchase_quantity }}</div>
                                 <input type="hidden" name="quantity" id="quantity" value="{{ $fromStock->purchase_quantity }}">
-                            @else
-                                <input type="number" name="quantity" id="quantity" value="{{ old('quantity') }}" required min="1" class="admin-prod-input" oninput="calculateTotal()">
-                            @endif
                             @error('quantity') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
                         </div>
 
@@ -138,6 +179,7 @@
                             @error('sell_price') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
                             <p class="text-xs text-slate-500 mt-1">Resale price if different from cost</p>
                         </div>
+                        @endif
 
                         <!-- Total Value (Read Only) -->
                         <div class="col-span-2">
@@ -147,9 +189,21 @@
                                     <span class="text-slate-600">Total:</span>
                                     <input type="text" id="total_amount" readonly class="text-2xl font-bold text-slate-900 bg-transparent border-0 p-0 text-right cursor-not-allowed" value="0.00">
                                 </div>
-                                <p class="text-xs text-slate-500 mt-2">Calculated as: Quantity × Unit Price</p>
+                                <p class="text-xs text-slate-500 mt-2">
+                                    @if($fromStock)
+                                        Calculated as: Quantity × Unit Price
+                                    @else
+                                        Sum of (quantity × unit price) for all models
+                                    @endif
+                                </p>
                             </div>
                             <input type="hidden" id="total_value" name="total_value">
+                        </div>
+
+                        <div class="col-span-2">
+                            <label for="note" class="admin-prod-label">Note <span class="text-slate-400 font-normal">(optional)</span></label>
+                            <textarea name="note" id="note" rows="3" class="admin-prod-textarea" placeholder="Internal note about this purchase…">{{ old('note') }}</textarea>
+                            @error('note') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
                         </div>
 
                         <div class="col-span-2 border-t border-slate-100 pt-4 mt-2">
@@ -201,22 +255,32 @@
         <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
         <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
         <script>
-            function validatePurchaseForm() {
-                const quantity = parseFloat(document.getElementById('quantity')?.value) || 0;
-                const price = parseFloat(document.getElementById('unit_price')?.value) || 0;
-                
-                if (quantity <= 0) {
-                    alert('❌ Quantity must be greater than 0');
-                    document.getElementById('quantity')?.focus();
-                    return false;
-                }
-                
-                if (price <= 0) {
-                    alert('❌ Unit price must be greater than 0');
-                    document.getElementById('unit_price')?.focus();
-                    return false;
-                }
+            const purchaseFromStock = @json((bool) $fromStock);
 
+            function reindexPurchaseLineRows() {
+                const rows = document.querySelectorAll('#purchase_line_rows tr.purchase-line-row');
+                rows.forEach(function(tr, i) {
+                    tr.querySelectorAll('[name^="lines["]').forEach(function(el) {
+                        const n = el.getAttribute('name');
+                        if (!n) return;
+                        el.setAttribute('name', n.replace(/lines\[\d+\]/, 'lines[' + i + ']'));
+                    });
+                });
+            }
+
+            function initLineProductSelect2($sel) {
+                if (!window.jQuery || !jQuery.fn.select2) return;
+                if ($sel.data('select2')) {
+                    $sel.select2('destroy');
+                }
+                $sel.select2({
+                    placeholder: 'Search category — model…',
+                    width: '100%',
+                    allowClear: false
+                });
+            }
+
+            function validatePurchaseForm() {
                 const branchId = document.getElementById('branch_id')?.value || '';
                 if (!branchId) {
                     alert('❌ Branch is required');
@@ -233,50 +297,113 @@
                         return false;
                     }
                 }
-                
-                const total = (quantity * price).toFixed(2);
-                return confirm('✓ Confirm purchase?\n\nQuantity: ' + quantity + '\nUnit Price: ' + price.toFixed(2) + ' TZS\nTotal: ' + total + ' TZS');
+
+                if (purchaseFromStock) {
+                    const quantity = parseFloat(document.getElementById('quantity')?.value) || 0;
+                    const price = parseFloat(document.getElementById('unit_price')?.value) || 0;
+                    if (quantity <= 0) {
+                        alert('❌ Quantity must be greater than 0');
+                        document.getElementById('quantity')?.focus();
+                        return false;
+                    }
+                    if (price <= 0) {
+                        alert('❌ Unit price must be greater than 0');
+                        document.getElementById('unit_price')?.focus();
+                        return false;
+                    }
+                    const total = (quantity * price).toFixed(2);
+                    return confirm('✓ Confirm purchase?\n\nQuantity: ' + quantity + '\nUnit Price: ' + price.toFixed(2) + ' TZS\nTotal: ' + total + ' TZS');
+                }
+
+                const rows = document.querySelectorAll('#purchase_line_rows tr.purchase-line-row');
+                if (!rows.length) {
+                    alert('❌ Add at least one model row.');
+                    return false;
+                }
+
+                const seenProducts = {};
+                let total = 0;
+                let totalQty = 0;
+                for (let r = 0; r < rows.length; r++) {
+                    const tr = rows[r];
+                    const sel = tr.querySelector('.js-line-product-select');
+                    const pid = sel && sel.value ? String(sel.value) : '';
+                    if (!pid) {
+                        alert('❌ Select a catalog model on every row.');
+                        sel && sel.focus();
+                        return false;
+                    }
+                    if (seenProducts[pid]) {
+                        alert('❌ The same model appears twice. Use one row per model or merge quantities.');
+                        return false;
+                    }
+                    seenProducts[pid] = true;
+
+                    const q = parseFloat(tr.querySelector('.line-qty')?.value) || 0;
+                    const u = parseFloat(tr.querySelector('.line-unit')?.value) || 0;
+                    if (q <= 0) {
+                        alert('❌ Each row needs quantity greater than 0.');
+                        tr.querySelector('.line-qty')?.focus();
+                        return false;
+                    }
+                    if (u <= 0) {
+                        alert('❌ Each row needs unit price greater than 0.');
+                        tr.querySelector('.line-unit')?.focus();
+                        return false;
+                    }
+                    total += q * u;
+                    totalQty += q;
+                }
+
+                return confirm('✓ Confirm purchase?\n\nRows: ' + rows.length + '\nTotal devices (IMEI slots): ' + totalQty + '\nTotal value: ' + total.toFixed(2) + ' TZS');
             }
 
             function calculateTotal() {
-                const qty = parseFloat(document.getElementById('quantity')?.value) || 0;
-                const price = parseFloat(document.getElementById('unit_price')?.value) || 0;
-                const total = qty * price;
+                let total = 0;
+                let ok = true;
+
+                if (purchaseFromStock) {
+                    const qty = parseFloat(document.getElementById('quantity')?.value) || 0;
+                    const price = parseFloat(document.getElementById('unit_price')?.value) || 0;
+                    total = qty * price;
+                    ok = qty > 0 && price > 0;
+                } else {
+                    document.querySelectorAll('#purchase_line_rows tr.purchase-line-row').forEach(function(tr) {
+                        const q = parseFloat(tr.querySelector('.line-qty')?.value) || 0;
+                        const u = parseFloat(tr.querySelector('.line-unit')?.value) || 0;
+                        total += q * u;
+                        const sel = tr.querySelector('.js-line-product-select');
+                        if (!sel || !sel.value || q <= 0 || u <= 0) {
+                            ok = false;
+                        }
+                    });
+                }
+
                 const el = document.getElementById('total_amount');
                 const hiddenEl = document.getElementById('total_value');
                 if (el) {
-                    el.value = total.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) + ' TZS';
+                    el.value = total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' TZS';
                 }
                 if (hiddenEl) {
                     hiddenEl.value = total;
                 }
-                
-                // Add validation styling
-                const submitBtn = document.querySelector('[type="submit"]');
-                if (submitBtn && qty > 0 && price > 0) {
-                    submitBtn.disabled = false;
-                    submitBtn.classList.remove('opacity-50', 'cursor-not-allowed');
-                } else if (submitBtn) {
-                    submitBtn.disabled = true;
-                    submitBtn.classList.add('opacity-50', 'cursor-not-allowed');
+
+                const submitBtn = document.querySelector('form[action*="store-purchase"] [type="submit"]') || document.querySelector('[type="submit"]');
+                if (submitBtn) {
+                    if (ok) {
+                        submitBtn.disabled = false;
+                        submitBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                    } else {
+                        submitBtn.disabled = true;
+                        submitBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                    }
                 }
             }
 
             document.addEventListener('DOMContentLoaded', function() {
                 calculateTotal();
 
-                @if(!$fromStock)
                 if (window.jQuery && jQuery.fn.select2) {
-                    var $productSel = jQuery('#product_id');
-                    $productSel.select2({
-                        placeholder: 'Search category-model…',
-                        width: '100%',
-                        allowClear: false
-                    });
-                    var oldPid = @json(old('product_id'));
-                    if (oldPid) {
-                        $productSel.val(String(oldPid)).trigger('change');
-                    }
                     var $vendorSel = jQuery('#distributor_name');
                     $vendorSel.select2({
                         placeholder: 'Select vendor…',
@@ -291,7 +418,59 @@
                         allowClear: false
                     });
                 }
-                @endif
+
+                if (!purchaseFromStock && window.jQuery && jQuery.fn.select2) {
+                    jQuery('#purchase_line_rows .js-line-product-select').each(function() {
+                        initLineProductSelect2(jQuery(this));
+                    });
+
+                    document.getElementById('add_purchase_line')?.addEventListener('click', function() {
+                        const tbody = document.getElementById('purchase_line_rows');
+                        const first = tbody.querySelector('tr.purchase-line-row');
+                        if (!first) return;
+                        jQuery('#purchase_line_rows .js-line-product-select').each(function() {
+                            if (jQuery(this).data('select2')) {
+                                jQuery(this).select2('destroy');
+                            }
+                        });
+                        const clone = first.cloneNode(true);
+                        clone.querySelectorAll('input').forEach(function(inp) {
+                            inp.value = '';
+                        });
+                        const sel = clone.querySelector('.js-line-product-select');
+                        if (sel) {
+                            sel.selectedIndex = 0;
+                        }
+                        tbody.appendChild(clone);
+                        reindexPurchaseLineRows();
+                        jQuery('#purchase_line_rows .js-line-product-select').each(function() {
+                            initLineProductSelect2(jQuery(this));
+                        });
+                        calculateTotal();
+                    });
+
+                    document.getElementById('purchase_line_rows')?.addEventListener('click', function(e) {
+                        if (!e.target.classList.contains('remove-line-row')) return;
+                        const tr = e.target.closest('tr.purchase-line-row');
+                        const tbody = document.getElementById('purchase_line_rows');
+                        if (!tr || !tbody) return;
+                        if (tbody.querySelectorAll('tr.purchase-line-row').length <= 1) {
+                            alert('At least one model row is required.');
+                            return;
+                        }
+                        jQuery('#purchase_line_rows .js-line-product-select').each(function() {
+                            if (jQuery(this).data('select2')) {
+                                jQuery(this).select2('destroy');
+                            }
+                        });
+                        tr.remove();
+                        reindexPurchaseLineRows();
+                        jQuery('#purchase_line_rows .js-line-product-select').each(function() {
+                            initLineProductSelect2(jQuery(this));
+                        });
+                        calculateTotal();
+                    });
+                }
             });
         </script>
     @endpush

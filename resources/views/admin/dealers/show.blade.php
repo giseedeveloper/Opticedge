@@ -18,6 +18,16 @@
             </a>
         </div>
 
+        @if(session('success'))
+            <div class="admin-prod-alert admin-prod-alert--success mb-6" role="status">{{ session('success') }}</div>
+        @endif
+        @if(session('error'))
+            <div class="admin-prod-alert admin-prod-alert--error mb-6" role="alert">{{ session('error') }}</div>
+        @endif
+        @if($errors->any())
+            <div class="admin-prod-alert admin-prod-alert--error mb-6" role="alert">{{ $errors->first() }}</div>
+        @endif
+
         <div class="admin-clay-panel overflow-hidden mb-6">
             <div class="admin-prod-form-head">
                 <h2 class="admin-prod-form-title">Applicant information</h2>
@@ -62,6 +72,66 @@
                     <dd class="admin-prod-detail-dd font-variant-numeric">{{ $user->created_at->format('F j, Y') }}</dd>
                 </div>
             </dl>
+        </div>
+
+        <div class="admin-clay-panel admin-prod-form-shell overflow-hidden mb-6">
+            <div class="admin-prod-form-head">
+                <h2 class="admin-prod-form-title">Update dealer information</h2>
+                <p class="admin-prod-form-hint">Change contact details, business name, email, or set a new password. Leave password blank to keep the current one.</p>
+            </div>
+            <form method="POST" action="{{ route('admin.dealers.update', $user) }}" class="admin-prod-form-body space-y-6">
+                @csrf
+                @method('PATCH')
+                <div>
+                    <label for="edit_name" class="admin-prod-label">Full name</label>
+                    <input type="text" id="edit_name" name="name" value="{{ old('name', $user->name) }}" required
+                        class="admin-prod-input" autocomplete="name">
+                    @error('name')
+                        <p class="text-red-600 text-xs mt-1.5 font-semibold">{{ $message }}</p>
+                    @enderror
+                </div>
+                <div>
+                    <label for="edit_business_name" class="admin-prod-label">Business name</label>
+                    <input type="text" id="edit_business_name" name="business_name"
+                        value="{{ old('business_name', $user->business_name) }}" required class="admin-prod-input"
+                        autocomplete="organization">
+                    @error('business_name')
+                        <p class="text-red-600 text-xs mt-1.5 font-semibold">{{ $message }}</p>
+                    @enderror
+                </div>
+                <div>
+                    <label for="edit_email" class="admin-prod-label">Email</label>
+                    <input type="email" id="edit_email" name="email" value="{{ old('email', $user->email) }}" required
+                        class="admin-prod-input" autocomplete="email">
+                    @error('email')
+                        <p class="text-red-600 text-xs mt-1.5 font-semibold">{{ $message }}</p>
+                    @enderror
+                </div>
+                <div>
+                    <label for="edit_phone" class="admin-prod-label">Phone</label>
+                    <input type="tel" id="edit_phone" name="phone" value="{{ old('phone', $user->phone) }}"
+                        class="admin-prod-input" autocomplete="tel" placeholder="e.g. +255 …">
+                    @error('phone')
+                        <p class="text-red-600 text-xs mt-1.5 font-semibold">{{ $message }}</p>
+                    @enderror
+                </div>
+                <div>
+                    <label for="edit_password" class="admin-prod-label">New password</label>
+                    <input type="password" id="edit_password" name="password" class="admin-prod-input"
+                        autocomplete="new-password" placeholder="Leave blank to keep current password">
+                    @error('password')
+                        <p class="text-red-600 text-xs mt-1.5 font-semibold">{{ $message }}</p>
+                    @enderror
+                </div>
+                <div>
+                    <label for="edit_password_confirmation" class="admin-prod-label">Confirm new password</label>
+                    <input type="password" id="edit_password_confirmation" name="password_confirmation"
+                        class="admin-prod-input" autocomplete="new-password">
+                </div>
+                <div class="admin-prod-form-footer !mt-0">
+                    <button type="submit" class="admin-prod-btn-primary px-6">Save changes</button>
+                </div>
+            </form>
         </div>
 
         <div class="admin-clay-panel overflow-hidden mb-6">

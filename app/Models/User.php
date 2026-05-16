@@ -28,6 +28,10 @@ class User extends Authenticatable
         'business_name',
         'phone',
         'branch_id',
+        'region_id',
+        'regional_manager_id',
+        'team_leader_id',
+        'notes',
         'how_did_you_hear',
         'referred_by',
     ];
@@ -76,8 +80,45 @@ class User extends Authenticatable
         return $this->belongsTo(Branch::class);
     }
 
+    public function region()
+    {
+        return $this->belongsTo(Region::class);
+    }
+
+    /** Direct manager for team leaders (regional manager user). */
+    public function regionalManager()
+    {
+        return $this->belongsTo(User::class, 'regional_manager_id');
+    }
+
+    /** Team leaders reporting to this regional manager. */
+    public function managedTeamLeaders()
+    {
+        return $this->hasMany(User::class, 'regional_manager_id');
+    }
+
+    /** Team leader this agent reports to (agents only). */
+    public function teamLeader()
+    {
+        return $this->belongsTo(User::class, 'team_leader_id');
+    }
+
+    /** Agents reporting to this user when they are a team leader. */
+    public function managedAgents()
+    {
+        return $this->hasMany(User::class, 'team_leader_id');
+    }
+
     public function subadminRole()
     {
         return $this->belongsTo(SubadminRole::class, 'subadmin_role_id');
+    }
+
+    /**
+     * User roles allowed when listing or filtering users by `role` (admin directory tabs, API).
+     */
+    public static function customerDirectoryRoleFilters(): array
+    {
+        return ['dealer', 'customer', 'agent', 'teamleader', 'regional_manager'];
     }
 }

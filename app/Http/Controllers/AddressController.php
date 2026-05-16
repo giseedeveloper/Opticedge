@@ -2,20 +2,30 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
 use App\Models\Address;
+use App\Support\TeamLeaderRoutes;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
 class AddressController extends Controller
 {
     public function index()
     {
+        if (TeamLeaderRoutes::isTeamLeader(Auth::user())) {
+            return redirect()->route('team-leader.addresses.index');
+        }
+
         $addresses = Auth::user()->addresses;
+
         return view('account.addresses.index', compact('addresses'));
     }
 
     public function create()
     {
+        if (TeamLeaderRoutes::isTeamLeader(Auth::user())) {
+            return redirect()->route('team-leader.addresses.create');
+        }
+
         return view('account.addresses.create');
     }
 
@@ -34,7 +44,7 @@ class AddressController extends Controller
 
         Auth::user()->addresses()->create($validated);
 
-        return redirect()->route('addresses.index')->with('success', 'Address added successfully.');
+        return redirect()->route(TeamLeaderRoutes::addressesIndex())->with('success', 'Address added successfully.');
     }
 
     public function edit(Address $address)
@@ -42,6 +52,11 @@ class AddressController extends Controller
         if ($address->user_id !== Auth::id()) {
             abort(403);
         }
+
+        if (TeamLeaderRoutes::isTeamLeader(Auth::user())) {
+            return redirect()->route('team-leader.addresses.edit', $address);
+        }
+
         return view('account.addresses.edit', compact('address'));
     }
 
@@ -64,7 +79,7 @@ class AddressController extends Controller
 
         $address->update($validated);
 
-        return redirect()->route('addresses.index')->with('success', 'Address updated successfully.');
+        return redirect()->route(TeamLeaderRoutes::addressesIndex())->with('success', 'Address updated successfully.');
     }
 
     public function destroy(Address $address)
@@ -73,6 +88,7 @@ class AddressController extends Controller
             abort(403);
         }
         $address->delete();
-        return redirect()->route('addresses.index')->with('success', 'Address deleted successfully.');
+
+        return redirect()->route(TeamLeaderRoutes::addressesIndex())->with('success', 'Address deleted successfully.');
     }
 }

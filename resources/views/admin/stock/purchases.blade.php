@@ -137,7 +137,13 @@
                                 <td class="text-slate-600 text-sm">{{ $purchase->date }}</td>
                                 <td class="text-slate-600">{{ $purchase->branch?->name ?? '–' }}</td>
                                 <td class="text-slate-600">{{ $purchase->distributor_name ?? '-' }}</td>
-                                <td class="font-medium text-[#232f3e]">{{ $purchase->product?->name ?? 'N/A' }}</td>
+                                <td class="font-medium text-[#232f3e]">
+                                    @if(($purchase->lines ?? collect())->isNotEmpty())
+                                        {{ $purchase->lines->map(fn ($l) => $l->product?->name)->filter()->unique()->implode(', ') }}
+                                    @else
+                                        {{ $purchase->product?->name ?? 'N/A' }}
+                                    @endif
+                                </td>
                                 <td class="font-variant-numeric">{{ $purchase->quantity }}</td>
                                 <td class="font-variant-numeric text-sm">{{ number_format($purchase->unit_price, 2) }}</td>
                                 <td class="font-variant-numeric font-bold">{{ number_format($totalVal, 2) }}</td>
@@ -145,7 +151,15 @@
                                 <td class="font-variant-numeric text-sm">{{ number_format($paidVal, 2) }}</td>
                                 <td class="font-variant-numeric font-medium">{{ number_format($pendingVal, 2) }}</td>
                                 <td class="font-variant-numeric text-sm">
-                                    {{ $purchase->sell_price !== null ? number_format($purchase->sell_price, 2) : '–' }}</td>
+                                    @if(($purchase->lines ?? collect())->isNotEmpty())
+                                        @php
+                                            $sells = $purchase->lines->pluck('sell_price')->filter(fn ($s) => $s !== null)->unique();
+                                        @endphp
+                                        {{ $sells->isNotEmpty() ? $sells->map(fn ($s) => number_format((float) $s, 2))->implode(', ') : '–' }}
+                                    @else
+                                        {{ $purchase->sell_price !== null ? number_format($purchase->sell_price, 2) : '–' }}
+                                    @endif
+                                </td>
                                 <td>
                                     <span
                                         class="admin-prod-dealer-status {{ $purchase->payment_status === 'paid' ? 'admin-prod-dealer-status--active' : ($purchase->payment_status === 'partial' ? 'admin-prod-dealer-status--pending' : 'admin-prod-dealer-status--suspended') }}">

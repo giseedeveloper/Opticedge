@@ -4,44 +4,21 @@ namespace App\Http\Controllers;
 
 use App\Models\Order;
 use App\Models\Selcompay;
-use App\Models\Setting;
+use App\Support\TeamLeaderRoutes;
 use App\Services\DistributionSaleService;
 use App\Services\SelcomApiService;
+use App\Services\SelcomCredentialResolver;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
 class SelcomController extends Controller
 {
     /**
-     * Get Selcom credentials from database (Admin → Settings).
-     * Falls back to .env (config) when DB values are missing.
+     * @return array{vendor: string, api_key: string, api_secret: string, live: bool}
      */
     protected function getSelcomCredentialsFromDb(): array
     {
-        $settings = Setting::whereIn('key', [
-            'selcom_vendor_id', 'selcom_api_key', 'selcom_api_secret', 'selcom_is_live',
-        ])->pluck('value', 'key');
-
-        $vendor = trim((string) ($settings->get('selcom_vendor_id') ?? ''));
-        $key = trim((string) ($settings->get('selcom_api_key') ?? ''));
-        $secret = trim((string) ($settings->get('selcom_api_secret') ?? ''));
-        $isLive = in_array($settings->get('selcom_is_live'), ['1', 'true', 'yes'], true);
-
-        if ($vendor !== '' && $key !== '' && $secret !== '') {
-            return [
-                'vendor' => $vendor,
-                'api_key' => $key,
-                'api_secret' => $secret,
-                'live' => $isLive,
-            ];
-        }
-
-        return [
-            'vendor' => $vendor !== '' ? $vendor : (string) config('selcom.vendor'),
-            'api_key' => $key !== '' ? $key : (string) config('selcom.key'),
-            'api_secret' => $secret !== '' ? $secret : (string) config('selcom.secret'),
-            'live' => $isLive ?: (bool) config('selcom.live'),
-        ];
+        return app(SelcomCredentialResolver::class)->resolve();
     }
 
     protected function getSelcomService(): SelcomApiService
@@ -85,7 +62,7 @@ class SelcomController extends Controller
             $orderId = 'SELCOM' . now()->timestamp . rand(1000, 9999);
 
             $creds = $this->getSelcomCredentialsFromDb();
-            $redirectUrl = config('selcom.redirect_url') ?: route('orders.index');
+            $redirectUrl = config('selcom.redirect_url') ?: TeamLeaderRoutes::ordersIndexUrl($order->user);
             $cancelUrl = config('selcom.cancel_url') ?: route('checkout.create');
             $webhookUrl = route('selcom.checkout-callback');
 
@@ -163,6 +140,7 @@ class SelcomController extends Controller
                     'amount' => $createPayload['amount'],
                     'payment_status' => 'pending',
                     'local_order_id' => $order->id,
+                    'purpose' => Selcompay::PURPOSE_ORDER_PAYMENT,
                 ]);
 
                 Log::info('Selcom payment record created', [

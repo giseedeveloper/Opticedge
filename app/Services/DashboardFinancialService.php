@@ -247,7 +247,7 @@ class DashboardFinancialService
     }
 
     /**
-     * Profit from Distribution Sales + Agent Sales profit.
+     * Profit from Distribution Sales + Agent Sales + Agent Credits (per-credit: financed amount minus current buy price for the product).
      */
     public function grossProfit(?Carbon $startDate = null, ?Carbon $endDate = null): float
     {
@@ -259,7 +259,32 @@ class DashboardFinancialService
         $this->applyDateRange($agentSalesQuery, 'date', $startDate, $endDate);
         $agentProfit = (float) $agentSalesQuery->sum('profit');
 
-        return $distProfit + $agentProfit;
+        return $distProfit + $agentProfit + $this->agentCreditsProfit($startDate, $endDate);
+    }
+
+    /**
+     * Margin on agent credit sales: same basis as agent cash sales (sell amount − latest purchase unit price per product).
+     */
+    private function agentCreditsProfit(?Carbon $startDate = null, ?Carbon $endDate = null): float
+    {
+        $query = AgentCredit::query()->whereNotNull('product_id');
+        $this->applyDateRange($query, 'date', $startDate, $endDate);
+        $credits = $query->get(['product_id', 'total_amount']);
+        if ($credits->isEmpty()) {
+            return 0.0;
+        }
+
+        $buyByProductId = [];
+        $total = 0.0;
+        foreach ($credits as $credit) {
+            $productId = (int) $credit->product_id;
+            if (! isset($buyByProductId[$productId])) {
+                $buyByProductId[$productId] = $this->distributionSaleService->getBuyPriceForProduct($productId);
+            }
+            $total += (float) ($credit->total_amount ?? 0) - $buyByProductId[$productId];
+        }
+
+        return (float) $total;
     }
 
     /**

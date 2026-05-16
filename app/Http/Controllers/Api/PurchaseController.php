@@ -15,6 +15,14 @@ class PurchaseController extends Controller
         $paid = (float) ($p->paid_amount ?? 0);
         $pending = max(0, $total - $paid);
 
+        $productName = $p->product?->name ?? 'N/A';
+        if ($p->relationLoaded('lines') && $p->lines->isNotEmpty()) {
+            $names = $p->lines->map(fn ($l) => $l->product?->name)->filter()->unique()->values();
+            if ($names->isNotEmpty()) {
+                $productName = $names->implode(', ');
+            }
+        }
+
         return [
             'id' => $p->id,
             'name' => $p->name ?? 'Purchase #' . $p->id,
@@ -28,8 +36,21 @@ class PurchaseController extends Controller
             'branch_id' => $p->branch_id,
             'branch_name' => $p->branch?->name,
             'distributor_name' => $p->distributor_name,
-            'product_name' => $p->product?->name ?? 'N/A',
+            'product_name' => $productName,
             'product_category_name' => $p->product?->category?->name ?? null,
+            'note' => $p->note ?? null,
+            'lines' => ($p->relationLoaded('lines') && $p->lines->isNotEmpty())
+                ? $p->lines->map(function ($line) {
+                    return [
+                        'product_id' => $line->product_id,
+                        'model' => $line->product?->name,
+                        'quantity' => (int) $line->quantity,
+                        'unit_price' => (float) $line->unit_price,
+                        'sell_price' => $line->sell_price !== null ? (float) $line->sell_price : null,
+                        'limit_remaining' => (int) $line->limit_remaining,
+                    ];
+                })->values()->all()
+                : null,
             'quantity' => $qty,
             'unit_price' => $unit,
             'total_amount' => $total,
@@ -53,7 +74,7 @@ class PurchaseController extends Controller
      */
     public function index()
     {
-        $purchases = Purchase::with(['product.category', 'stock', 'branch'])
+        $purchases = Purchase::with(['product.category', 'lines.product.category', 'stock', 'branch'])
             ->orderBy('date', 'desc')
             ->orderBy('id', 'desc')
             ->get()
@@ -71,6 +92,7 @@ class PurchaseController extends Controller
     {
         $purchase = Purchase::with([
             'product.category',
+            'lines.product.category',
             'stock',
             'branch',
             'paymentOption',
@@ -125,7 +147,7 @@ class PurchaseController extends Controller
      */
     public function forAddProduct()
     {
-        $purchases = Purchase::with(['product.category', 'stock', 'branch'])
+        $purchases = Purchase::with(['product.category', 'lines.product.category', 'stock', 'branch'])
             ->where('limit_status', 'pending')
             ->where('limit_remaining', '>', 0)
             ->orderBy('date', 'desc')
@@ -134,6 +156,25 @@ class PurchaseController extends Controller
             ->map(function ($p) {
                 $product = $p->product;
                 $category = $product?->category;
+
+                $models = [];
+                if ($p->lines->isNotEmpty()) {
+                    foreach ($p->lines as $line) {
+                        $lp = $line->product;
+                        if (! $lp || (int) $line->limit_remaining <= 0) {
+                            continue;
+                        }
+                        $models[] = [
+                            'product_id' => $lp->id,
+                            'category_id' => $lp->category_id,
+                            'category_name' => $lp->category?->name ?? '–',
+                            'model' => $lp->name,
+                            'limit_remaining' => (int) $line->limit_remaining,
+                            'unit_price' => (float) $line->unit_price,
+                            'sell_price' => $line->sell_price !== null ? (float) $line->sell_price : null,
+                        ];
+                    }
+                }
 
                 return [
                     'id' => $p->id,
@@ -145,6 +186,8 @@ class PurchaseController extends Controller
                     'category_id' => $product?->category_id,
                     'category_name' => $category?->name ?? '–',
                     'model' => $product?->name ?? '–',
+                    'requires_product_id' => $p->lines->isNotEmpty(),
+                    'models' => $models !== [] ? $models : null,
                 ];
             })
             ->values()
@@ -159,33 +202,38 @@ class PurchaseController extends Controller
      */
     public function imagesGallery()
     {
-        $purchases = Purchase::with('product')
-            ->whereHas('product', function ($q) {
-                $q->whereNotNull('images');
-            })
+        $purchases = Purchase::with(['product', 'lines.product'])
             ->get()
             ->flatMap(function ($purchase) {
-                $product = $purchase->product;
-                if (!$product || empty($product->images)) {
-                    return [];
+                $rows = collect();
+
+                $pushProduct = function ($product) use ($purchase, &$rows) {
+                    if (! $product || empty($product->images)) {
+                        return;
+                    }
+                    $images = is_string($product->images) ? json_decode($product->images, true) : $product->images;
+                    if (! is_array($images)) {
+                        return;
+                    }
+                    foreach ($images as $imagePath) {
+                        $rows->push([
+                            'id' => $purchase->id . '_' . $product->id . '_' . md5((string) $imagePath),
+                            'purchase_id' => $purchase->id,
+                            'purchase_name' => $purchase->name ?? 'Purchase #' . $purchase->id,
+                            'product_id' => $product->id,
+                            'product_name' => $product->name,
+                            'image_path' => $imagePath,
+                            'image_url' => asset('storage/' . $imagePath),
+                        ]);
+                    }
+                };
+
+                $pushProduct($purchase->product);
+                foreach ($purchase->lines as $line) {
+                    $pushProduct($line->product);
                 }
 
-                $images = is_string($product->images) ? json_decode($product->images, true) : $product->images;
-                if (!is_array($images)) {
-                    return [];
-                }
-
-                return collect($images)->map(function ($imagePath) use ($purchase, $product) {
-                    return [
-                        'id' => $purchase->id . '_' . md5($imagePath),
-                        'purchase_id' => $purchase->id,
-                        'purchase_name' => $purchase->name ?? 'Purchase #' . $purchase->id,
-                        'product_id' => $product->id,
-                        'product_name' => $product->name,
-                        'image_path' => $imagePath,
-                        'image_url' => asset('storage/' . $imagePath),
-                    ];
-                });
+                return $rows;
             })
             ->values()
             ->all();

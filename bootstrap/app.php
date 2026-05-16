@@ -14,6 +14,8 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'admin' => \App\Http\Middleware\AdminMiddleware::class,
             'agent' => \App\Http\Middleware\AgentMiddleware::class,
+            'teamleader' => \App\Http\Middleware\TeamLeaderMiddleware::class,
+            'regionalmanager' => \App\Http\Middleware\RegionalManagerMiddleware::class,
             'active' => \App\Http\Middleware\EnsureUserIsActive::class,
             'subadmin.ability' => \App\Http\Middleware\SubadminAbilityMiddleware::class,
         ]);

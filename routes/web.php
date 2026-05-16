@@ -42,6 +42,12 @@ Route::get('dashboard', function () {
     if (auth()->user()->role === 'agent') {
         return redirect()->route('agent.dashboard');
     }
+    if (auth()->user()->role === 'teamleader') {
+        return redirect()->route('team-leader.dashboard');
+    }
+    if (auth()->user()->role === 'regional_manager') {
+        return redirect()->route('regional-manager.dashboard');
+    }
     return view('dashboard');
 })->middleware(['auth', 'verified', 'active'])->name('dashboard');
 
@@ -51,9 +57,16 @@ Route::middleware('guest')->group(function () {
     Volt::route('register/agent', 'pages.auth.agent-register')->name('agent.register');
 });
 
-Route::view('profile', 'profile')
-    ->middleware(['auth'])
-    ->name('profile');
+Route::get('profile', function () {
+    if (auth()->user()?->role === 'teamleader') {
+        return redirect()->route('team-leader.profile');
+    }
+    if (auth()->user()?->role === 'regional_manager') {
+        return redirect()->route('regional-manager.profile');
+    }
+
+    return view('profile');
+})->middleware(['auth'])->name('profile');
 
 // Command center (UI) + POST actions — must be registered before GET command/{command}
 Route::middleware(['auth', 'admin'])->group(function () {
@@ -171,6 +184,7 @@ Route::middleware(['auth', 'admin', 'subadmin.ability'])->prefix('admin')->name(
         Route::get('dealers/create', [App\Http\Controllers\Admin\DealerController::class, 'create'])->name('dealers.create');
         Route::post('dealers', [App\Http\Controllers\Admin\DealerController::class, 'store'])->name('dealers.store');
         Route::get('dealers/{user}', [App\Http\Controllers\Admin\DealerController::class , 'show'])->name('dealers.show');
+        Route::patch('dealers/{user}', [App\Http\Controllers\Admin\DealerController::class, 'update'])->name('dealers.update');
         Route::patch('dealers/{user}/approve', [App\Http\Controllers\Admin\DealerController::class , 'approve'])->name('dealers.approve');
         Route::patch('dealers/{user}/reject', [App\Http\Controllers\Admin\DealerController::class , 'reject'])->name('dealers.reject');
         Route::delete('dealers/{user}', [App\Http\Controllers\Admin\DealerController::class, 'destroy'])->name('dealers.destroy');
@@ -186,7 +200,9 @@ Route::middleware(['auth', 'admin', 'subadmin.ability'])->prefix('admin')->name(
         Route::post('agents/assign-products', [App\Http\Controllers\Admin\AgentController::class, 'storeAssignment'])->name('agents.store-assignment');
         Route::get('agents/assignable-imeis', [App\Http\Controllers\Admin\AgentController::class, 'assignableImeis'])->name('assignable-imeis');
         Route::get('agents/{agent}', [App\Http\Controllers\Admin\AgentController::class, 'show'])->name('agents.show');
+        Route::patch('agents/{agent}', [App\Http\Controllers\Admin\AgentController::class, 'update'])->name('agents.update');
         Route::patch('agents/{agent}/transfer-branch', [App\Http\Controllers\Admin\AgentController::class, 'transferBranch'])->name('agents.transfer-branch');
+        Route::patch('agents/{agent}/team-leader', [App\Http\Controllers\Admin\AgentController::class, 'updateTeamLeader'])->name('agents.update-team-leader');
         Route::patch('agents/{user}/activate', [App\Http\Controllers\Admin\AgentController::class, 'activate'])->name('agents.activate');
         Route::patch('agents/{user}/deactivate', [App\Http\Controllers\Admin\AgentController::class, 'deactivate'])->name('agents.deactivate');
         Route::delete('agents/{user}', [App\Http\Controllers\Admin\AgentController::class, 'destroy'])->name('agents.destroy');
@@ -199,6 +215,10 @@ Route::middleware(['auth', 'admin', 'subadmin.ability'])->prefix('admin')->name(
 
         // Customers
         Route::get('customers', [App\Http\Controllers\Admin\CustomerController::class , 'index'])->name('customers.index');
+        Route::get('customers/regional-managers', [App\Http\Controllers\Admin\CustomerController::class, 'regionalManagersIndex'])->name('customers.regional-managers.index');
+        Route::post('customers/regional-managers', [App\Http\Controllers\Admin\CustomerController::class, 'storeRegionalManager'])->name('customers.regional-managers.store');
+        Route::get('customers/team-leaders', [App\Http\Controllers\Admin\CustomerController::class, 'teamLeadersIndex'])->name('customers.team-leaders.index');
+        Route::post('customers/team-leaders', [App\Http\Controllers\Admin\CustomerController::class, 'storeTeamLeader'])->name('customers.team-leaders.store');
         Route::patch('customers/{user}/activate', [App\Http\Controllers\Admin\CustomerController::class, 'activate'])->name('customers.activate');
         Route::patch('customers/{user}/deactivate', [App\Http\Controllers\Admin\CustomerController::class, 'deactivate'])->name('customers.deactivate');
         Route::delete('customers/{user}', [App\Http\Controllers\Admin\CustomerController::class, 'destroy'])->name('customers.destroy');
@@ -229,6 +249,11 @@ Route::middleware(['auth', 'admin', 'subadmin.ability'])->prefix('admin')->name(
 
         // Expenses
         Route::resource('expenses', App\Http\Controllers\Admin\ExpenseController::class)->except(['show']);
+
+        Route::get('payout', [App\Http\Controllers\Admin\PayoutController::class, 'index'])->name('payout.index');
+        Route::post('payout/agent-commission/selcom-bulk', [App\Http\Controllers\Admin\CommissionSelcomPayoutController::class, 'bulkStart'])->name('payout.commission-selcom.bulk');
+        Route::get('payout/selcom/{selcompay}/wait', [App\Http\Controllers\Admin\CommissionSelcomPayoutController::class, 'wait'])->name('payout.selcom.wait');
+        Route::get('payout/selcom/{selcompay}/status', [App\Http\Controllers\Admin\CommissionSelcomPayoutController::class, 'status'])->name('payout.selcom.status');
 
         // Payment Options
         Route::patch('payment-options/{payment_option}/toggle-visibility', [App\Http\Controllers\Admin\PaymentOptionController::class, 'toggleVisibility'])->name('payment-options.toggle-visibility');
@@ -369,6 +394,25 @@ Route::middleware(['auth', 'admin', 'subadmin.ability'])->prefix('admin')->name(
         }
         )->name('system.storage-link');
     });
+
+// Regional manager portal
+Route::middleware(['auth', 'verified', 'active', 'regionalmanager'])->prefix('regional-manager')->name('regional-manager.')->group(function () {
+    Route::get('dashboard', [App\Http\Controllers\RegionalManagerController::class, 'dashboard'])->name('dashboard');
+    Route::get('region-inventory', [App\Http\Controllers\RegionalManagerController::class, 'regionInventory'])->name('region-inventory');
+    Route::get('profile', [App\Http\Controllers\RegionalManagerController::class, 'profile'])->name('profile');
+});
+
+// Team leader portal
+Route::middleware(['auth', 'verified', 'active', 'teamleader'])->prefix('team-leader')->name('team-leader.')->group(function () {
+    Route::get('dashboard', [App\Http\Controllers\TeamLeaderController::class, 'dashboard'])->name('dashboard');
+    Route::get('team-inventory', [App\Http\Controllers\TeamLeaderController::class, 'teamInventory'])->name('team-inventory');
+    Route::get('profile', [App\Http\Controllers\TeamLeaderController::class, 'profile'])->name('profile');
+    Route::get('orders', [App\Http\Controllers\TeamLeaderController::class, 'orders'])->name('orders');
+    Route::get('cart', [App\Http\Controllers\TeamLeaderController::class, 'cart'])->name('cart');
+    Route::get('addresses', [App\Http\Controllers\TeamLeaderController::class, 'addressesIndex'])->name('addresses.index');
+    Route::get('addresses/create', [App\Http\Controllers\TeamLeaderController::class, 'addressesCreate'])->name('addresses.create');
+    Route::get('addresses/{address}/edit', [App\Http\Controllers\TeamLeaderController::class, 'addressesEdit'])->name('addresses.edit');
+});
 
 // Agent dashboard and sales (role = agent)
 Route::middleware(['auth', 'verified', 'active', 'agent'])->prefix('agent')->name('agent.')->group(function () {

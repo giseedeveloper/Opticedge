@@ -11,12 +11,12 @@ class UserController extends Controller
     public function index(Request $request)
     {
         $role = $request->query('role', 'customer');
-        if (!in_array($role, ['customer', 'dealer', 'agent'], true)) {
+        if (! in_array($role, User::customerDirectoryRoleFilters(), true)) {
             $role = 'customer';
         }
 
         $users = User::where('role', $role)
-            ->orderBy($role === 'agent' ? 'name' : 'created_at')
+            ->orderBy(in_array($role, ['agent', 'teamleader', 'regional_manager'], true) ? 'name' : 'created_at')
             ->orderByDesc('created_at')
             ->take(200)
             ->get(['id', 'name', 'email', 'role', 'status', 'phone', 'business_name', 'created_at'])

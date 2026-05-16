@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Order;
+use App\Support\TeamLeaderRoutes;
 use App\Services\DistributionSaleService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -13,6 +14,10 @@ class OrderController extends Controller
     {
         if (!Auth::check()) {
             return redirect()->route('login');
+        }
+
+        if (TeamLeaderRoutes::isTeamLeader(Auth::user())) {
+            return redirect()->route('team-leader.orders');
         }
 
         $orders = Order::where('user_id', Auth::id())
@@ -28,7 +33,7 @@ class OrderController extends Controller
         $cart = \App\Models\Cart::where('user_id', Auth::id())->with('items.product')->first();
 
         if (!$cart || $cart->items->isEmpty()) {
-            return redirect()->route('cart.index')->with('error', 'Your cart is empty.');
+            return redirect()->route(TeamLeaderRoutes::cartIndex())->with('error', 'Your cart is empty.');
         }
 
         $addresses = Auth::user()->addresses;
@@ -47,7 +52,7 @@ class OrderController extends Controller
         $cart = \App\Models\Cart::where('user_id', Auth::id())->with('items.product')->first();
 
         if (!$cart || $cart->items->isEmpty()) {
-            return redirect()->route('cart.index')->with('error', 'Cart is empty.');
+            return redirect()->route(TeamLeaderRoutes::cartIndex())->with('error', 'Cart is empty.');
         }
 
         // Calculate total
@@ -104,6 +109,6 @@ class OrderController extends Controller
             app(DistributionSaleService::class)->createFromOrder($order, 'pending');
         }
 
-        return redirect()->route('orders.index')->with('success', 'Order placed successfully!');
+        return redirect()->route(TeamLeaderRoutes::ordersIndex())->with('success', 'Order placed successfully!');
     }
 }

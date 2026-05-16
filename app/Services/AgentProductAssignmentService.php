@@ -97,14 +97,18 @@ class AgentProductAssignmentService
 
         return DB::transaction(function () use ($agent, $productId, $quantity, $purchaseId) {
             $purchase = null;
-            if ($purchaseId !== null) {
+                if ($purchaseId !== null) {
                 $purchase = Purchase::query()
-                    ->with('product')
+                    ->with(['product', 'lines'])
                     ->find($purchaseId);
                 if (! $purchase) {
                     throw new \InvalidArgumentException('Selected purchase does not exist.');
                 }
-                if ((int) $purchase->product_id !== $productId) {
+                $matches = (int) $purchase->product_id === $productId;
+                if ($purchase->lines()->exists()) {
+                    $matches = $purchase->lines()->where('product_id', $productId)->exists();
+                }
+                if (! $matches) {
                     throw new \InvalidArgumentException('Selected purchase does not match the selected model.');
                 }
             }

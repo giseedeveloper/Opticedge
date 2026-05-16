@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Branch;
 use App\Models\Purchase;
+use App\Models\PurchaseLine;
 use App\Models\PurchasePayment;
 use App\Models\AgentSale;
 use App\Models\DistributionSale;
@@ -129,7 +130,7 @@ class StockController extends Controller
      */
     public function showPurchase($id)
     {
-        $purchase = Purchase::findOrFail($id);
+        $purchase = Purchase::with(['lines.product.category', 'product.category'])->findOrFail($id);
         $items = $purchase->productListItems()
             ->with([
                 'category:id,name',
@@ -178,16 +179,25 @@ class StockController extends Controller
             DB::table('product_list')->where('id', $productListItem->id)->delete();
 
             if (Schema::hasColumn('purchases', 'limit_remaining')) {
-                $currentRemaining = (int) ($purchase->limit_remaining ?? 0);
-                $maxLimit = (int) ($purchase->quantity ?? 0);
-                $nextRemaining = $maxLimit > 0
-                    ? min($maxLimit, $currentRemaining + 1)
-                    : ($currentRemaining + 1);
-                $update = ['limit_remaining' => $nextRemaining];
-                if (Schema::hasColumn('purchases', 'limit_status')) {
-                    $update['limit_status'] = $nextRemaining > 0 ? 'pending' : 'complete';
+                if ($purchase->lines()->exists()) {
+                    $line = $purchase->lines()->where('product_id', $productListItem->product_id)->first();
+                    if ($line) {
+                        $next = min((int) $line->quantity, (int) $line->limit_remaining + 1);
+                        $line->update(['limit_remaining' => $next]);
+                    }
+                    $purchase->syncAggregatesFromLines();
+                } else {
+                    $currentRemaining = (int) ($purchase->limit_remaining ?? 0);
+                    $maxLimit = (int) ($purchase->quantity ?? 0);
+                    $nextRemaining = $maxLimit > 0
+                        ? min($maxLimit, $currentRemaining + 1)
+                        : ($currentRemaining + 1);
+                    $update = ['limit_remaining' => $nextRemaining];
+                    if (Schema::hasColumn('purchases', 'limit_status')) {
+                        $update['limit_status'] = $nextRemaining > 0 ? 'pending' : 'complete';
+                    }
+                    $purchase->update($update);
                 }
-                $purchase->update($update);
             }
         });
 
@@ -245,7 +255,7 @@ class StockController extends Controller
             }
         }
 
-        $query = Purchase::with(['product', 'stock', 'branch']);
+        $query = Purchase::with(['product', 'stock', 'branch', 'lines.product']);
 
         if ($dateFrom) {
             $query->where('date', '>=', $dateFrom);
@@ -273,7 +283,7 @@ class StockController extends Controller
 
     public function exportPurchasesCsv(Request $request)
     {
-        $query = Purchase::with(['product.category', 'branch']);
+        $query = Purchase::with(['product.category', 'branch', 'lines.product.category']);
 
         if ($request->filled('date_from')) {
             $query->whereDate('date', '>=', $request->input('date_from'));
@@ -308,19 +318,43 @@ class StockController extends Controller
                 $paid = (float) ($purchase->paid_amount ?? 0);
                 $pending = max(0, $total - $paid);
 
+                $productCell = '';
+                if ($purchase->lines->isNotEmpty()) {
+                    $productCell = $purchase->lines
+                        ->map(function ($line) {
+                            $p = $line->product;
+                            if (! $p) {
+                                return '';
+                            }
+
+                            return trim(($p->category?->name ? $p->category->name.' - ' : '').$p->name);
+                        })
+                        ->filter()
+                        ->unique()
+                        ->implode('; ');
+                } else {
+                    $productCell = trim(($purchase->product?->category?->name ? $purchase->product->category->name.' - ' : '').($purchase->product?->name ?? ''));
+                }
+
+                $sellCell = $purchase->sell_price !== null
+                    ? number_format((float) $purchase->sell_price, 2, '.', '')
+                    : ($purchase->lines->isNotEmpty()
+                        ? $purchase->lines->map(fn ($l) => $l->sell_price !== null ? number_format((float) $l->sell_price, 2, '.', '') : null)->filter()->unique()->implode('; ')
+                        : '');
+
                 fputcsv($handle, [
                     $purchase->name ?? '',
                     $purchase->date ?? '',
                     $purchase->branch?->name ?? '',
                     $purchase->distributor_name ?? '',
-                    trim(($purchase->product?->category?->name ? $purchase->product->category->name . ' - ' : '') . ($purchase->product?->name ?? '')),
+                    $productCell,
                     (int) ($purchase->quantity ?? 0),
                     number_format((float) ($purchase->unit_price ?? 0), 2, '.', ''),
                     number_format($total, 2, '.', ''),
                     $purchase->paid_date ?? '',
                     number_format($paid, 2, '.', ''),
                     number_format($pending, 2, '.', ''),
-                    $purchase->sell_price !== null ? number_format((float) $purchase->sell_price, 2, '.', '') : '',
+                    $sellCell,
                     $purchase->payment_status ?? '',
                 ]);
             }
@@ -796,7 +830,45 @@ class StockController extends Controller
      */
     public function modelsForPurchaseAddProduct(Purchase $purchase)
     {
-        $purchase->load(['product:id,name,category_id']);
+        $purchase->load([
+            'lines.product.category:id,name',
+            'product:id,name,category_id',
+        ]);
+
+        if ($purchase->lines->isNotEmpty()) {
+            $rows = $purchase->lines
+                ->map(function ($line) {
+                    $product = $line->product;
+                    if (! $product) {
+                        return null;
+                    }
+                    $model = trim((string) ($product->name ?? ''));
+                    $categoryId = $product->category_id ?? null;
+                    if ($model === '' || empty($categoryId)) {
+                        return null;
+                    }
+                    $catName = $product->category?->name ?? '—';
+                    $unit = (float) $line->unit_price;
+                    $sell = $line->sell_price !== null ? (float) $line->sell_price : null;
+                    $rem = (int) $line->limit_remaining;
+
+                    return [
+                        'product_id' => (int) $product->id,
+                        'model' => $model,
+                        'category_id' => (int) $categoryId,
+                        'category_name' => $catName,
+                        'unit_price' => $unit,
+                        'sell_price' => $sell,
+                        'limit_remaining' => $rem,
+                        'label' => $catName.' — '.$model.' · slots '.$rem.' · cost '.number_format($unit, 2).($sell !== null ? ' · sell '.number_format($sell, 2) : ''),
+                    ];
+                })
+                ->filter()
+                ->values();
+
+            return response()->json(['data' => $rows->all()]);
+        }
+
         $product = $purchase->product;
         if (! $product) {
             return response()->json(['data' => []]);
@@ -808,10 +880,21 @@ class StockController extends Controller
             return response()->json(['data' => []]);
         }
 
+        $unit = (float) ($purchase->unit_price ?? 0);
+        $sell = $purchase->sell_price !== null ? (float) $purchase->sell_price : null;
+        $rem = (int) ($purchase->limit_remaining ?? 0);
+
         return response()->json([
-            'data' => [
-                ['model' => $model, 'category_id' => (int) $categoryId],
-            ],
+            'data' => [[
+                'product_id' => (int) $product->id,
+                'model' => $model,
+                'category_id' => (int) $categoryId,
+                'category_name' => $product->category?->name ?? '—',
+                'unit_price' => $unit,
+                'sell_price' => $sell,
+                'limit_remaining' => $rem,
+                'label' => ($product->category?->name ?? '—').' — '.$model.' · slots '.$rem.' · cost '.number_format($unit, 2).($sell !== null ? ' · sell '.number_format($sell, 2) : ''),
+            ]],
         ]);
     }
 
@@ -830,37 +913,96 @@ class StockController extends Controller
                 if ($model === '' || empty($categoryId)) {
                     return null;
                 }
-
-                return ['model' => $model, 'category_id' => (int) $categoryId];
-            })
-            ->filter()
-            ->unique('model')
-            ->values();
-
-        $fromPurchases = Purchase::where('stock_id', $stock->id)
-            ->with('product:id,category_id,name')
-            ->get()
-            ->map(function ($p) {
-                $model = trim((string) ($p->product->name ?? ''));
-                $categoryId = $p->product->category_id ?? null;
-                if ($model === '' || empty($categoryId)) {
+                $productId = $r->product_id ? (int) $r->product_id : null;
+                if (! $productId) {
+                    $productId = (int) (Product::query()
+                        ->where('category_id', (int) $categoryId)
+                        ->where('name', $model)
+                        ->value('id') ?: 0);
+                }
+                if (! $productId) {
                     return null;
                 }
 
-                return ['model' => $model, 'category_id' => (int) $categoryId];
+                return [
+                    'product_id' => $productId,
+                    'model' => $model,
+                    'category_id' => (int) $categoryId,
+                    'label' => $model,
+                ];
             })
             ->filter()
-            ->unique('model')
+            ->unique(fn ($row) => $row['product_id'] ? 'p:'.$row['product_id'] : 'm:'.$row['model'].'|c:'.$row['category_id'])
             ->values();
+
+        $fromPurchases = Purchase::where('stock_id', $stock->id)
+            ->with(['lines.product.category', 'product.category'])
+            ->get()
+            ->flatMap(function (Purchase $p) {
+                if ($p->lines->isNotEmpty()) {
+                    return $p->lines->map(function ($line) {
+                        $product = $line->product;
+                        if (! $product) {
+                            return null;
+                        }
+                        $model = trim((string) ($product->name ?? ''));
+                        $categoryId = $product->category_id ?? null;
+                        if ($model === '' || empty($categoryId)) {
+                            return null;
+                        }
+                        $unit = (float) $line->unit_price;
+                        $sell = $line->sell_price !== null ? (float) $line->sell_price : null;
+                        $rem = (int) $line->limit_remaining;
+
+                        return [
+                            'product_id' => (int) $product->id,
+                            'model' => $model,
+                            'category_id' => (int) $categoryId,
+                            'label' => ($product->category?->name ?? '—').' — '.$model.' · slots '.$rem.' · cost '.number_format($unit, 2).($sell !== null ? ' · sell '.number_format($sell, 2) : ''),
+                        ];
+                    })->filter();
+                }
+
+                $product = $p->product;
+                if (! $product) {
+                    return collect();
+                }
+                $model = trim((string) ($product->name ?? ''));
+                $categoryId = $product->category_id ?? null;
+                if ($model === '' || empty($categoryId)) {
+                    return collect();
+                }
+                $unit = (float) ($p->unit_price ?? 0);
+                $sell = $p->sell_price !== null ? (float) $p->sell_price : null;
+                $rem = (int) ($p->limit_remaining ?? 0);
+
+                return collect([[
+                    'product_id' => (int) $product->id,
+                    'model' => $model,
+                    'category_id' => (int) $categoryId,
+                    'label' => ($product->category?->name ?? '—').' — '.$model.' · slots '.$rem.' · cost '.number_format($unit, 2).($sell !== null ? ' · sell '.number_format($sell, 2) : ''),
+                ]]);
+            })
+            ->unique(fn ($row) => $row['product_id'] ? 'p:'.$row['product_id'] : 'm:'.$row['model'].'|c:'.$row['category_id'])
+            ->values();
+
         $combined = $fromList
             ->concat($fromPurchases)
-            ->unique('model')
+            ->unique(fn ($row) => $row['product_id'] ? 'p:'.$row['product_id'] : 'm:'.$row['model'].'|c:'.$row['category_id'])
             ->sortBy('model', SORT_NATURAL | SORT_FLAG_CASE)
             ->values();
+
         if ($combined->isEmpty() && ! empty($stock->default_model) && ! empty($stock->default_category_id)) {
+            $defaultPid = Product::query()
+                ->where('category_id', (int) $stock->default_category_id)
+                ->where('name', $stock->default_model)
+                ->value('id');
+
             $combined = collect([[
+                'product_id' => $defaultPid ? (int) $defaultPid : null,
                 'model' => $stock->default_model,
                 'category_id' => (int) $stock->default_category_id,
+                'label' => $stock->default_model,
             ]]);
         }
 
@@ -909,13 +1051,12 @@ class StockController extends Controller
     }
 
     /**
-     * Save one or more IMEIs: stock_id or purchase_id, model, category_id, imei_numbers (newline / comma separated).
+     * Save one or more IMEIs: stock_id or purchase_id, catalog_product_id, imei_numbers (newline / comma separated).
      */
     public function storeProductFromForm(Request $request)
     {
         $baseRules = [
-            'model' => 'required|string|max:255',
-            'category_id' => 'required|exists:brands,id',
+            'catalog_product_id' => 'required|exists:models,id',
             'imei_numbers' => 'required|string|max:65535',
         ];
 
@@ -923,7 +1064,7 @@ class StockController extends Controller
             $validated = $request->validate($baseRules + [
                 'purchase_id' => 'required|exists:purchases,id',
             ]);
-            $purchase = Purchase::with(['product', 'stock'])->findOrFail($validated['purchase_id']);
+            $purchase = Purchase::with(['product', 'stock', 'lines'])->findOrFail($validated['purchase_id']);
             if ($purchase->limit_status !== 'pending' || (int) $purchase->limit_remaining <= 0) {
                 return redirect()->route('admin.stock.add-product')
                     ->withInput()
@@ -935,7 +1076,8 @@ class StockController extends Controller
                 'stock_id' => 'required|exists:stocks,id',
             ]);
             $stock = Stock::findOrFail($validated['stock_id']);
-            $purchase = Purchase::where('stock_id', $stock->id)
+            $purchase = Purchase::with(['product', 'lines'])
+                ->where('stock_id', $stock->id)
                 ->where('limit_status', 'pending')
                 ->where('limit_remaining', '>', 0)
                 ->latest('date')->latest('id')->first();
@@ -957,6 +1099,28 @@ class StockController extends Controller
                 ->withErrors([$pickField => $pickMessage]);
         }
 
+        $catalogProduct = Product::with('category')->findOrFail((int) $validated['catalog_product_id']);
+        $categoryId = (int) $catalogProduct->category_id;
+        $model = (string) $catalogProduct->name;
+
+        $purchaseLine = null;
+        if ($purchase->lines->isNotEmpty()) {
+            $purchaseLine = $purchase->lines->firstWhere('product_id', $catalogProduct->id);
+            if (! $purchaseLine || (int) $purchaseLine->limit_remaining <= 0) {
+                return redirect()->route('admin.stock.add-product')
+                    ->withInput()
+                    ->withErrors(['catalog_product_id' => 'Pick a model from this purchase that still has open IMEI slots.']);
+            }
+            $remainingForModel = (int) $purchaseLine->limit_remaining;
+        } else {
+            if ($purchase->product_id && (int) $purchase->product_id !== (int) $catalogProduct->id) {
+                return redirect()->route('admin.stock.add-product')
+                    ->withInput()
+                    ->withErrors(['catalog_product_id' => 'Selected model does not match this purchase.']);
+            }
+            $remainingForModel = (int) $purchase->limit_remaining;
+        }
+
         $imeis = ImeiListParser::parse($validated['imei_numbers']);
 
         if ($imeis === []) {
@@ -972,11 +1136,11 @@ class StockController extends Controller
                 ->withErrors(['imei_numbers' => implode(' ', $lenErrors)]);
         }
 
-        if (count($imeis) > $purchase->limit_remaining) {
+        if (count($imeis) > $remainingForModel) {
             return redirect()->route('admin.stock.add-product')
                 ->withInput()
                 ->withErrors([
-                    'imei_numbers' => 'Not enough purchase limit for this many IMEIs. Remaining: '.$purchase->limit_remaining.'.',
+                    'imei_numbers' => 'Not enough slots for this model. Remaining for this line: '.$remainingForModel.'.',
                 ]);
         }
 
@@ -987,24 +1151,28 @@ class StockController extends Controller
         ];
         $created = 0;
 
-        DB::transaction(function () use ($purchase, $stockIdForRow, $validated, $imeis, &$failed, &$failureReasons, &$created) {
-            $productPrice = $purchase->sell_price ?? $purchase->unit_price ?? 0;
+        DB::transaction(function () use ($purchase, $purchaseLine, $stockIdForRow, $categoryId, $model, $catalogProduct, $imeis, &$failed, &$failureReasons, &$created) {
+            $productPrice = $purchaseLine
+                ? (float) ($purchaseLine->sell_price ?? $purchaseLine->unit_price)
+                : (float) ($purchase->sell_price ?? $purchase->unit_price ?? 0);
+
             $product = Product::firstOrCreate(
                 [
-                    'category_id' => $validated['category_id'],
-                    'name' => $validated['model'],
+                    'category_id' => $categoryId,
+                    'name' => $model,
                 ],
                 [
-                    'price' => (float) $productPrice,
+                    'price' => $productPrice,
                     'stock_quantity' => 0,
                     'rating' => 5.0,
                     'description' => 'From product list',
-                    'images' => $purchase->product?->images ?? [],
+                    'images' => $catalogProduct->images ?? $purchase->product?->images ?? [],
                 ]
             );
 
-            if ($purchase->sell_price && (float) $product->price != (float) $purchase->sell_price) {
-                $product->update(['price' => (float) $purchase->sell_price]);
+            $sellToApply = $purchaseLine ? $purchaseLine->sell_price : $purchase->sell_price;
+            if ($sellToApply && (float) $product->price != (float) $sellToApply) {
+                $product->update(['price' => (float) $sellToApply]);
             }
 
             foreach ($imeis as $imei) {
@@ -1015,7 +1183,14 @@ class StockController extends Controller
                 }
 
                 $purchase->refresh();
-                if ($purchase->limit_remaining <= 0) {
+                if ($purchaseLine) {
+                    $purchaseLine->refresh();
+                    if ((int) $purchaseLine->limit_remaining <= 0) {
+                        $failed[] = $imei.' (purchase limit exhausted for this model)';
+                        $failureReasons['limit_exhausted'][] = $imei;
+                        break;
+                    }
+                } elseif ($purchase->limit_remaining <= 0) {
                     $failed[] = $imei.' (purchase limit exhausted)';
                     $failureReasons['limit_exhausted'][] = $imei;
                     break;
@@ -1024,15 +1199,20 @@ class StockController extends Controller
                 ProductListItem::create([
                     'stock_id' => $stockIdForRow,
                     'purchase_id' => $purchase->id,
-                    'category_id' => $validated['category_id'],
-                    'model' => $validated['model'],
+                    'category_id' => $categoryId,
+                    'model' => $model,
                     'imei_number' => $imei,
                     'product_id' => $product->id,
                 ]);
 
-                $purchase->decrement('limit_remaining');
-                if ($purchase->fresh()->limit_remaining <= 0) {
-                    $purchase->update(['limit_status' => 'complete']);
+                if ($purchaseLine) {
+                    $purchaseLine->decrement('limit_remaining');
+                    $purchase->syncAggregatesFromLines();
+                } else {
+                    $purchase->decrement('limit_remaining');
+                    if ($purchase->fresh()->limit_remaining <= 0) {
+                        $purchase->update(['limit_status' => 'complete']);
+                    }
                 }
                 $created++;
             }
@@ -1097,7 +1277,10 @@ class StockController extends Controller
 
     public function storePurchase(Request $request)
     {
-        if (! $request->filled('stock_id')) {
+        $paymentOptionId = $request->filled('payment_option_id') ? $request->input('payment_option_id') : null;
+        $hasNoteColumn = Schema::hasTable('purchases') && Schema::hasColumn('purchases', 'note');
+
+        if ($request->filled('stock_id')) {
             $request->validate([
                 'product_id' => 'required|exists:models,id',
             ]);
@@ -1106,40 +1289,38 @@ class StockController extends Controller
                 'category_id' => $selectedProduct->category_id,
                 'model' => $selectedProduct->name,
             ]);
-        }
 
-        $validated = $request->validate([
-            'stock_id' => 'nullable|exists:stocks,id',
-            'branch_id' => 'required|exists:branches,id',
-            'name' => 'nullable|string|max:255',
-            'date' => 'required|date',
-            'distributor_name' => 'nullable|string|max:255',
-            'category_id' => 'required|exists:brands,id',
-            'model' => 'required|string|max:255',
-            'quantity' => 'required|integer|min:1',
-            'unit_price' => 'required|numeric|min:0',
-            'sell_price' => 'nullable|numeric|min:0',
-            'paid_date' => 'nullable|date',
-            'paid_amount' => 'nullable|numeric|min:0',
-            'payment_option_id' => [
-                'nullable',
-                'exists:payment_options,id',
-                Rule::requiredIf(fn () => (float) $request->input('paid_amount', 0) > 0.0001),
-            ],
-            'payment_receipt_image' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:5120',
-        ]);
+            $validated = $request->validate([
+                'stock_id' => 'nullable|exists:stocks,id',
+                'branch_id' => 'required|exists:branches,id',
+                'name' => 'nullable|string|max:255',
+                'date' => 'required|date',
+                'distributor_name' => 'nullable|string|max:255',
+                'category_id' => 'required|exists:brands,id',
+                'model' => 'required|string|max:255',
+                'quantity' => 'required|integer|min:1',
+                'unit_price' => 'required|numeric|min:0',
+                'sell_price' => 'nullable|numeric|min:0',
+                'paid_date' => 'nullable|date',
+                'paid_amount' => 'nullable|numeric|min:0',
+                'payment_option_id' => [
+                    'nullable',
+                    'exists:payment_options,id',
+                    Rule::requiredIf(fn () => (float) $request->input('paid_amount', 0) > 0.0001),
+                ],
+                'payment_receipt_image' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:5120',
+                'note' => 'nullable|string|max:10000',
+            ]);
 
-        $nameInput = trim((string) ($validated['name'] ?? ''));
-        if ($nameInput === '') {
-            $dateStr = PurchaseInvoiceNumber::dateString($validated['date']);
-            $validated['name'] = PurchaseInvoiceNumber::unique($validated['distributor_name'] ?? null, $dateStr);
-        } else {
-            $validated['name'] = $nameInput;
-        }
+            $nameInput = trim((string) ($validated['name'] ?? ''));
+            if ($nameInput === '') {
+                $dateStr = PurchaseInvoiceNumber::dateString($validated['date']);
+                $validated['name'] = PurchaseInvoiceNumber::unique($validated['distributor_name'] ?? null, $dateStr);
+            } else {
+                $validated['name'] = $nameInput;
+            }
 
-        // Product: from explicit selection, or find/create when adding from stock
-        $productPrice = $validated['sell_price'] ?? $validated['unit_price'];
-        if ($request->filled('stock_id')) {
+            $productPrice = $validated['sell_price'] ?? $validated['unit_price'];
             $product = Product::firstOrCreate(
                 [
                     'category_id' => $validated['category_id'],
@@ -1153,55 +1334,187 @@ class StockController extends Controller
                     'images' => [],
                 ]
             );
-        } else {
-            $product = Product::findOrFail($request->product_id);
-        }
-        
-        // Note: Product price will be updated after purchase creation to use latest sell_price
 
-        $stockId = !empty($validated['stock_id']) ? (int) $validated['stock_id'] : null;
-        $quantity = $validated['quantity'] ?? 0;
+            $stockId = (int) $validated['stock_id'];
+            $quantity = (int) $validated['quantity'];
 
-        // Remove non-purchase fields from validated data
-        unset($validated['category_id']);
-        unset($validated['model']);
-        unset($validated['stock_id']);
+            unset($validated['category_id'], $validated['model'], $validated['stock_id']);
 
-        // Add product_id and optional stock_id
-        $validated['product_id'] = $product->id;
-        if ($stockId) {
+            $validated['product_id'] = $product->id;
             $validated['stock_id'] = $stockId;
+
+            $validated['total_amount'] = $quantity * (float) $validated['unit_price'];
+            $paidAmount = (float) ($validated['paid_amount'] ?? 0);
+            $totalAmount = (float) $validated['total_amount'];
+            $paymentStatus = $paidAmount >= $totalAmount ? 'paid' : ($paidAmount > 0 ? 'partial' : 'pending');
+            $validated['payment_status'] = $paymentStatus;
+            $validated['paid_amount'] = $paidAmount;
+            $validated['limit_status'] = 'pending';
+            $validated['limit_remaining'] = $quantity;
+            $validated['sell_price'] = $request->filled('sell_price') ? $request->input('sell_price') : null;
+
+            if ($hasNoteColumn) {
+                $validated['note'] = $request->input('note');
+            }
+
+            try {
+                $columns = Schema::getColumnListing('purchases');
+                if (in_array('payment_option_id', $columns, true)) {
+                    $validated['payment_option_id'] = $paymentOptionId;
+                }
+            } catch (\Exception $e) {
+                Log::warning('payment_option_id column not found in purchases table. Migration may need to be run.');
+            }
+
+            if ($paidAmount > 0 && $paymentOptionId) {
+                $paymentOption = PaymentOption::visible()->find($paymentOptionId);
+                if (! $paymentOption) {
+                    return redirect()->back()
+                        ->withInput()
+                        ->withErrors(['payment_option_id' => 'Selected channel is not available for payments. Open Channels and use Show, or pick another account.']);
+                }
+                if ((float) $paymentOption->balance >= $paidAmount) {
+                    $paymentOption->decrement('balance', $paidAmount);
+                } else {
+                    return redirect()->back()
+                        ->withInput()
+                        ->withErrors(['payment_option_id' => 'Insufficient balance in selected payment channel.']);
+                }
+            }
+
+            $purchase = Purchase::create($validated);
+
+            if ($request->hasFile('payment_receipt_image')) {
+                $receiptImage = $request->file('payment_receipt_image');
+                if ($receiptImage->isValid()) {
+                    $receiptDir = 'receipts/purchase-' . $purchase->id;
+                    $paymentReceiptPath = $receiptImage->store($receiptDir, 'public');
+                    $purchase->update(['payment_receipt_image' => $paymentReceiptPath]);
+                }
+            }
+
+            $product->increment('stock_quantity', $quantity);
+
+            if ($paidAmount > 0 && $request->filled('payment_option_id')) {
+                try {
+                    PurchasePayment::create([
+                        'purchase_id' => $purchase->id,
+                        'payment_option_id' => $request->input('payment_option_id'),
+                        'amount' => $paidAmount,
+                        'paid_date' => $validated['paid_date'] ?? now()->toDateString(),
+                    ]);
+                } catch (\Exception $e) {
+                    Log::warning('Failed to create purchase payment record: ' . $e->getMessage());
+                }
+            }
+
+            $latestPurchase = Purchase::where('product_id', $product->id)
+                ->whereNotNull('sell_price')
+                ->latest('date')
+                ->latest('id')
+                ->first();
+
+            if ($latestPurchase && $latestPurchase->sell_price) {
+                $product->update(['price' => $latestPurchase->sell_price]);
+            }
+
+            return redirect()->route('admin.stock.purchases')->with('success', 'Purchase recorded successfully.');
         }
 
-        // Calculate total amount (backend validation/calculation)
-        $validated['total_amount'] = $quantity * $validated['unit_price'];
+        $validated = $request->validate([
+            'branch_id' => 'required|exists:branches,id',
+            'name' => 'nullable|string|max:255',
+            'date' => 'required|date',
+            'distributor_name' => 'nullable|string|max:255',
+            'lines' => 'required|array|min:1|max:40',
+            'lines.*.product_id' => 'required|exists:models,id',
+            'lines.*.quantity' => 'required|integer|min:1',
+            'lines.*.unit_price' => 'required|numeric|min:0.01',
+            'lines.*.sell_price' => 'nullable|numeric|min:0',
+            'paid_date' => 'nullable|date',
+            'paid_amount' => 'nullable|numeric|min:0',
+            'payment_option_id' => [
+                'nullable',
+                'exists:payment_options,id',
+                Rule::requiredIf(fn () => (float) $request->input('paid_amount', 0) > 0.0001),
+            ],
+            'payment_receipt_image' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:5120',
+            'note' => 'nullable|string|max:10000',
+        ]);
+
+        $linesInput = $validated['lines'];
+        $productIds = array_map(fn ($row) => (int) ($row['product_id'] ?? 0), $linesInput);
+        if (count($productIds) !== count(array_unique($productIds))) {
+            return redirect()->back()
+                ->withInput()
+                ->withErrors(['lines' => 'Each catalog model may only appear once on the same purchase.']);
+        }
+
+        $linePayload = [];
+        $totalQty = 0;
+        $totalAmount = 0.0;
+        $firstProduct = null;
+
+        foreach ($linesInput as $row) {
+            $prod = Product::findOrFail((int) $row['product_id']);
+            $qty = (int) $row['quantity'];
+            $unit = (float) $row['unit_price'];
+            $totalQty += $qty;
+            $totalAmount += $qty * $unit;
+            if ($firstProduct === null) {
+                $firstProduct = $prod;
+            }
+            $sellRaw = $row['sell_price'] ?? null;
+            $sell = ($sellRaw !== null && $sellRaw !== '') ? (float) $sellRaw : null;
+            $linePayload[] = [
+                'product' => $prod,
+                'quantity' => $qty,
+                'unit_price' => $unit,
+                'sell_price' => $sell,
+            ];
+        }
+
+        $nameInput = trim((string) ($validated['name'] ?? ''));
+        if ($nameInput === '') {
+            $dateStr = PurchaseInvoiceNumber::dateString($validated['date']);
+            $purchaseName = PurchaseInvoiceNumber::unique($validated['distributor_name'] ?? null, $dateStr);
+        } else {
+            $purchaseName = $nameInput;
+        }
+
         $paidAmount = (float) ($validated['paid_amount'] ?? 0);
-        
-        // Auto status from paid amount: pending / partial / paid (like in edit)
-        $totalAmount = $validated['total_amount'];
         $paymentStatus = $paidAmount >= $totalAmount ? 'paid' : ($paidAmount > 0 ? 'partial' : 'pending');
-        $validated['payment_status'] = $paymentStatus;
-        $validated['paid_amount'] = $paidAmount;
-        
-        // Quantity = limit: track remaining; when app adds IMEIs, decrement until 0 then set complete
-        $validated['limit_status'] = 'pending';
-        $validated['limit_remaining'] = $quantity;
-        $validated['sell_price'] = $request->filled('sell_price') ? $request->input('sell_price') : null;
-        
-        // Only add payment_option_id if the column exists (migration has been run)
-        $paymentOptionId = $request->filled('payment_option_id') ? $request->input('payment_option_id') : null;
+
+        $header = [
+            'name' => $purchaseName,
+            'branch_id' => (int) $validated['branch_id'],
+            'date' => $validated['date'],
+            'distributor_name' => $validated['distributor_name'] ?? null,
+            'product_id' => $firstProduct->id,
+            'quantity' => $totalQty,
+            'unit_price' => $totalQty > 0 ? round($totalAmount / $totalQty, 4) : 0,
+            'total_amount' => $totalAmount,
+            'paid_date' => $validated['paid_date'] ?? null,
+            'paid_amount' => $paidAmount,
+            'payment_status' => $paymentStatus,
+            'limit_status' => 'pending',
+            'limit_remaining' => $totalQty,
+            'sell_price' => null,
+        ];
+
+        if ($hasNoteColumn) {
+            $header['note'] = $validated['note'] ?? null;
+        }
+
         try {
-            // Check if column exists by trying to get schema
             $columns = Schema::getColumnListing('purchases');
-            if (in_array('payment_option_id', $columns)) {
-                $validated['payment_option_id'] = $paymentOptionId;
+            if (in_array('payment_option_id', $columns, true)) {
+                $header['payment_option_id'] = $paymentOptionId;
             }
         } catch (\Exception $e) {
-            // Column doesn't exist, skip it
             Log::warning('payment_option_id column not found in purchases table. Migration may need to be run.');
         }
 
-        // Handle payment option balance deduction if payment is made (only visible channels)
         if ($paidAmount > 0 && $paymentOptionId) {
             $paymentOption = PaymentOption::visible()->find($paymentOptionId);
             if (! $paymentOption) {
@@ -1218,48 +1531,67 @@ class StockController extends Controller
             }
         }
 
-        // Create purchase first to get the ID
-        $purchase = Purchase::create($validated);
+        $purchase = null;
 
-        // Upload payment receipt image if provided (store in purchase-specific directory)
-        if ($request->hasFile('payment_receipt_image')) {
-            $receiptImage = $request->file('payment_receipt_image');
-            if ($receiptImage->isValid()) {
-                $receiptDir = 'receipts/purchase-' . $purchase->id;
-                $paymentReceiptPath = $receiptImage->store($receiptDir, 'public');
-                $purchase->update(['payment_receipt_image' => $paymentReceiptPath]);
-            }
-        }
+        DB::transaction(function () use ($header, $linePayload, $paidAmount, $request, $validated, &$purchase) {
+            $purchase = Purchase::create($header);
 
-        // Keep product.stock_quantity in sync so Category Management and dashboards show correct counts
-        $product->increment('stock_quantity', $validated['quantity']);
-
-        // Record initial payment in history if payment was made
-        if ($paidAmount > 0 && $request->filled('payment_option_id')) {
-            try {
-                PurchasePayment::create([
+            foreach ($linePayload as $row) {
+                PurchaseLine::create([
                     'purchase_id' => $purchase->id,
-                    'payment_option_id' => $request->input('payment_option_id'),
-                    'amount' => $paidAmount,
-                    'paid_date' => $validated['paid_date'] ?? now()->toDateString(),
+                    'product_id' => $row['product']->id,
+                    'quantity' => $row['quantity'],
+                    'unit_price' => $row['unit_price'],
+                    'sell_price' => $row['sell_price'],
+                    'limit_remaining' => $row['quantity'],
                 ]);
-            } catch (\Exception $e) {
-                // Table might not exist yet - migration needs to be run
-                // Log error but don't fail the purchase creation
-                Log::warning('Failed to create purchase payment record: ' . $e->getMessage());
-            }
-        }
 
-        // Update product price to use the latest purchase's sell_price (if available)
-        // This ensures front page products show the correct sell_price instead of unit_price
-        $latestPurchase = Purchase::where('product_id', $product->id)
-            ->whereNotNull('sell_price')
-            ->latest('date')
-            ->latest('id')
-            ->first();
-        
-        if ($latestPurchase && $latestPurchase->sell_price) {
-            $product->update(['price' => $latestPurchase->sell_price]);
+                $row['product']->increment('stock_quantity', $row['quantity']);
+            }
+
+            $purchase->update([
+                'limit_remaining' => (int) $purchase->lines()->sum('limit_remaining'),
+            ]);
+
+            if ($request->hasFile('payment_receipt_image')) {
+                $receiptImage = $request->file('payment_receipt_image');
+                if ($receiptImage->isValid()) {
+                    $receiptDir = 'receipts/purchase-' . $purchase->id;
+                    $paymentReceiptPath = $receiptImage->store($receiptDir, 'public');
+                    $purchase->update(['payment_receipt_image' => $paymentReceiptPath]);
+                }
+            }
+
+            if ($paidAmount > 0 && $request->filled('payment_option_id')) {
+                try {
+                    PurchasePayment::create([
+                        'purchase_id' => $purchase->id,
+                        'payment_option_id' => $request->input('payment_option_id'),
+                        'amount' => $paidAmount,
+                        'paid_date' => $validated['paid_date'] ?? now()->toDateString(),
+                    ]);
+                } catch (\Exception $e) {
+                    Log::warning('Failed to create purchase payment record: ' . $e->getMessage());
+                }
+            }
+        });
+
+        foreach ($linePayload as $row) {
+            if ($row['sell_price'] !== null) {
+                $row['product']->update(['price' => (float) $row['sell_price']]);
+
+                continue;
+            }
+
+            $latestPurchase = Purchase::where('product_id', $row['product']->id)
+                ->whereNotNull('sell_price')
+                ->latest('date')
+                ->latest('id')
+                ->first();
+
+            if ($latestPurchase && $latestPurchase->sell_price) {
+                $row['product']->update(['price' => (float) $latestPurchase->sell_price]);
+            }
         }
 
         return redirect()->route('admin.stock.purchases')->with('success', 'Purchase recorded successfully.');

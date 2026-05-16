@@ -7,6 +7,7 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Validation\Rule;
 
 class DealerController extends Controller
 {
@@ -86,6 +87,36 @@ class DealerController extends Controller
         $user->load('addresses');
 
         return view('admin.dealers.show', compact('user'));
+    }
+
+    public function update(Request $request, User $user)
+    {
+        if ($user->role !== 'dealer') {
+            abort(404);
+        }
+
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => ['required', 'string', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user->id)],
+            'phone' => 'nullable|string|max:100',
+            'business_name' => 'required|string|max:255',
+            'password' => 'nullable|string|min:8|confirmed',
+        ]);
+
+        $payload = [
+            'name' => $validated['name'],
+            'email' => $validated['email'],
+            'phone' => $validated['phone'] ?? null,
+            'business_name' => $validated['business_name'],
+        ];
+
+        if (! empty($validated['password'])) {
+            $payload['password'] = $validated['password'];
+        }
+
+        $user->update($payload);
+
+        return redirect()->route('admin.dealers.show', $user)->with('success', 'Dealer information updated.');
     }
 
     public function destroy(User $user)

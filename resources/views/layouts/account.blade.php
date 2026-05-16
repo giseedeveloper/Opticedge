@@ -189,58 +189,83 @@
                     <h3 class="px-2 text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Your Account
                     </h3>
                     <div class="space-y-1">
-                        <a href="{{ route('dashboard') }}"
-                            class="flex items-center gap-3 px-2 py-2 text-sm font-medium {{ request()->routeIs('dashboard') ? 'bg-slate-100 text-slate-900' : 'text-slate-700' }} rounded-md hover:bg-slate-50 group">
+                        @php
+                            $isPortalManager = in_array(Auth::user()->role ?? '', ['teamleader', 'regional_manager'], true);
+                            $accountDashboardHref = match (Auth::user()->role ?? '') {
+                                'agent' => route('agent.dashboard'),
+                                'teamleader' => route('team-leader.dashboard'),
+                                'regional_manager' => route('regional-manager.dashboard'),
+                                default => route('dashboard'),
+                            };
+                            $accountDashboardActive = request()->routeIs('dashboard')
+                                || request()->routeIs('agent.dashboard')
+                                || request()->routeIs('team-leader.dashboard')
+                                || request()->routeIs('regional-manager.dashboard');
+                            $profileHref = match (Auth::user()->role ?? '') {
+                                'teamleader' => route('team-leader.profile'),
+                                'regional_manager' => route('regional-manager.profile'),
+                                default => route('profile'),
+                            };
+                            $profileActive = match (Auth::user()->role ?? '') {
+                                'teamleader' => request()->routeIs('team-leader.profile'),
+                                'regional_manager' => request()->routeIs('regional-manager.profile'),
+                                default => request()->routeIs('profile'),
+                            };
+                        @endphp
+                        <a href="{{ $accountDashboardHref }}"
+                            class="flex items-center gap-3 px-2 py-2 text-sm font-medium {{ $accountDashboardActive ? 'bg-slate-100 text-slate-900' : 'text-slate-700' }} rounded-md hover:bg-slate-50 group">
                             <svg xmlns="http://www.w3.org/2000/svg"
-                                class="w-5 h-5 {{ request()->routeIs('dashboard') ? 'text-[#fa8900]' : 'text-slate-400 group-hover:text-slate-600' }}"
+                                class="w-5 h-5 {{ $accountDashboardActive ? 'text-[#fa8900]' : 'text-slate-400 group-hover:text-slate-600' }}"
                                 fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                 <path stroke-linecap="round" stroke-linejoin="round"
                                     d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
                             </svg>
                             Dashboard
                         </a>
-                        <a href="{{ route('profile') }}"
-                            class="flex items-center gap-3 px-2 py-2 text-sm font-medium {{ request()->routeIs('profile') ? 'bg-slate-100 text-slate-900' : 'text-slate-700' }} rounded-md hover:bg-slate-50 group">
+                        <a href="{{ $profileHref }}"
+                            class="flex items-center gap-3 px-2 py-2 text-sm font-medium {{ $profileActive ? 'bg-slate-100 text-slate-900' : 'text-slate-700' }} rounded-md hover:bg-slate-50 group">
                             <svg xmlns="http://www.w3.org/2000/svg"
-                                class="w-5 h-5 {{ request()->routeIs('profile') ? 'text-[#fa8900]' : 'text-slate-400 group-hover:text-slate-600' }}"
+                                class="w-5 h-5 {{ $profileActive ? 'text-[#fa8900]' : 'text-slate-400 group-hover:text-slate-600' }}"
                                 fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                 <path stroke-linecap="round" stroke-linejoin="round"
                                     d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                             </svg>
                             Profile
                         </a>
-                        <a href="{{ route('orders.index') }}"
-                            class="flex items-center gap-3 px-2 py-2 text-sm font-medium {{ request()->routeIs('orders.*') ? 'bg-slate-100 text-slate-900' : 'text-slate-700' }} rounded-md hover:bg-slate-50 group">
-                            <svg xmlns="http://www.w3.org/2000/svg"
-                                class="w-5 h-5 {{ request()->routeIs('orders.*') ? 'text-[#fa8900]' : 'text-slate-400 group-hover:text-slate-600' }}"
-                                fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                <path stroke-linecap="round" stroke-linejoin="round"
-                                    d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
-                            </svg>
-                            Your Orders
-                        </a>
-                        <a href="{{ route('addresses.index') }}"
-                            class="flex items-center gap-3 px-2 py-2 text-sm font-medium {{ request()->routeIs('addresses.*') ? 'bg-slate-100 text-slate-900' : 'text-slate-700' }} rounded-md hover:bg-slate-50 group">
-                            <svg xmlns="http://www.w3.org/2000/svg"
-                                class="w-5 h-5 {{ request()->routeIs('addresses.*') ? 'text-[#fa8900]' : 'text-slate-400 group-hover:text-slate-600' }}"
-                                fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                <path stroke-linecap="round" stroke-linejoin="round"
-                                    d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                                <path stroke-linecap="round" stroke-linejoin="round"
-                                    d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                            </svg>
-                            Your Addresses
-                        </a>
-                        <a href="/cart"
-                            class="flex items-center gap-3 px-2 py-2 text-sm font-medium text-slate-700 rounded-md hover:bg-slate-50 group">
-                            <svg xmlns="http://www.w3.org/2000/svg"
-                                class="w-5 h-5 text-slate-400 group-hover:text-slate-600" fill="none"
-                                viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                <path stroke-linecap="round" stroke-linejoin="round"
-                                    d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
-                            </svg>
-                            Shopping Cart
-                        </a>
+                        @unless ($isPortalManager)
+                            <a href="{{ route('orders.index') }}"
+                                class="flex items-center gap-3 px-2 py-2 text-sm font-medium {{ request()->routeIs('orders.*') ? 'bg-slate-100 text-slate-900' : 'text-slate-700' }} rounded-md hover:bg-slate-50 group">
+                                <svg xmlns="http://www.w3.org/2000/svg"
+                                    class="w-5 h-5 {{ request()->routeIs('orders.*') ? 'text-[#fa8900]' : 'text-slate-400 group-hover:text-slate-600' }}"
+                                    fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                        d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                                </svg>
+                                Your Orders
+                            </a>
+                            <a href="{{ route('addresses.index') }}"
+                                class="flex items-center gap-3 px-2 py-2 text-sm font-medium {{ request()->routeIs('addresses.*') ? 'bg-slate-100 text-slate-900' : 'text-slate-700' }} rounded-md hover:bg-slate-50 group">
+                                <svg xmlns="http://www.w3.org/2000/svg"
+                                    class="w-5 h-5 {{ request()->routeIs('addresses.*') ? 'text-[#fa8900]' : 'text-slate-400 group-hover:text-slate-600' }}"
+                                    fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                        d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                        d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                                </svg>
+                                Your Addresses
+                            </a>
+                            <a href="{{ route('cart.index') }}"
+                                class="flex items-center gap-3 px-2 py-2 text-sm font-medium {{ request()->routeIs('cart.*') ? 'bg-slate-100 text-slate-900' : 'text-slate-700' }} rounded-md hover:bg-slate-50 group">
+                                <svg xmlns="http://www.w3.org/2000/svg"
+                                    class="w-5 h-5 {{ request()->routeIs('cart.*') ? 'text-[#fa8900]' : 'text-slate-400 group-hover:text-slate-600' }}" fill="none"
+                                    viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                        d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+                                </svg>
+                                Shopping Cart
+                            </a>
+                        @endunless
                     </div>
                 </div>
 
