@@ -147,7 +147,7 @@ class PurchaseController extends Controller
      */
     public function forAddProduct()
     {
-        $purchases = Purchase::with(['product.category', 'lines.product.category', 'stock', 'branch'])
+        $purchases = Purchase::stockPurchases()->with(['product.category', 'lines.product.category', 'stock', 'branch'])
             ->where('limit_status', 'pending')
             ->where('limit_remaining', '>', 0)
             ->orderBy('date', 'desc')

@@ -1,3 +1,8 @@
+@php
+    $isPassthrough = $isPassthrough ?? false;
+    $listRoute = $isPassthrough ? 'admin.stock.passthrough' : 'admin.stock.purchases';
+    $updateRoute = $isPassthrough ? 'admin.stock.update-passthrough' : 'admin.stock.update-purchase';
+@endphp
 <x-admin-layout>
     @include('admin.partials.catalog-styles')
 
@@ -5,17 +10,17 @@
         <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between mb-8">
             <div>
                 <p class="admin-prod-eyebrow">Inventory</p>
-                <h1 class="admin-prod-title">Edit purchase</h1>
-                <p class="admin-prod-subtitle">Update purchase and payment details.</p>
+                <h1 class="admin-prod-title">{{ $isPassthrough ? 'Edit passthrough' : 'Edit purchase' }}</h1>
+                <p class="admin-prod-subtitle">{{ $isPassthrough ? 'Update passthrough and payment details.' : 'Update purchase and payment details.' }}</p>
             </div>
-            <a href="{{ route('admin.stock.purchases') }}" class="admin-prod-back shrink-0">Back to list</a>
+            <a href="{{ route($listRoute) }}" class="admin-prod-back shrink-0">Back to list</a>
         </div>
 
         <div class="admin-clay-panel admin-prod-form-shell overflow-hidden">
             <div class="admin-prod-form-head">
                 <h2 class="admin-prod-form-title">Purchase</h2>
             </div>
-            <form action="{{ route('admin.stock.update-purchase', $purchase->id) }}" method="POST" class="admin-prod-form-body">
+            <form action="{{ route($updateRoute, $purchase->id) }}" method="POST" class="admin-prod-form-body">
                     @csrf
                     @method('PUT')
                     

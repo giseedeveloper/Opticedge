@@ -52,7 +52,7 @@ class StockController extends Controller
      */
     public function stocksUnderLimit()
     {
-        $stockIds = \App\Models\Purchase::where('limit_status', 'pending')
+        $stockIds = \App\Models\Purchase::stockPurchases()->where('limit_status', 'pending')
             ->where('limit_remaining', '>', 0)
             ->whereNotNull('stock_id')
             ->pluck('stock_id')

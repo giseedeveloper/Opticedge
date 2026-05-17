@@ -76,7 +76,7 @@ class StockController extends Controller
             
             // If no stocks exist but purchases exist, build rows from purchases instead
             if ($stocksData->isEmpty()) {
-                $purchases = Purchase::withCount([
+                $purchases = Purchase::stockPurchases()->withCount([
                     'productListItems',
                     'productListItems as unsold_items_count' => function ($q) {
                         $q->whereNull('sold_at');
@@ -158,6 +158,10 @@ class StockController extends Controller
      */
     public function destroyPurchaseItem(Purchase $purchase, ProductListItem $productListItem)
     {
+        if ($purchase->isPassthrough()) {
+            abort(404);
+        }
+
         if ((int) $productListItem->purchase_id !== (int) $purchase->id) {
             return redirect()
                 ->route('admin.stock.purchase.show', $purchase->id)
@@ -234,57 +238,12 @@ class StockController extends Controller
 
     public function purchases(Request $request)
     {
-        $dateFrom = $request->input('date_from');
-        $dateTo = $request->input('date_to');
-        $preset = $request->input('preset');
-
-        if ($request->filled('preset')) {
-            $now = Carbon::now();
-            switch ($preset) {
-                case 'this_week':
-                    $dateFrom = $now->copy()->startOfWeek()->toDateString();
-                    $dateTo = $now->copy()->endOfWeek()->toDateString();
-                    break;
-                case 'last_week':
-                    $dateFrom = $now->copy()->subWeek()->startOfWeek()->toDateString();
-                    $dateTo = $now->copy()->subWeek()->endOfWeek()->toDateString();
-                    break;
-                case 'last_30_days':
-                    $dateFrom = $now->copy()->subDays(30)->toDateString();
-                    $dateTo = $now->toDateString();
-                    break;
-            }
-        }
-
-        $query = Purchase::with(['product', 'stock', 'branch', 'lines.product']);
-
-        if ($dateFrom) {
-            $query->where('date', '>=', $dateFrom);
-        }
-        if ($dateTo) {
-            $query->where('date', '<=', $dateTo);
-        }
-
-        $purchases = $query->latest('date')->get();
-
-        $purchaseDashboard = [
-            'count' => $purchases->count(),
-            'total_value' => (float) $purchases->sum(function ($p) {
-                return (float) ($p->total_amount ?? ($p->quantity * $p->unit_price));
-            }),
-            'pending_amount' => (float) $purchases->sum(function ($p) {
-                $total = (float) ($p->total_amount ?? ($p->quantity * $p->unit_price));
-
-                return max(0, $total - (float) ($p->paid_amount ?? 0));
-            }),
-        ];
-
-        return view('admin.stock.purchases', compact('purchases', 'dateFrom', 'dateTo', 'preset', 'purchaseDashboard'));
+        return $this->purchaseListForType($request, passthrough: false);
     }
 
     public function exportPurchasesCsv(Request $request)
     {
-        $query = Purchase::with(['product.category', 'branch', 'lines.product.category']);
+        $query = Purchase::stockPurchases()->with(['product.category', 'branch', 'lines.product.category']);
 
         if ($request->filled('date_from')) {
             $query->whereDate('date', '>=', $request->input('date_from'));
@@ -369,7 +328,7 @@ class StockController extends Controller
      */
     public function viewAllReceipts()
     {
-        $purchases = Purchase::with(['product', 'stock'])
+        $purchases = Purchase::stockPurchases()->with(['product', 'stock'])
             ->whereNotNull('payment_receipt_image')
             ->latest('date')
             ->get();
@@ -765,7 +724,7 @@ class StockController extends Controller
 
         if ($stocks->isEmpty()) {
             $addProductTarget = 'purchase';
-            $purchasePickerRows = Purchase::query()
+            $purchasePickerRows = Purchase::stockPurchases()
                 ->where('limit_status', 'pending')
                 ->where('limit_remaining', '>', 0)
                 ->orderBy('date', 'desc')
@@ -781,6 +740,10 @@ class StockController extends Controller
      */
     public function modelsForPurchaseAddProduct(Purchase $purchase)
     {
+        if ($purchase->isPassthrough()) {
+            abort(404);
+        }
+
         $purchase->load([
             'lines.product.category:id,name',
             'product:id,name,category_id',
@@ -1015,8 +978,8 @@ class StockController extends Controller
             $validated = $request->validate($baseRules + [
                 'purchase_id' => 'required|exists:purchases,id',
             ]);
-            $purchase = Purchase::with(['product', 'stock', 'lines'])->findOrFail($validated['purchase_id']);
-            if ($purchase->limit_status !== 'pending' || (int) $purchase->limit_remaining <= 0) {
+            $purchase = Purchase::stockPurchases()->with(['product', 'stock', 'lines'])->findOrFail($validated['purchase_id']);
+            if ($purchase->isPassthrough() || $purchase->limit_status !== 'pending' || (int) $purchase->limit_remaining <= 0) {
                 return redirect()->route('admin.stock.add-product')
                     ->withInput()
                     ->withErrors(['purchase_id' => 'This purchase has no remaining device slots.']);
@@ -1027,7 +990,7 @@ class StockController extends Controller
                 'stock_id' => 'required|exists:stocks,id',
             ]);
             $stock = Stock::findOrFail($validated['stock_id']);
-            $purchase = Purchase::with(['product', 'lines'])
+            $purchase = Purchase::stockPurchases()->with(['product', 'lines'])
                 ->where('stock_id', $stock->id)
                 ->where('limit_status', 'pending')
                 ->where('limit_remaining', '>', 0)
@@ -1222,14 +1185,24 @@ class StockController extends Controller
             ->values();
 
         $paymentOptions = PaymentOption::visible()->orderBy('name')->get();
+        $isPassthrough = false;
 
-        return view('admin.stock.create-purchase', compact('vendors', 'fromStock', 'branches', 'productsForSelect', 'paymentOptions'));
+        return view('admin.stock.create-purchase', compact('vendors', 'fromStock', 'branches', 'productsForSelect', 'paymentOptions', 'isPassthrough'));
     }
 
     public function storePurchase(Request $request)
     {
+        $passthrough = $request->boolean('_passthrough');
         $paymentOptionId = $request->filled('payment_option_id') ? $request->input('payment_option_id') : null;
         $hasNoteColumn = Schema::hasTable('purchases') && Schema::hasColumn('purchases', 'note');
+        $listRoute = $passthrough ? 'admin.stock.passthrough' : 'admin.stock.purchases';
+        $successMessage = $passthrough ? 'Passthrough recorded successfully.' : 'Purchase recorded successfully.';
+
+        if ($passthrough && $request->filled('stock_id')) {
+            return redirect()->back()
+                ->withInput()
+                ->withErrors(['stock_id' => 'Passthrough cannot be created from stock. Use the standard purchase flow for stock-linked entries.']);
+        }
 
         if ($request->filled('stock_id')) {
             $request->validate([
@@ -1300,9 +1273,10 @@ class StockController extends Controller
             $paymentStatus = $paidAmount >= $totalAmount ? 'paid' : ($paidAmount > 0 ? 'partial' : 'pending');
             $validated['payment_status'] = $paymentStatus;
             $validated['paid_amount'] = $paidAmount;
-            $validated['limit_status'] = 'pending';
-            $validated['limit_remaining'] = $quantity;
+            $validated['limit_status'] = $passthrough ? 'complete' : 'pending';
+            $validated['limit_remaining'] = $passthrough ? 0 : $quantity;
             $validated['sell_price'] = $request->filled('sell_price') ? $request->input('sell_price') : null;
+            $validated['is_passthrough'] = $passthrough;
 
             if ($hasNoteColumn) {
                 $validated['note'] = $request->input('note');
@@ -1369,7 +1343,7 @@ class StockController extends Controller
                 $product->update(['price' => $latestPurchase->sell_price]);
             }
 
-            return redirect()->route('admin.stock.purchases')->with('success', 'Purchase recorded successfully.');
+            return redirect()->route($listRoute)->with('success', $successMessage);
         }
 
         $validated = $request->validate([
@@ -1448,9 +1422,10 @@ class StockController extends Controller
             'paid_date' => $validated['paid_date'] ?? null,
             'paid_amount' => $paidAmount,
             'payment_status' => $paymentStatus,
-            'limit_status' => 'pending',
-            'limit_remaining' => $totalQty,
+            'limit_status' => $passthrough ? 'complete' : 'pending',
+            'limit_remaining' => $passthrough ? 0 : $totalQty,
             'sell_price' => null,
+            'is_passthrough' => $passthrough,
         ];
 
         if ($hasNoteColumn) {
@@ -1484,7 +1459,7 @@ class StockController extends Controller
 
         $purchase = null;
 
-        DB::transaction(function () use ($header, $linePayload, $paidAmount, $request, $validated, &$purchase) {
+        DB::transaction(function () use ($header, $linePayload, $paidAmount, $request, $validated, $passthrough, &$purchase) {
             $purchase = Purchase::create($header);
 
             foreach ($linePayload as $row) {
@@ -1494,15 +1469,17 @@ class StockController extends Controller
                     'quantity' => $row['quantity'],
                     'unit_price' => $row['unit_price'],
                     'sell_price' => $row['sell_price'],
-                    'limit_remaining' => $row['quantity'],
+                    'limit_remaining' => $passthrough ? 0 : $row['quantity'],
                 ]);
 
                 $row['product']->increment('stock_quantity', $row['quantity']);
             }
 
-            $purchase->update([
-                'limit_remaining' => (int) $purchase->lines()->sum('limit_remaining'),
-            ]);
+            if (! $passthrough) {
+                $purchase->update([
+                    'limit_remaining' => (int) $purchase->lines()->sum('limit_remaining'),
+                ]);
+            }
 
             if ($request->hasFile('payment_receipt_image')) {
                 $receiptImage = $request->file('payment_receipt_image');
@@ -1545,12 +1522,232 @@ class StockController extends Controller
             }
         }
 
-        return redirect()->route('admin.stock.purchases')->with('success', 'Purchase recorded successfully.');
+        return redirect()->route($listRoute)->with('success', $successMessage);
+    }
+
+    public function storePassthrough(Request $request)
+    {
+        $request->merge(['_passthrough' => true]);
+
+        return $this->storePurchase($request);
+    }
+
+    public function passthrough(Request $request)
+    {
+        return $this->purchaseListForType($request, passthrough: true);
+    }
+
+    public function exportPassthroughCsv(Request $request)
+    {
+        $query = Purchase::passthrough()->with(['product.category', 'branch', 'lines.product.category']);
+
+        if ($request->filled('date_from')) {
+            $query->whereDate('date', '>=', $request->input('date_from'));
+        }
+        if ($request->filled('date_to')) {
+            $query->whereDate('date', '<=', $request->input('date_to'));
+        }
+
+        $purchases = $query->latest('date')->get();
+        $filename = 'passthrough-' . now()->format('Ymd-His') . '.csv';
+
+        return response()->streamDownload(function () use ($purchases) {
+            $handle = fopen('php://output', 'w');
+            fputcsv($handle, [
+                'Invoice',
+                'Date',
+                'Branch',
+                'Distributor',
+                'Product',
+                'Quantity',
+                'Unit Price',
+                'Total Amount',
+                'Paid Date',
+                'Paid Amount',
+                'Pending Amount',
+                'Sell Price',
+                'Status',
+            ]);
+
+            foreach ($purchases as $purchase) {
+                $total = (float) ($purchase->total_amount ?? ($purchase->quantity * $purchase->unit_price));
+                $paid = (float) ($purchase->paid_amount ?? 0);
+                $pending = max(0, $total - $paid);
+
+                $productCell = '';
+                if ($purchase->lines->isNotEmpty()) {
+                    $productCell = $purchase->lines
+                        ->map(function ($line) {
+                            $p = $line->product;
+                            if (! $p) {
+                                return '';
+                            }
+
+                            return trim(($p->category?->name ? $p->category->name.' - ' : '').$p->name);
+                        })
+                        ->filter()
+                        ->unique()
+                        ->implode('; ');
+                } else {
+                    $productCell = trim(($purchase->product?->category?->name ? $purchase->product->category->name.' - ' : '').($purchase->product?->name ?? ''));
+                }
+
+                $sellCell = $purchase->sell_price !== null
+                    ? number_format((float) $purchase->sell_price, 2, '.', '')
+                    : ($purchase->lines->isNotEmpty()
+                        ? $purchase->lines->map(fn ($l) => $l->sell_price !== null ? number_format((float) $l->sell_price, 2, '.', '') : null)->filter()->unique()->implode('; ')
+                        : '');
+
+                fputcsv($handle, [
+                    $purchase->name ?? '',
+                    $purchase->date ?? '',
+                    $purchase->branch?->name ?? '',
+                    $purchase->distributor_name ?? '',
+                    $productCell,
+                    (int) ($purchase->quantity ?? 0),
+                    number_format((float) ($purchase->unit_price ?? 0), 2, '.', ''),
+                    number_format($total, 2, '.', ''),
+                    $purchase->paid_date ?? '',
+                    number_format($paid, 2, '.', ''),
+                    number_format($pending, 2, '.', ''),
+                    $sellCell,
+                    $purchase->payment_status ?? '',
+                ]);
+            }
+
+            fclose($handle);
+        }, $filename, ['Content-Type' => 'text/csv; charset=UTF-8']);
+    }
+
+    public function viewPassthroughReceipts()
+    {
+        $purchases = Purchase::passthrough()
+            ->with(['product', 'stock'])
+            ->whereNotNull('payment_receipt_image')
+            ->latest('date')
+            ->get();
+
+        return view('admin.stock.passthrough-receipts', compact('purchases'));
+    }
+
+    public function createPassthrough(Request $request)
+    {
+        $vendors = Vendor::orderBy('name')->get();
+        $branches = Branch::orderBy('name')->get();
+        $productsForSelect = Product::with('category')
+            ->get()
+            ->sortBy(fn (Product $p) => ($p->category?->name ?? '') . $p->name)
+            ->values();
+        $paymentOptions = PaymentOption::visible()->orderBy('name')->get();
+        $isPassthrough = true;
+        $fromStock = null;
+
+        return view('admin.stock.create-purchase', compact(
+            'vendors',
+            'fromStock',
+            'branches',
+            'productsForSelect',
+            'paymentOptions',
+            'isPassthrough'
+        ));
+    }
+
+    public function showPassthrough($id)
+    {
+        $purchase = Purchase::passthrough()
+            ->with(['lines.product.category', 'product.category', 'payments.paymentOption', 'branch'])
+            ->findOrFail($id);
+
+        return view('admin.stock.passthrough-show', compact('purchase'));
+    }
+
+    public function editPassthrough($id)
+    {
+        $purchase = Purchase::passthrough()->with(['product.category', 'payments.paymentOption'])->findOrFail($id);
+        $categories = \App\Models\Category::orderBy('name')->get();
+        $distributors = Purchase::passthrough()->select('distributor_name')
+            ->whereNotNull('distributor_name')
+            ->distinct()
+            ->pluck('distributor_name');
+        $paymentOptions = PaymentOption::visible()->orderBy('name')->get();
+        $isPassthrough = true;
+
+        return view('admin.stock.edit-purchase', compact('purchase', 'categories', 'distributors', 'paymentOptions', 'isPassthrough'));
+    }
+
+    public function updatePassthrough(Request $request, $id)
+    {
+        Purchase::passthrough()->findOrFail($id);
+
+        return $this->updatePurchase($request, $id, passthrough: true);
+    }
+
+    public function destroyPassthrough($id)
+    {
+        Purchase::passthrough()->findOrFail($id);
+
+        return $this->destroyPurchase($id, passthrough: true);
+    }
+
+    /**
+     * @return \Illuminate\View\View
+     */
+    private function purchaseListForType(Request $request, bool $passthrough)
+    {
+        $dateFrom = $request->input('date_from');
+        $dateTo = $request->input('date_to');
+        $preset = $request->input('preset');
+
+        if ($request->filled('preset')) {
+            $now = Carbon::now();
+            switch ($preset) {
+                case 'this_week':
+                    $dateFrom = $now->copy()->startOfWeek()->toDateString();
+                    $dateTo = $now->copy()->endOfWeek()->toDateString();
+                    break;
+                case 'last_week':
+                    $dateFrom = $now->copy()->subWeek()->startOfWeek()->toDateString();
+                    $dateTo = $now->copy()->subWeek()->endOfWeek()->toDateString();
+                    break;
+                case 'last_30_days':
+                    $dateFrom = $now->copy()->subDays(30)->toDateString();
+                    $dateTo = $now->toDateString();
+                    break;
+            }
+        }
+
+        $query = $passthrough ? Purchase::passthrough() : Purchase::stockPurchases();
+        $query->with(['product', 'stock', 'branch', 'lines.product']);
+
+        if ($dateFrom) {
+            $query->where('date', '>=', $dateFrom);
+        }
+        if ($dateTo) {
+            $query->where('date', '<=', $dateTo);
+        }
+
+        $purchases = $query->latest('date')->get();
+
+        $purchaseDashboard = [
+            'count' => $purchases->count(),
+            'total_value' => (float) $purchases->sum(function ($p) {
+                return (float) ($p->total_amount ?? ($p->quantity * $p->unit_price));
+            }),
+            'pending_amount' => (float) $purchases->sum(function ($p) {
+                $total = (float) ($p->total_amount ?? ($p->quantity * $p->unit_price));
+
+                return max(0, $total - (float) ($p->paid_amount ?? 0));
+            }),
+        ];
+
+        $isPassthrough = $passthrough;
+
+        return view('admin.stock.purchases', compact('purchases', 'dateFrom', 'dateTo', 'preset', 'purchaseDashboard', 'isPassthrough'));
     }
 
     public function editPurchase($id)
     {
-        $purchase = Purchase::with(['product.category', 'payments.paymentOption'])->findOrFail($id);
+        $purchase = Purchase::stockPurchases()->with(['product.category', 'payments.paymentOption'])->findOrFail($id);
         
         // Get all categories for the select dropdown
         $categories = \App\Models\Category::orderBy('name')->get();
@@ -1564,12 +1761,16 @@ class StockController extends Controller
         // Get payment options with balance for selection
         $paymentOptions = PaymentOption::visible()->orderBy('name')->get();
             
-        return view('admin.stock.edit-purchase', compact('purchase', 'categories', 'distributors', 'paymentOptions'));
+        $isPassthrough = false;
+
+        return view('admin.stock.edit-purchase', compact('purchase', 'categories', 'distributors', 'paymentOptions', 'isPassthrough'));
     }
 
-    public function updatePurchase(Request $request, $id)
+    public function updatePurchase(Request $request, $id, bool $passthrough = false)
     {
-        $purchase = Purchase::with('product')->findOrFail($id);
+        $purchase = ($passthrough ? Purchase::passthrough() : Purchase::stockPurchases())
+            ->with('product')
+            ->findOrFail($id);
 
         $rules = [
             'name' => 'nullable|string|max:255',
@@ -1749,14 +1950,19 @@ class StockController extends Controller
             }
         }
 
+        $editRoute = $purchase->isPassthrough() ? 'admin.stock.edit-passthrough' : 'admin.stock.edit-purchase';
+        $successLabel = $purchase->isPassthrough() ? 'Passthrough updated successfully.' : 'Purchase updated successfully.';
+
         return redirect()
-            ->route('admin.stock.edit-purchase', $purchase->id)
-            ->with('success', 'Purchase updated successfully.');
+            ->route($editRoute, $purchase->id)
+            ->with('success', $successLabel);
     }
 
-    public function destroyPurchase($id)
+    public function destroyPurchase($id, bool $passthrough = false)
     {
-        $purchase = Purchase::with(['product', 'productListItems'])->findOrFail($id);
+        $purchase = ($passthrough ? Purchase::passthrough() : Purchase::stockPurchases())
+            ->with(['product', 'productListItems'])
+            ->findOrFail($id);
         $purchaseQty = (int) ($purchase->quantity ?? 0);
         $productId = $purchase->product_id;
 
@@ -1811,16 +2017,21 @@ class StockController extends Controller
                 }
             });
         } catch (\RuntimeException $e) {
-            return redirect()->route('admin.stock.purchases')
+            return redirect()->route($passthrough ? 'admin.stock.passthrough' : 'admin.stock.purchases')
                 ->withErrors(['error' => $e->getMessage()]);
         } catch (\Throwable $e) {
             Log::error('Purchase delete failed: '.$e->getMessage(), ['exception' => $e]);
 
-            return redirect()->route('admin.stock.purchases')
-                ->withErrors(['error' => 'Could not delete this purchase. It may be linked to records that block removal.']);
+            return redirect()->route($passthrough ? 'admin.stock.passthrough' : 'admin.stock.purchases')
+                ->withErrors(['error' => 'Could not delete this record. It may be linked to data that block removal.']);
         }
 
-        return redirect()->route('admin.stock.purchases')->with('success', 'Purchase deleted, including linked stock and agent sale / credit / pending data.');
+        $listRoute = $passthrough ? 'admin.stock.passthrough' : 'admin.stock.purchases';
+        $successMessage = $passthrough
+            ? 'Passthrough deleted successfully.'
+            : 'Purchase deleted, including linked stock and agent sale / credit / pending data.';
+
+        return redirect()->route($listRoute)->with('success', $successMessage);
     }
 
     // Distribution Sales
@@ -1836,6 +2047,29 @@ class StockController extends Controller
         return view('admin.stock.create-distribution', compact('products', 'dealers'));
     }
 
+    /**
+     * JSON: unsold IMEIs available to sell to a dealer for this catalog product.
+     */
+    public function distributionAssignableImeis(Request $request)
+    {
+        $validated = $request->validate([
+            'product_id' => 'required|integer|exists:models,id',
+        ]);
+
+        $productId = (int) $validated['product_id'];
+        $items = ProductListItem::availableForDistribution($productId)
+            ->orderBy('imei_number')
+            ->get(['id', 'imei_number', 'model']);
+
+        return response()->json([
+            'data' => $items->map(fn (ProductListItem $i) => [
+                'id' => $i->id,
+                'imei_number' => $i->imei_number,
+                'text' => $i->imei_number.($i->model ? ' – '.$i->model : ''),
+            ])->values()->all(),
+        ]);
+    }
+
     public function storeDistribution(Request $request)
     {
         if ($request->filled('paid_amount') === false || trim((string) $request->input('paid_amount', '')) === '') {
@@ -1848,7 +2082,8 @@ class StockController extends Controller
             'seller_name' => 'nullable|string|max:255',
             'lines' => 'required|array|min:1',
             'lines.*.product_id' => 'required|integer|exists:models,id',
-            'lines.*.quantity_sold' => 'required|integer|min:1',
+            'lines.*.product_list_ids' => 'required|array|min:1',
+            'lines.*.product_list_ids.*' => 'integer|distinct|exists:product_list,id',
             'lines.*.selling_price' => 'required|numeric|min:0.01',
             'paid_amount' => 'nullable|numeric|min:0',
         ]);
@@ -1859,19 +2094,54 @@ class StockController extends Controller
 
         $linePayloads = [];
         $grandSellingTotal = 0.0;
+        $usedImeiIds = [];
 
-        foreach ($validated['lines'] as $line) {
+        foreach ($validated['lines'] as $lineIndex => $line) {
             $pid = (int) $line['product_id'];
-            $qty = (int) $line['quantity_sold'];
             $sellUnit = (float) $line['selling_price'];
+            $imeiIds = array_values(array_unique(array_map('intval', $line['product_list_ids'] ?? [])));
+
+            foreach ($imeiIds as $imeiId) {
+                if (isset($usedImeiIds[$imeiId])) {
+                    return redirect()->back()
+                        ->withInput()
+                        ->withErrors([
+                            'lines' => 'The same IMEI cannot appear on more than one line in this sale.',
+                        ]);
+                }
+                $usedImeiIds[$imeiId] = true;
+            }
 
             $product = Product::findOrFail($pid);
+            $items = ProductListItem::availableForDistribution($pid)
+                ->whereIn('id', $imeiIds)
+                ->get();
+
+            if ($items->count() !== count($imeiIds)) {
+                return redirect()->back()
+                    ->withInput()
+                    ->withErrors([
+                        'lines' => "One or more IMEIs on line ".($lineIndex + 1)." are not available for {$product->name} (sold, assigned, or wrong product).",
+                    ]);
+            }
+
+            foreach ($items as $item) {
+                if (! $item->isCatalogProduct($pid)) {
+                    return redirect()->back()
+                        ->withInput()
+                        ->withErrors([
+                            'lines' => "IMEI {$item->imei_number} does not belong to {$product->name}.",
+                        ]);
+                }
+            }
+
+            $qty = count($imeiIds);
             $stock = (int) ($product->stock_quantity ?? 0);
             if ($qty > $stock) {
                 return redirect()->back()
                     ->withInput()
                     ->withErrors([
-                        'lines' => "Insufficient stock for {$product->name}: requested {$qty}, available {$stock}.",
+                        'lines' => "Insufficient stock for {$product->name}: selected {$qty} device(s), available {$stock}.",
                     ]);
             }
 
@@ -1883,6 +2153,7 @@ class StockController extends Controller
             $linePayloads[] = [
                 'product' => $product,
                 'quantity_sold' => $qty,
+                'product_list_ids' => $imeiIds,
                 'purchase_price' => $buyPrice,
                 'selling_price' => $sellUnit,
                 'total_selling_value' => $totalSell,
@@ -1902,10 +2173,13 @@ class StockController extends Controller
         $lineTotals = array_map(fn ($p) => (float) $p['total_selling_value'], $linePayloads);
         $paidShares = $this->allocateDistributionPaidAcrossLines($paidTotal, $grandSellingTotal, $lineTotals);
 
-        DB::transaction(function () use ($validated, $dealerName, $request, $linePayloads, $paidShares, $eps) {
+        $hasDistributionSaleIdOnList = Schema::hasColumn('product_list', 'distribution_sale_id');
+
+        DB::transaction(function () use ($validated, $dealerName, $request, $linePayloads, $paidShares, $eps, $hasDistributionSaleIdOnList) {
             foreach ($linePayloads as $idx => $payload) {
                 $paidLine = (float) ($paidShares[$idx] ?? 0);
                 $totalSell = (float) $payload['total_selling_value'];
+                $balance = max(0, $totalSell - $paidLine);
                 $attrs = [
                     'date' => $validated['date'],
                     'dealer_id' => (int) $validated['dealer_id'],
@@ -1917,14 +2191,21 @@ class StockController extends Controller
                     'selling_price' => $payload['selling_price'],
                     'total_purchase_value' => $payload['total_purchase_value'],
                     'total_selling_value' => $totalSell,
+                    'to_be_paid' => $totalSell,
                     'commission' => 0,
                     'profit' => $payload['profit'],
                     'paid_amount' => $paidLine,
-                    'balance' => max(0, $totalSell - $paidLine),
+                    'balance' => $balance,
                     'status' => $paidLine >= $totalSell - $eps ? 'complete' : 'pending',
                 ];
 
-                DistributionSale::create($attrs);
+                $sale = DistributionSale::create($attrs);
+
+                $imeiUpdate = ['sold_at' => now()];
+                if ($hasDistributionSaleIdOnList) {
+                    $imeiUpdate['distribution_sale_id'] = $sale->id;
+                }
+                ProductListItem::whereIn('id', $payload['product_list_ids'])->update($imeiUpdate);
 
                 Product::where('id', $payload['product']->id)->decrement('stock_quantity', $payload['quantity_sold']);
             }
@@ -1965,12 +2246,16 @@ class StockController extends Controller
                 continue;
             }
             $share = round($paidTotal * ($lt / $grandTotal), 2);
-            $share = min($share, $lt, $paidTotal - $allocated);
-            if ($share < 0) {
-                $share = 0.0;
-            }
+            $share = min($share, $lt, max(0, round($paidTotal - $allocated, 2)));
             $out[$i] = $share;
             $allocated += $share;
+        }
+
+        $sumAllocated = array_sum($out);
+        if (abs($sumAllocated - $paidTotal) > 0.009 && $n > 0) {
+            $drift = round($paidTotal - $sumAllocated, 2);
+            $last = $n - 1;
+            $out[$last] = max(0, min((float) $lineSellingTotals[$last], $out[$last] + $drift));
         }
 
         return $out;
@@ -2161,14 +2446,22 @@ class StockController extends Controller
     {
         $sale = DistributionSale::findOrFail($id);
         $product = $sale->product;
-        $quantitySold = $sale->quantity_sold;
+        $quantitySold = (int) ($sale->quantity_sold ?? 0);
 
-        DB::table('distribution_sales')->where('id', $sale->id)->delete();
-        
-        // Keep product.stock_quantity in sync
-        if ($product) {
-            $product->increment('stock_quantity', $quantitySold);
-        }
+        DB::transaction(function () use ($sale, $product, $quantitySold) {
+            if (Schema::hasColumn('product_list', 'distribution_sale_id')) {
+                ProductListItem::where('distribution_sale_id', $sale->id)->update([
+                    'sold_at' => null,
+                    'distribution_sale_id' => null,
+                ]);
+            }
+
+            DB::table('distribution_sales')->where('id', $sale->id)->delete();
+
+            if ($product && $quantitySold > 0) {
+                $product->increment('stock_quantity', $quantitySold);
+            }
+        });
 
         return redirect()->route('admin.stock.distribution')->with('success', 'Distribution sale deleted successfully.');
     }

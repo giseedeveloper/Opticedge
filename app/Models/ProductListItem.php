@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Schema;
 
 class ProductListItem extends Model
 {
@@ -18,6 +19,7 @@ class ProductListItem extends Model
         'product_id',
         'sold_at',
         'agent_sale_id',
+        'distribution_sale_id',
         'pending_sale_id',
         'agent_credit_id',
     ];
@@ -88,6 +90,32 @@ class ProductListItem extends Model
         return $this->belongsTo(AgentSale::class, 'agent_sale_id');
     }
 
+    public function distributionSale()
+    {
+        return $this->belongsTo(DistributionSale::class, 'distribution_sale_id');
+    }
+
+    /**
+     * Unsold warehouse devices for a catalog product (not assigned to agents, not on credit/pending).
+     */
+    public function scopeAvailableForDistribution($query, int $productId)
+    {
+        return $query
+            ->where(function ($q) use ($productId) {
+                $q->where('product_id', $productId)
+                    ->orWhereHas('purchase', fn ($p) => $p->where('product_id', $productId));
+            })
+            ->whereNull('sold_at')
+            ->whereNull('agent_sale_id')
+            ->when(
+                Schema::hasColumn('product_list', 'distribution_sale_id'),
+                fn ($q) => $q->whereNull('distribution_sale_id')
+            )
+            ->whereNull('pending_sale_id')
+            ->whereNull('agent_credit_id')
+            ->whereDoesntHave('agentProductListAssignment');
+    }
+
     public function pendingSale()
     {
         return $this->belongsTo(PendingSale::class, 'pending_sale_id');
@@ -122,7 +150,7 @@ class ProductListItem extends Model
      */
     public static function purchaseQualifiesForAgentAssignment(?Purchase $purchase): bool
     {
-        if ($purchase === null) {
+        if ($purchase === null || $purchase->isPassthrough()) {
             return false;
         }
 
@@ -138,10 +166,11 @@ class ProductListItem extends Model
     public function scopeAssignableToAgent($query, int $productId)
     {
         $purchaseOk = function ($p) {
-            $p->where(function ($p2) {
-                $p2->whereIn('payment_status', ['paid', 'partial', 'pending'])
-                    ->orWhere('limit_remaining', '>', 0);
-            });
+            $p->where('is_passthrough', false)
+                ->where(function ($p2) {
+                    $p2->whereIn('payment_status', ['paid', 'partial', 'pending'])
+                        ->orWhere('limit_remaining', '>', 0);
+                });
         };
 
         return $query

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
@@ -26,7 +27,27 @@ class Purchase extends Model
         'limit_remaining',
         'sell_price',
         'note',
+        'is_passthrough',
     ];
+
+    protected $casts = [
+        'is_passthrough' => 'boolean',
+    ];
+
+    public function scopeStockPurchases(Builder $query): Builder
+    {
+        return $query->where('is_passthrough', false);
+    }
+
+    public function scopePassthrough(Builder $query): Builder
+    {
+        return $query->where('is_passthrough', true);
+    }
+
+    public function isPassthrough(): bool
+    {
+        return (bool) $this->is_passthrough;
+    }
 
     public function productListItems()
     {

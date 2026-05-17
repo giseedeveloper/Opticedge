@@ -3,12 +3,11 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\Branch;
-use App\Models\Region;
 use App\Models\User;
-use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Collection;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
 
@@ -39,11 +38,7 @@ class CustomerController extends Controller
 
         $managers = $query->paginate(20);
 
-        $regions = Schema::hasTable('regions')
-            ? Region::query()->orderBy('name')->get(['id', 'name'])
-            : collect();
-
-        return view('admin.customers.regional-managers.index', compact('managers', 'regions'));
+        return view('admin.customers.regional-managers.index', compact('managers'));
     }
 
     public function teamLeadersIndex()
@@ -66,77 +61,100 @@ class CustomerController extends Controller
 
         $teamLeaders = $query->paginate(20);
 
-        $regions = Schema::hasTable('regions')
-            ? Region::query()->orderBy('name')->get(['id', 'name'])
-            : collect();
+        return view('admin.customers.team-leaders.index', compact('teamLeaders'));
+    }
 
-        $branches = Schema::hasTable('branches')
-            ? Branch::query()->orderBy('name')->get(['id', 'name'])
-            : collect();
+    public function createRegionalManager()
+    {
+        if (! Schema::hasTable('regions') || ! Schema::hasColumn('users', 'region_id')) {
+            return redirect()->route('admin.customers.regional-managers.index')
+                ->withErrors(['error' => 'Regions are not set up yet. Run migrations and seed regions first.']);
+        }
 
-        $regionalManagers = $this->regionalManagersForForms();
+        $regions = DB::table('regions')->orderBy('name')->get(['id', 'name']);
 
-        return view('admin.customers.team-leaders.index', compact('teamLeaders', 'regions', 'branches', 'regionalManagers'));
+        return view('admin.customers.regional-managers.create', compact('regions'));
+    }
+
+    public function createTeamLeader()
+    {
+        if (! Schema::hasTable('regions') || ! Schema::hasColumn('users', 'region_id')) {
+            return redirect()->route('admin.customers.team-leaders.index')
+                ->withErrors(['error' => 'Regions are not set up yet. Run migrations and seed regions first.']);
+        }
+
+        if (! Schema::hasTable('branches') || ! Schema::hasColumn('users', 'branch_id')) {
+            return redirect()->route('admin.customers.team-leaders.index')
+                ->withErrors(['error' => 'Branches are not set up yet. Create a branch first.']);
+        }
+
+        $regions = DB::table('regions')->orderBy('name')->get(['id', 'name']);
+        $branches = DB::table('branches')->orderBy('name')->get(['id', 'name']);
+        $regionalManagers = $this->regionalManagersForSelect();
+
+        return view('admin.customers.team-leaders.create', compact('regions', 'branches', 'regionalManagers'));
     }
 
     /**
-     * @return Collection<int, User>
+     * @return Collection<int, object>
      */
-    private function regionalManagersForForms(): Collection
+    private function regionalManagersForSelect(): Collection
     {
-        $regionalManagersQuery = User::query()
+        if (! Schema::hasColumn('users', 'regional_manager_id')) {
+            return collect();
+        }
+
+        $query = DB::table('users')
             ->where('role', 'regional_manager')
-            ->where('status', 'active');
-
-        if (Schema::hasColumn('users', 'region_id')) {
-            $regionalManagersQuery->whereNotNull('region_id');
-        }
-
-        if (Schema::hasTable('regions')) {
-            $regionalManagersQuery->with('region:id,name');
-        }
-
-        $regionalManagerColumns = ['id', 'name'];
-        if (Schema::hasColumn('users', 'region_id')) {
-            $regionalManagerColumns[] = 'region_id';
-        }
-
-        return $regionalManagersQuery
+            ->where('status', 'active')
+            ->whereNotNull('region_id')
             ->orderBy('name')
-            ->get($regionalManagerColumns);
+            ->select(['id', 'name', 'region_id']);
+
+        $managers = $query->get();
+
+        if (! Schema::hasTable('regions') || $managers->isEmpty()) {
+            return $managers;
+        }
+
+        $regionNames = DB::table('regions')->pluck('name', 'id');
+
+        return $managers->map(function ($row) use ($regionNames) {
+            $row->region_name = $regionNames[$row->region_id] ?? null;
+
+            return $row;
+        });
     }
 
     public function storeRegionalManager(Request $request)
     {
         if (! Schema::hasTable('regions') || ! Schema::hasColumn('users', 'region_id')) {
-            return redirect()->route('admin.customers.regional-managers.index', ['add' => 1])
+            return redirect()->route('admin.customers.regional-managers.create')
                 ->withErrors(['error' => 'Regions are not set up yet. Run migrations and seed regions first.']);
         }
 
         $validated = $request->validate([
-            'rm.name' => 'required|string|max:255',
-            'rm.email' => 'required|string|email|max:255|unique:users,email',
-            'rm.phone' => 'nullable|string|max:100',
-            'rm.region_id' => 'required|exists:regions,id',
-            'rm.password' => 'required|string|min:8|confirmed',
-            'rm.business_name' => 'nullable|string|max:255',
-            'rm.notes' => 'nullable|string|max:10000',
+            'name' => 'required|string|max:255',
+            'email' => 'required|string|email|max:255|unique:users,email',
+            'phone' => 'nullable|string|max:100',
+            'region_id' => 'required|exists:regions,id',
+            'password' => 'required|string|min:8|confirmed',
+            'business_name' => 'nullable|string|max:255',
+            'notes' => 'nullable|string|max:10000',
         ]);
 
-        $rm = $validated['rm'];
-
         $payload = [
-            'name' => $rm['name'],
-            'email' => $rm['email'],
-            'password' => $rm['password'],
-            'phone' => $rm['phone'] ?? null,
+            'name' => $validated['name'],
+            'email' => $validated['email'],
+            'password' => $validated['password'],
+            'phone' => $validated['phone'] ?? null,
             'role' => 'regional_manager',
             'status' => 'active',
-            'region_id' => (int) $rm['region_id'],
+            'region_id' => (int) $validated['region_id'],
             'branch_id' => null,
             'regional_manager_id' => null,
-            'business_name' => $rm['business_name'] ?? null,
-            'notes' => $rm['notes'] ?? null,
+            'business_name' => $validated['business_name'] ?? null,
+            'notes' => $validated['notes'] ?? null,
         ];
 
         if (! Schema::hasColumn('users', 'notes')) {
@@ -157,57 +175,56 @@ class CustomerController extends Controller
     public function storeTeamLeader(Request $request)
     {
         if (! Schema::hasTable('regions') || ! Schema::hasColumn('users', 'region_id')) {
-            return redirect()->route('admin.customers.team-leaders.index', ['add' => 1])
+            return redirect()->route('admin.customers.team-leaders.create')
                 ->withErrors(['error' => 'Regions are not set up yet. Run migrations and seed regions first.']);
         }
 
         if (! Schema::hasTable('branches') || ! Schema::hasColumn('users', 'branch_id')) {
-            return redirect()->route('admin.customers.team-leaders.index', ['add' => 1])
+            return redirect()->route('admin.customers.team-leaders.create')
                 ->withErrors(['error' => 'Branches are not set up yet. Create a branch first.']);
         }
 
         $validated = $request->validate([
-            'tl.name' => 'required|string|max:255',
-            'tl.email' => 'required|string|email|max:255|unique:users,email',
-            'tl.phone' => 'nullable|string|max:100',
-            'tl.region_id' => 'required|exists:regions,id',
-            'tl.branch_id' => 'required|exists:branches,id',
-            'tl.regional_manager_id' => [
+            'name' => 'required|string|max:255',
+            'email' => 'required|string|email|max:255|unique:users,email',
+            'phone' => 'nullable|string|max:100',
+            'region_id' => 'required|exists:regions,id',
+            'branch_id' => 'required|exists:branches,id',
+            'regional_manager_id' => [
                 'required',
                 Rule::exists('users', 'id')->where(function ($q) {
                     $q->where('role', 'regional_manager')->where('status', 'active');
                 }),
             ],
-            'tl.password' => 'required|string|min:8|confirmed',
-            'tl.business_name' => 'nullable|string|max:255',
-            'tl.notes' => 'nullable|string|max:10000',
+            'password' => 'required|string|min:8|confirmed',
+            'business_name' => 'nullable|string|max:255',
+            'notes' => 'nullable|string|max:10000',
         ]);
 
-        $tl = $validated['tl'];
-
-        $manager = User::query()
-            ->where('id', $tl['regional_manager_id'])
+        $managerRegionId = DB::table('users')
+            ->where('id', $validated['regional_manager_id'])
             ->where('role', 'regional_manager')
-            ->first();
+            ->where('status', 'active')
+            ->value('region_id');
 
-        if (! $manager || (int) $manager->region_id !== (int) $tl['region_id']) {
-            return redirect()->route('admin.customers.team-leaders.index', ['add' => 1])
-                ->withErrors(['error' => 'The selected regional manager must belong to the same region you selected.'])
+        if ($managerRegionId === null || (int) $managerRegionId !== (int) $validated['region_id']) {
+            return redirect()->route('admin.customers.team-leaders.create')
+                ->withErrors(['regional_manager_id' => 'The selected regional manager must belong to the same region you selected.'])
                 ->withInput();
         }
 
         $payload = [
-            'name' => $tl['name'],
-            'email' => $tl['email'],
-            'password' => $tl['password'],
-            'phone' => $tl['phone'] ?? null,
+            'name' => $validated['name'],
+            'email' => $validated['email'],
+            'password' => $validated['password'],
+            'phone' => $validated['phone'] ?? null,
             'role' => 'teamleader',
             'status' => 'active',
-            'region_id' => (int) $tl['region_id'],
-            'branch_id' => (int) $tl['branch_id'],
-            'regional_manager_id' => (int) $tl['regional_manager_id'],
-            'business_name' => $tl['business_name'] ?? null,
-            'notes' => $tl['notes'] ?? null,
+            'region_id' => (int) $validated['region_id'],
+            'branch_id' => (int) $validated['branch_id'],
+            'regional_manager_id' => (int) $validated['regional_manager_id'],
+            'business_name' => $validated['business_name'] ?? null,
+            'notes' => $validated['notes'] ?? null,
         ];
 
         if (! Schema::hasColumn('users', 'notes')) {

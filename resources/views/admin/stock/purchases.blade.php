@@ -1,3 +1,13 @@
+@php
+    $isPassthrough = $isPassthrough ?? false;
+    $listRoute = $isPassthrough ? 'admin.stock.passthrough' : 'admin.stock.purchases';
+    $exportRoute = $isPassthrough ? 'admin.stock.passthrough.export-csv' : 'admin.stock.purchases.export-csv';
+    $receiptsRoute = $isPassthrough ? 'admin.stock.passthrough.receipts' : 'admin.stock.purchases.receipts';
+    $createRoute = $isPassthrough ? 'admin.stock.create-passthrough' : 'admin.stock.create-purchase';
+    $editRoute = $isPassthrough ? 'admin.stock.edit-passthrough' : 'admin.stock.edit-purchase';
+    $destroyRoute = $isPassthrough ? 'admin.stock.destroy-passthrough' : 'admin.stock.destroy-purchase';
+    $showRoute = $isPassthrough ? 'admin.stock.passthrough.show' : 'admin.stock.purchase.show';
+@endphp
 <x-admin-layout>
     @include('admin.partials.catalog-styles')
 
@@ -5,11 +15,11 @@
         <div class="admin-prod-toolbar">
             <div>
                 <p class="admin-prod-eyebrow">Inventory</p>
-                <h1 class="admin-prod-title">Purchases</h1>
-                <p class="admin-prod-subtitle">Stock purchases, payments, and sell prices.</p>
+                <h1 class="admin-prod-title">{{ $isPassthrough ? 'Passthrough' : 'Purchases' }}</h1>
+                <p class="admin-prod-subtitle">{{ $isPassthrough ? 'Stock passthrough entries (no IMEI tracking), payments, and sell prices.' : 'Stock purchases, payments, and sell prices.' }}</p>
             </div>
             <div class="flex flex-wrap gap-2 justify-end shrink-0">
-                <a href="{{ route('admin.stock.purchases.export-csv', request()->query()) }}" class="admin-prod-btn-ghost inline-flex items-center gap-2">
+                <a href="{{ route($exportRoute, request()->query()) }}" class="admin-prod-btn-ghost inline-flex items-center gap-2">
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
                         stroke="currentColor" class="w-5 h-5">
                         <path stroke-linecap="round" stroke-linejoin="round"
@@ -17,6 +27,7 @@
                     </svg>
                     Export CSV
                 </a>
+                @if(! $isPassthrough)
                 <form action="{{ route('admin.stock.update-product-prices') }}" method="POST"
                     onsubmit="return confirm('This will update all existing product prices to use sell_price from their latest purchase. Continue?');"
                     class="inline">
@@ -30,7 +41,8 @@
                         Update product prices
                     </button>
                 </form>
-                <a href="{{ route('admin.stock.purchases.receipts') }}" class="admin-prod-btn-ghost inline-flex items-center gap-2">
+                @endif
+                <a href="{{ route($receiptsRoute) }}" class="admin-prod-btn-ghost inline-flex items-center gap-2">
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
                         stroke="currentColor" class="w-5 h-5">
                         <path stroke-linecap="round" stroke-linejoin="round"
@@ -38,12 +50,12 @@
                     </svg>
                     All receipts
                 </a>
-                <a href="{{ route('admin.stock.create-purchase') }}" class="admin-prod-btn-primary inline-flex items-center gap-2">
+                <a href="{{ route($createRoute) }}" class="admin-prod-btn-primary inline-flex items-center gap-2">
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
                         stroke="currentColor" class="w-5 h-5">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
                     </svg>
-                    Add purchase
+                    {{ $isPassthrough ? 'Add passthrough' : 'Add purchase' }}
                 </a>
             </div>
         </div>
@@ -55,7 +67,7 @@
         <x-admin-page-dashboard label="Summary (current filter)" class="mt-2">
             <dl class="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
-                    <dt class="text-xs uppercase text-slate-500">Purchases</dt>
+                    <dt class="text-xs uppercase text-slate-500">{{ $isPassthrough ? 'Entries' : 'Purchases' }}</dt>
                     <dd class="text-lg font-semibold text-slate-900">{{ number_format($purchaseDashboard['count']) }}</dd>
                 </div>
                 <div>
@@ -76,14 +88,14 @@
             </div>
             <div class="admin-prod-form-body space-y-4">
                 <div class="admin-prod-filter-row">
-                    <a href="{{ route('admin.stock.purchases', ['preset' => 'this_week']) }}"
+                    <a href="{{ route($listRoute, ['preset' => 'this_week']) }}"
                         class="admin-prod-filter-tab {{ ($preset ?? '') === 'this_week' ? 'admin-prod-filter-tab--active' : '' }}">This week</a>
-                    <a href="{{ route('admin.stock.purchases', ['preset' => 'last_week']) }}"
+                    <a href="{{ route($listRoute, ['preset' => 'last_week']) }}"
                         class="admin-prod-filter-tab {{ ($preset ?? '') === 'last_week' ? 'admin-prod-filter-tab--active' : '' }}">Last week</a>
-                    <a href="{{ route('admin.stock.purchases', ['preset' => 'last_30_days']) }}"
+                    <a href="{{ route($listRoute, ['preset' => 'last_30_days']) }}"
                         class="admin-prod-filter-tab {{ ($preset ?? '') === 'last_30_days' ? 'admin-prod-filter-tab--active' : '' }}">Last 30 days</a>
                 </div>
-                <form method="GET" action="{{ route('admin.stock.purchases') }}" class="flex flex-wrap gap-4 items-end">
+                <form method="GET" action="{{ route($listRoute) }}" class="flex flex-wrap gap-4 items-end">
                     <div>
                         <label for="date_from" class="admin-prod-label">From date</label>
                         <input type="date" name="date_from" id="date_from"
@@ -168,7 +180,16 @@
                                 </td>
                                 <td class="admin-prod-cell-actions">
                                     <div class="admin-prod-actions flex-wrap gap-2">
-                                        <a href="{{ route('admin.stock.edit-purchase', $purchase->id) }}" class="text-slate-600 hover:text-[#fa8900]"
+                                        <a href="{{ route($showRoute, $purchase->id) }}" class="text-slate-600 hover:text-[#fa8900]"
+                                            title="View">
+                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
+                                                stroke="currentColor" class="w-5 h-5">
+                                                <path stroke-linecap="round" stroke-linejoin="round"
+                                                    d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" />
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                                            </svg>
+                                        </a>
+                                        <a href="{{ route($editRoute, $purchase->id) }}" class="text-slate-600 hover:text-[#fa8900]"
                                             title="Edit">
                                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
                                                 stroke="currentColor" class="w-5 h-5">
@@ -176,8 +197,8 @@
                                                     d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125" />
                                             </svg>
                                         </a>
-                                        <form action="{{ route('admin.stock.destroy-purchase', $purchase->id) }}" method="POST"
-                                            onsubmit="return confirm('Are you sure you want to delete this purchase?');" class="inline">
+                                        <form action="{{ route($destroyRoute, $purchase->id) }}" method="POST"
+                                            onsubmit="return confirm('Are you sure you want to delete this {{ $isPassthrough ? 'passthrough entry' : 'purchase' }}?');" class="inline">
                                             @csrf
                                             @method('DELETE')
                                             <button type="submit" class="text-red-600 hover:text-red-800" title="Delete">
@@ -193,7 +214,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="14" class="text-center text-slate-500 py-10">No purchases found.</td>
+                                <td colspan="14" class="text-center text-slate-500 py-10">{{ $isPassthrough ? 'No passthrough entries found.' : 'No purchases found.' }}</td>
                             </tr>
                         @endforelse
                     </tbody>

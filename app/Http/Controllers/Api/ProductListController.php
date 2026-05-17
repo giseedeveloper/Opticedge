@@ -48,8 +48,8 @@ class ProductListController extends Controller
         $catalogProduct = null;
 
         if (! empty($validated['purchase_id'])) {
-            $purchase = Purchase::with(['product', 'lines'])->findOrFail($validated['purchase_id']);
-            if ($purchase->limit_status !== 'pending' || $purchase->limit_remaining <= 0) {
+            $purchase = Purchase::stockPurchases()->with(['product', 'lines'])->findOrFail($validated['purchase_id']);
+            if ($purchase->isPassthrough() || $purchase->limit_status !== 'pending' || $purchase->limit_remaining <= 0) {
                 return response()->json([
                     'message' => 'This purchase has no remaining limit.',
                 ], 422);
@@ -89,7 +89,7 @@ class ProductListController extends Controller
                 ], 422);
             }
             $stock = \App\Models\Stock::findOrFail($validated['stock_id']);
-            $purchase = Purchase::with(['product', 'lines'])
+            $purchase = Purchase::stockPurchases()->with(['product', 'lines'])
                 ->where('stock_id', $stock->id)
                 ->where('limit_status', 'pending')
                 ->where('limit_remaining', '>', 0)
@@ -197,8 +197,8 @@ class ProductListController extends Controller
             'imei_numbers.*' => 'required|string|max:65535',
         ]);
 
-        $purchase = Purchase::with(['product', 'lines'])->findOrFail($validated['purchase_id']);
-        if ($purchase->limit_status !== 'pending' || $purchase->limit_remaining <= 0) {
+        $purchase = Purchase::stockPurchases()->with(['product', 'lines'])->findOrFail($validated['purchase_id']);
+        if ($purchase->isPassthrough() || $purchase->limit_status !== 'pending' || $purchase->limit_remaining <= 0) {
             return response()->json([
                 'message' => 'This purchase has no remaining limit.',
             ], 422);

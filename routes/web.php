@@ -216,8 +216,10 @@ Route::middleware(['auth', 'admin', 'subadmin.ability'])->prefix('admin')->name(
         // Customers
         Route::get('customers', [App\Http\Controllers\Admin\CustomerController::class , 'index'])->name('customers.index');
         Route::get('customers/regional-managers', [App\Http\Controllers\Admin\CustomerController::class, 'regionalManagersIndex'])->name('customers.regional-managers.index');
+        Route::get('customers/regional-managers/create', [App\Http\Controllers\Admin\CustomerController::class, 'createRegionalManager'])->name('customers.regional-managers.create');
         Route::post('customers/regional-managers', [App\Http\Controllers\Admin\CustomerController::class, 'storeRegionalManager'])->name('customers.regional-managers.store');
         Route::get('customers/team-leaders', [App\Http\Controllers\Admin\CustomerController::class, 'teamLeadersIndex'])->name('customers.team-leaders.index');
+        Route::get('customers/team-leaders/create', [App\Http\Controllers\Admin\CustomerController::class, 'createTeamLeader'])->name('customers.team-leaders.create');
         Route::post('customers/team-leaders', [App\Http\Controllers\Admin\CustomerController::class, 'storeTeamLeader'])->name('customers.team-leaders.store');
         Route::patch('customers/{user}/activate', [App\Http\Controllers\Admin\CustomerController::class, 'activate'])->name('customers.activate');
         Route::patch('customers/{user}/deactivate', [App\Http\Controllers\Admin\CustomerController::class, 'deactivate'])->name('customers.deactivate');
@@ -290,12 +292,23 @@ Route::middleware(['auth', 'admin', 'subadmin.ability'])->prefix('admin')->name(
             Route::put('purchases/{id}', [App\Http\Controllers\Admin\StockController::class , 'updatePurchase'])->name('update-purchase');
             Route::delete('purchases/{id}', [App\Http\Controllers\Admin\StockController::class , 'destroyPurchase'])->name('destroy-purchase');
             Route::post('purchases/update-prices', [App\Http\Controllers\Admin\StockController::class , 'updateAllProductPrices'])->name('update-product-prices');
+
+            Route::get('passthrough', [App\Http\Controllers\Admin\StockController::class, 'passthrough'])->name('passthrough');
+            Route::get('passthrough/export-csv', [App\Http\Controllers\Admin\StockController::class, 'exportPassthroughCsv'])->name('passthrough.export-csv');
+            Route::get('passthrough/receipts', [App\Http\Controllers\Admin\StockController::class, 'viewPassthroughReceipts'])->name('passthrough.receipts');
+            Route::get('passthrough/create', [App\Http\Controllers\Admin\StockController::class, 'createPassthrough'])->name('create-passthrough');
+            Route::post('passthrough', [App\Http\Controllers\Admin\StockController::class, 'storePassthrough'])->name('store-passthrough');
+            Route::get('passthrough/{id}', [App\Http\Controllers\Admin\StockController::class, 'showPassthrough'])->name('passthrough.show');
+            Route::get('passthrough/{id}/edit', [App\Http\Controllers\Admin\StockController::class, 'editPassthrough'])->name('edit-passthrough');
+            Route::put('passthrough/{id}', [App\Http\Controllers\Admin\StockController::class, 'updatePassthrough'])->name('update-passthrough');
+            Route::delete('passthrough/{id}', [App\Http\Controllers\Admin\StockController::class, 'destroyPassthrough'])->name('destroy-passthrough');
             
             // Distribution Sales
             Route::get('distribution', [App\Http\Controllers\Admin\StockController::class , 'distribution'])->name('distribution');
             Route::get('distribution/consolidated-invoice', [App\Http\Controllers\Admin\StockController::class, 'downloadConsolidatedDistributionInvoice'])->name('distribution-consolidated-invoice');
             Route::get('distribution/export-csv', [App\Http\Controllers\Admin\StockController::class, 'exportDistributionCsv'])->name('distribution.export-csv');
             Route::get('distribution/create', [App\Http\Controllers\Admin\StockController::class, 'createDistribution'])->name('create-distribution');
+            Route::get('distribution/assignable-imeis', [App\Http\Controllers\Admin\StockController::class, 'distributionAssignableImeis'])->name('distribution-assignable-imeis');
             Route::post('distribution', [App\Http\Controllers\Admin\StockController::class, 'storeDistribution'])->name('store-distribution');
             Route::get('distribution/{id}/edit', [App\Http\Controllers\Admin\StockController::class, 'editDistribution'])->name('edit-distribution');
             Route::get('distribution/{id}/invoice', [App\Http\Controllers\Admin\StockController::class, 'downloadDistributionInvoice'])->name('distribution-invoice');

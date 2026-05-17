@@ -1,3 +1,8 @@
+@php
+    $isPassthrough = $isPassthrough ?? false;
+    $listRoute = $isPassthrough ? 'admin.stock.passthrough' : 'admin.stock.purchases';
+    $storeRoute = $isPassthrough ? 'admin.stock.store-passthrough' : 'admin.stock.store-purchase';
+@endphp
 <x-admin-layout>
     @include('admin.partials.catalog-styles')
     @push('styles')
@@ -20,10 +25,10 @@
         <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between mb-8">
             <div>
                 <p class="admin-prod-eyebrow">Inventory</p>
-                <h1 class="admin-prod-title">Add purchase</h1>
-                <p class="admin-prod-subtitle">Record a new stock purchase.</p>
+                <h1 class="admin-prod-title">{{ $isPassthrough ? 'Add passthrough' : 'Add purchase' }}</h1>
+                <p class="admin-prod-subtitle">{{ $isPassthrough ? 'Record stock without IMEI tracking.' : 'Record a new stock purchase.' }}</p>
             </div>
-            <a href="{{ route('admin.stock.purchases') }}" class="admin-prod-back shrink-0">Back to list</a>
+            <a href="{{ route($listRoute) }}" class="admin-prod-back shrink-0">Back to list</a>
         </div>
 
         <div class="admin-clay-panel admin-prod-form-shell overflow-hidden admin-prod-select2-wrap">
@@ -31,7 +36,7 @@
                 <h2 class="admin-prod-form-title">Purchase details</h2>
                 <p class="admin-prod-form-hint">Invoice, branch, and pricing.</p>
             </div>
-            <form action="{{ route('admin.stock.store-purchase') }}" method="POST" enctype="multipart/form-data" class="admin-prod-form-body">
+            <form action="{{ route($storeRoute) }}" method="POST" enctype="multipart/form-data" class="admin-prod-form-body">
                     @csrf
                     @if($fromStock)
                         <input type="hidden" name="stock_id" value="{{ $fromStock->id }}">
@@ -104,7 +109,7 @@
                             @endphp
                             <div class="col-span-2">
                                 <label class="admin-prod-label">Models &amp; quantities <span class="text-red-500">*</span></label>
-                                <p class="text-xs text-slate-500 mb-2">Add one row per device model. Each row has its own unit cost, optional sell price, and IMEI slot count (quantity).</p>
+                                <p class="text-xs text-slate-500 mb-2">Add one row per device model. Each row has its own unit cost, optional sell price, and quantity{{ $isPassthrough ? '' : ' (IMEI slots when you add devices later)' }}.</p>
                                 @error('lines') <span class="text-red-500 text-xs block mb-2">{{ $message }}</span> @enderror
                                 <div class="overflow-x-auto border border-slate-200 rounded-lg">
                                     <table class="min-w-full text-sm">
@@ -245,8 +250,8 @@
                     </div>
 
                     <div class="admin-prod-form-footer !mt-6">
-                        <a href="{{ route('admin.stock.purchases') }}" class="admin-prod-btn-ghost">Cancel</a>
-                        <button type="submit" class="admin-prod-btn-primary px-8" onclick="return validatePurchaseForm()">Save purchase</button>
+                        <a href="{{ route($listRoute) }}" class="admin-prod-btn-ghost">Cancel</a>
+                        <button type="submit" class="admin-prod-btn-primary px-8" onclick="return validatePurchaseForm()">{{ $isPassthrough ? 'Save passthrough' : 'Save purchase' }}</button>
                     </div>
                 </form>
         </div>
@@ -256,6 +261,7 @@
         <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
         <script>
             const purchaseFromStock = @json((bool) $fromStock);
+            const isPassthrough = @json((bool) $isPassthrough);
 
             function reindexPurchaseLineRows() {
                 const rows = document.querySelectorAll('#purchase_line_rows tr.purchase-line-row');
@@ -355,7 +361,9 @@
                     totalQty += q;
                 }
 
-                return confirm('✓ Confirm purchase?\n\nRows: ' + rows.length + '\nTotal devices (IMEI slots): ' + totalQty + '\nTotal value: ' + total.toFixed(2) + ' TZS');
+                const label = isPassthrough ? 'passthrough' : 'purchase';
+                const qtyLabel = isPassthrough ? 'Total quantity' : 'Total devices (IMEI slots)';
+                return confirm('✓ Confirm ' + label + '?\n\nRows: ' + rows.length + '\n' + qtyLabel + ': ' + totalQty + '\nTotal value: ' + total.toFixed(2) + ' TZS');
             }
 
             function calculateTotal() {

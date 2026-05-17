@@ -224,6 +224,23 @@
                     'admin.stock.update-purchase',
                     'admin.stock.destroy-purchase',
                     'admin.stock.update-product-prices',
+                ]) && ! request()->routeIs([
+                    'admin.stock.passthrough',
+                    'admin.stock.passthrough.*',
+                    'admin.stock.create-passthrough',
+                    'admin.stock.store-passthrough',
+                    'admin.stock.edit-passthrough',
+                    'admin.stock.update-passthrough',
+                    'admin.stock.destroy-passthrough',
+                ]);
+                $navStockPassthrough = request()->routeIs([
+                    'admin.stock.passthrough',
+                    'admin.stock.passthrough.*',
+                    'admin.stock.create-passthrough',
+                    'admin.stock.store-passthrough',
+                    'admin.stock.edit-passthrough',
+                    'admin.stock.update-passthrough',
+                    'admin.stock.destroy-passthrough',
                 ]);
                 $navStockDistribution = request()->routeIs([
                     'admin.stock.distribution',
@@ -388,6 +405,9 @@
                                 <a href="{{ route('admin.stock.purchases') }}"
                                     @if ($navStockPurchases) aria-current="page" @endif
                                     class="admin-sidebar-sublink {{ $navStockPurchases ? 'admin-sidebar-sublink-active' : '' }}">Purchases</a>
+                                <a href="{{ route('admin.stock.passthrough') }}"
+                                    @if ($navStockPassthrough) aria-current="page" @endif
+                                    class="admin-sidebar-sublink {{ $navStockPassthrough ? 'admin-sidebar-sublink-active' : '' }}">Passthrough</a>
                                 <a href="{{ route('admin.orders.index') }}"
                                     @if (request()->routeIs('admin.orders.*')) aria-current="page" @endif
                                     class="admin-sidebar-sublink {{ request()->routeIs('admin.orders.*') ? 'admin-sidebar-sublink-active' : '' }} flex items-center justify-between gap-2">

@@ -53,4 +53,9 @@ class DistributionSale extends Model
     {
         return $this->hasMany(DistributionSalePayment::class)->orderByDesc('paid_date')->orderByDesc('id');
     }
+
+    public function productListItems()
+    {
+        return $this->hasMany(ProductListItem::class, 'distribution_sale_id');
+    }
 }
