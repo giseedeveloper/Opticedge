@@ -65,12 +65,12 @@
                         <h2 class="admin-prod-form-title">Agent opening stock &amp; sales (by product)</h2>
                         <p class="admin-prod-form-hint max-w-3xl">
                             <strong>Agent — Opening</strong> = end-of-yesterday position (same as that day’s <strong>closing</strong>): it stays fixed for the whole calendar day and does not drop when sales are recorded.
-                            <strong>Sales</strong> = units sold on the <strong>report date</strong> only.
+                            <strong>Sales</strong> = units sold in the selected <strong>date range</strong> (From–To).
                             <strong>Closing</strong> = <strong>opening − sales</strong> per agent.
                             <strong>Total</strong> = sum across <strong>all agents only</strong> for that product (opening, sales, closing each summed separately). Shop / unassigned warehouse stock is <strong>not</strong> included in Total.
                         </p>
                     </div>
-                    <a href="{{ route('admin.reports.agent-stock-export', ['report_date' => $asr['report_date'], 'branch_id' => request('branch_id')]) }}"
+                    <a href="{{ route('admin.reports.agent-stock-export', ['date_from' => $asr['report_date_from'] ?? $asr['report_date'], 'date_to' => $asr['report_date_to'] ?? $asr['report_date'], 'branch_id' => request('branch_id')]) }}"
                         class="admin-prod-btn-primary text-sm py-2 px-4 shrink-0 whitespace-nowrap">
                         Export Excel (CSV)
                     </a>
@@ -78,9 +78,18 @@
             </div>
             <div class="admin-prod-form-body !pt-4 border-t border-white/60">
                 <form method="GET" action="{{ route('admin.reports.index') }}" class="flex flex-wrap items-end gap-3 mb-4">
+                    @php
+                        $reportDateFrom = request('date_from', $asr['report_date_from'] ?? $asr['report_date']);
+                        $reportDateTo = request('date_to', $asr['report_date_to'] ?? $asr['report_date']);
+                    @endphp
                     <div>
-                        <label for="report_date" class="admin-prod-label !mb-1">Report date</label>
-                        <input type="date" id="report_date" name="report_date" value="{{ $asr['report_date'] }}"
+                        <label for="date_from" class="admin-prod-label !mb-1">From</label>
+                        <input type="date" id="date_from" name="date_from" value="{{ $reportDateFrom }}"
+                            class="admin-prod-input py-2 text-sm min-w-[11rem]">
+                    </div>
+                    <div>
+                        <label for="date_to" class="admin-prod-label !mb-1">To</label>
+                        <input type="date" id="date_to" name="date_to" value="{{ $reportDateTo }}"
                             class="admin-prod-input py-2 text-sm min-w-[11rem]">
                     </div>
                     <div>
@@ -145,7 +154,6 @@
                             <thead>
                                 <tr>
                                     <th scope="col" class="admin-prod-th align-bottom" rowspan="2">Product</th>
-                                    <th scope="col" class="admin-prod-th admin-prod-th--end align-bottom" rowspan="2">Price (TZS)</th>
                                     <th scope="col" class="admin-prod-th text-center bg-slate-100/80" colspan="3">Total</th>
                                     @foreach($asr['agents'] as $agent)
                                         @php
@@ -177,7 +185,6 @@
                                     @endphp
                                     <tr class="h-12">
                                         <td class="font-medium text-[#232f3e] bg-white px-3 py-3">{{ $row['name'] }}</td>
-                                        <td class="text-right font-variant-numeric text-slate-700 px-3 py-3">{{ number_format($row['price'], 0) }}</td>
                                         <td class="text-right font-variant-numeric bg-slate-50/50 px-3 py-3">{{ number_format($agentsO) }}</td>
                                         <td class="text-right font-variant-numeric bg-slate-50/50 px-3 py-3">{{ number_format($agentsS) }}</td>
                                         <td class="text-right font-variant-numeric bg-slate-50/50 font-semibold px-3 py-3">{{ number_format($agentsC) }}</td>
@@ -198,7 +205,6 @@
                                 @endphp
                                 <tr class="border-t-2 border-slate-300 font-semibold text-[#232f3e] totals-row h-12">
                                     <td class="bg-slate-100 px-3 py-3">Totals</td>
-                                    <td class="text-right bg-slate-100 px-3 py-3">—</td>
                                     <td class="text-right font-variant-numeric bg-slate-50/50 px-3 py-3">{{ number_format($totAgentsO) }}</td>
                                     <td class="text-right font-variant-numeric bg-slate-50/50 px-3 py-3">{{ number_format($totAgentsS) }}</td>
                                     <td class="text-right font-variant-numeric bg-slate-50/50 px-3 py-3">{{ number_format($totAgentsC) }}</td>
@@ -218,7 +224,7 @@
                             Branch filter is on: agent columns show this branch’s team (assigned branch) plus any rep with stock or sales in this branch’s scope, even if their profile branch is not set yet.
                         </p>
                     @endif
-                    <p class="mt-3 text-xs text-slate-500"><strong>Total</strong> = sum of every agent column for that product (opening, sales, closing each summed across agents). Shop / unassigned warehouse is excluded. Agent cells are per rep. <strong>Price</strong> uses catalog price, or latest purchase sell/unit price when catalog price is zero.</p>
+                    <p class="mt-3 text-xs text-slate-500"><strong>Total</strong> = sum of every agent column for that product (opening, sales, closing each summed across agents). Shop / unassigned warehouse is excluded. Agent cells are per rep. <strong>Opening</strong> is at the start of the From date; <strong>sales</strong> are summed across From–To.</p>
                 @endif
             </div>
         </div>
@@ -232,8 +238,11 @@
                             <p class="admin-prod-form-hint">Highlight a branch to see detail above the table.</p>
                         </div>
                         <form method="GET" action="{{ route('admin.reports.index') }}" class="flex flex-wrap items-end gap-2">
-                            @if(request('report_date'))
-                                <input type="hidden" name="report_date" value="{{ request('report_date') }}">
+                            @if(request('date_from'))
+                                <input type="hidden" name="date_from" value="{{ request('date_from') }}">
+                            @endif
+                            @if(request('date_to'))
+                                <input type="hidden" name="date_to" value="{{ request('date_to') }}">
                             @endif
                             <div>
                                 <label for="branch_id" class="admin-prod-label !mb-1">Branch</label>
@@ -245,7 +254,7 @@
                                 </select>
                             </div>
                             @if(request('branch_id'))
-                                <a href="{{ route('admin.reports.index', request()->only('report_date')) }}" class="admin-prod-btn-ghost text-sm py-2">Clear</a>
+                                <a href="{{ route('admin.reports.index', request()->only(['date_from', 'date_to'])) }}" class="admin-prod-btn-ghost text-sm py-2">Clear</a>
                             @endif
                         </form>
                     </div>

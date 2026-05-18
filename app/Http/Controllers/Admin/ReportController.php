@@ -19,9 +19,19 @@ class ReportController extends Controller
 {
     public function index(Request $request)
     {
-        $reportDate = $request->filled('report_date')
-            ? Carbon::parse($request->query('report_date'))->startOfDay()
-            : Carbon::today();
+        $dateFrom = $request->filled('date_from')
+            ? Carbon::parse($request->query('date_from'))->startOfDay()
+            : ($request->filled('report_date')
+                ? Carbon::parse($request->query('report_date'))->startOfDay()
+                : Carbon::today());
+        $dateTo = $request->filled('date_to')
+            ? Carbon::parse($request->query('date_to'))->endOfDay()
+            : ($request->filled('report_date')
+                ? Carbon::parse($request->query('report_date'))->endOfDay()
+                : $dateFrom->copy()->endOfDay());
+        if ($dateTo->lt($dateFrom)) {
+            $dateTo = $dateFrom->copy()->endOfDay();
+        }
 
         // Basic Stats
         $totalSales = Order::sum('total_price');
@@ -75,7 +85,7 @@ class ReportController extends Controller
 
         $selectedBranchId = $request->query('branch_id');
         $agentBranchFilter = ($selectedBranchId !== null && $selectedBranchId !== '') ? (int) $selectedBranchId : null;
-        $agentStockReport = app(AgentDailyStockReportService::class)->build($reportDate, $agentBranchFilter);
+        $agentStockReport = app(AgentDailyStockReportService::class)->build($dateFrom, $dateTo, $agentBranchFilter);
 
         $selectedBranchDetail = null;
         if ($selectedBranchId !== null && $selectedBranchId !== '' && Schema::hasColumn('purchases', 'branch_id')) {
@@ -137,17 +147,30 @@ class ReportController extends Controller
 
     public function exportAgentDailyStock(Request $request): StreamedResponse
     {
-        $reportDate = $request->filled('report_date')
-            ? Carbon::parse($request->query('report_date'))->startOfDay()
-            : Carbon::today();
+        $dateFrom = $request->filled('date_from')
+            ? Carbon::parse($request->query('date_from'))->startOfDay()
+            : ($request->filled('report_date')
+                ? Carbon::parse($request->query('report_date'))->startOfDay()
+                : Carbon::today());
+        $dateTo = $request->filled('date_to')
+            ? Carbon::parse($request->query('date_to'))->endOfDay()
+            : ($request->filled('report_date')
+                ? Carbon::parse($request->query('report_date'))->endOfDay()
+                : $dateFrom->copy()->endOfDay());
+        if ($dateTo->lt($dateFrom)) {
+            $dateTo = $dateFrom->copy()->endOfDay();
+        }
         $branchRaw = $request->query('branch_id');
         $branchId = ($branchRaw !== null && $branchRaw !== '') ? (int) $branchRaw : null;
 
         $service = app(AgentDailyStockReportService::class);
-        $payload = $service->build($reportDate, $branchId);
+        $payload = $service->build($dateFrom, $dateTo, $branchId);
         $lines = $service->rowsToCsvLines($payload);
 
-        $filename = 'agent-opening-stock-'.$reportDate->format('Y-m-d');
+        $filename = 'agent-opening-stock-'.$dateFrom->format('Y-m-d');
+        if (! $dateFrom->isSameDay($dateTo)) {
+            $filename .= '_to_'.$dateTo->format('Y-m-d');
+        }
         if ($branchId !== null) {
             $filename .= '-branch-'.$branchId;
         }

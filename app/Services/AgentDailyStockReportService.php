@@ -15,17 +15,31 @@ class AgentDailyStockReportService
     /**
      * @return array{
      *   report_date: string,
+     *   report_date_from: string,
+     *   report_date_to: string,
      *   branch_id: int|null,
      *   agents: \Illuminate\Support\Collection,
      *   rows: array<int, array<string, mixed>>,
      *   totals: array<string, mixed>,
      * }
      */
-    public function build(Carbon $reportDate, ?int $branchId = null): array
+    public function build(Carbon $dateFrom, ?Carbon $dateTo = null, ?int $branchId = null): array
     {
+        $dateTo ??= $dateFrom->copy();
+        if ($dateTo->lt($dateFrom)) {
+            [$dateFrom, $dateTo] = [$dateTo->copy()->startOfDay(), $dateFrom->copy()->endOfDay()];
+        }
+
+        $rangeStart = $dateFrom->copy()->startOfDay();
+        $rangeEnd = $dateTo->copy()->endOfDay();
+        $prevEnd = $dateFrom->copy()->subDay()->endOfDay();
+        $isSingleToday = $dateFrom->isSameDay($dateTo) && $dateFrom->isSameDay(Carbon::today());
+
         if (! Schema::hasTable('product_list')) {
             return [
-                'report_date' => $reportDate->toDateString(),
+                'report_date' => $dateFrom->toDateString(),
+                'report_date_from' => $dateFrom->toDateString(),
+                'report_date_to' => $dateTo->toDateString(),
                 'branch_id' => $branchId,
                 'agents' => collect(),
                 'rows' => [],
@@ -33,16 +47,14 @@ class AgentDailyStockReportService
             ];
         }
 
-        $dayStart = $reportDate->copy()->startOfDay();
-        $dayEnd = $reportDate->copy()->endOfDay();
-        $prevEnd = $reportDate->copy()->subDay()->endOfDay();
-
         $productIds = $this->distinctProductIdsInScope($branchId);
         if ($productIds->isEmpty()) {
             $agents = $this->resolveAgentsForReport($branchId, [], [], []);
 
             return [
-                'report_date' => $reportDate->toDateString(),
+                'report_date' => $dateFrom->toDateString(),
+                'report_date_from' => $dateFrom->toDateString(),
+                'report_date_to' => $dateTo->toDateString(),
                 'branch_id' => $branchId,
                 'agents' => $agents,
                 'rows' => [],
@@ -50,24 +62,19 @@ class AgentDailyStockReportService
             ];
         }
 
-        // Shop opening = closing at previous calendar day end (unassigned stock; assignment not removed on sale).
+        // Shop opening = closing at end of day before range start.
         $prevClosingShop = $this->closingShopByProduct($prevEnd, $branchId, $productIds);
 
-        // TODAY'S ACTIVITY: Sales, transfers, and receipts for the report date only
-        $salesShop = $this->salesShopByProduct($dayStart, $dayEnd, $branchId, $productIds);
-        $salesAgents = $this->salesByAgentProduct($dayStart, $dayEnd, $branchId, $productIds);
+        $salesShop = $this->salesShopByProduct($rangeStart, $rangeEnd, $branchId, $productIds);
+        $salesAgents = $this->salesByAgentProduct($rangeStart, $rangeEnd, $branchId, $productIds);
 
-        // Agent opening = previous day's closing. For **today's** report date, assignments are removed on sale,
-        // so "yesterday closing" cannot be re-read from joins alone — use stable identity:
-        // opening = (unsold assigned now) + (sales on report date) for that agent/product.
-        // For past report dates, use closing snapshot at previous day end (join + sold_at OR).
         $unsoldAssignedAgents = $this->unsoldAssignedByAgentProduct($branchId, $productIds);
-        $prevClosingAgents = $reportDate->isSameDay(Carbon::today())
+        $prevClosingAgents = $isSingleToday
             ? []
             : $this->closingByAgentProduct($prevEnd, $branchId, $productIds);
 
-        $transferNetShop = $this->shopTransferNetByProduct($reportDate, $branchId, $productIds);
-        $receivedToday = $this->receivedTodayByProduct($reportDate, $branchId, $productIds);
+        $transferNetShop = $this->shopTransferNetByProductRange($rangeStart, $rangeEnd, $branchId, $productIds);
+        $receivedInRange = $this->receivedInRangeByProduct($rangeStart, $rangeEnd, $branchId, $productIds);
 
         $agents = $this->resolveAgentsForReport($branchId, $salesAgents, $unsoldAssignedAgents, $prevClosingAgents);
 
@@ -77,14 +84,14 @@ class AgentDailyStockReportService
             $openingShop = (int) ($prevClosingShop[$pid] ?? 0);
             $sShop = (int) ($salesShop[$pid] ?? 0);
             $tShop = (int) ($transferNetShop[$pid] ?? 0);
-            $recv = (int) ($receivedToday[$pid] ?? 0);
+            $recv = (int) ($receivedInRange[$pid] ?? 0);
             $closingShop = max(0, $openingShop - $sShop + $tShop + $recv);
 
             $rowHasActivity = $sShop > 0 || $tShop !== 0 || $recv > 0 || $openingShop > 0 || $closingShop > 0;
             foreach ($agents as $agent) {
                 $aid = (int) $agent->id;
                 $sA = (int) ($salesAgents[$aid][$pid] ?? 0);
-                $openingA = $reportDate->isSameDay(Carbon::today())
+                $openingA = $isSingleToday
                     ? (int) ($unsoldAssignedAgents[$aid][$pid] ?? 0) + $sA
                     : (int) ($prevClosingAgents[$aid][$pid] ?? 0);
                 $closingA = max(0, $openingA - $sA);
@@ -100,20 +107,15 @@ class AgentDailyStockReportService
 
         $products = $activeProductIds === []
             ? collect()
-            : Product::query()->whereIn('id', $activeProductIds)->orderBy('name')->get(['id', 'name', 'price']);
-
-        $purchaseUnitPrices = $this->latestPurchaseUnitPricesByProduct($activeProductIds);
+            : Product::query()->whereIn('id', $activeProductIds)->orderBy('name')->get(['id', 'name']);
 
         $rows = [];
         foreach ($products as $product) {
             $pid = (int) $product->id;
-            // OPENING: Locked from previous day's closing, does not change today
             $openingShop = (int) ($prevClosingShop[$pid] ?? 0);
-            // SALES: Only transactions TODAY (from $dayStart to $dayEnd)
             $sShop = (int) ($salesShop[$pid] ?? 0);
-            // TRANSFER: Net transfers TODAY
             $tShop = (int) ($transferNetShop[$pid] ?? 0);
-            $recv = (int) ($receivedToday[$pid] ?? 0);
+            $recv = (int) ($receivedInRange[$pid] ?? 0);
             // CLOSING: Opening − sales + transfers + units received (scanned) today
             $closingShop = max(0, $openingShop - $sShop + $tShop + $recv);
 
@@ -121,11 +123,9 @@ class AgentDailyStockReportService
             foreach ($agents as $agent) {
                 $aid = (int) $agent->id;
                 $sA = (int) ($salesAgents[$aid][$pid] ?? 0);
-                $openingA = $reportDate->isSameDay(Carbon::today())
+                $openingA = $isSingleToday
                     ? (int) ($unsoldAssignedAgents[$aid][$pid] ?? 0) + $sA
                     : (int) ($prevClosingAgents[$aid][$pid] ?? 0);
-                // AGENT SALES: Only transactions on report date
-                // AGENT CLOSING: Opening − Sales
                 $closingA = max(0, $openingA - $sA);
                 $agentCells[$aid] = [
                     'opening' => $openingA,
@@ -137,7 +137,6 @@ class AgentDailyStockReportService
             $rows[] = [
                 'product_id' => $pid,
                 'name' => $product->name,
-                'price' => $this->displayUnitPriceTzs($product, $purchaseUnitPrices[$pid] ?? null),
                 'purchased_today' => $recv,
                 'shop' => [
                     'opening' => $openingShop,
@@ -150,7 +149,9 @@ class AgentDailyStockReportService
         }
 
         return [
-            'report_date' => $reportDate->toDateString(),
+            'report_date' => $dateFrom->toDateString(),
+            'report_date_from' => $dateFrom->toDateString(),
+            'report_date_to' => $dateTo->toDateString(),
             'branch_id' => $branchId,
             'agents' => $agents,
             'rows' => $rows,
@@ -209,7 +210,7 @@ class AgentDailyStockReportService
         $rows = $payload['rows'];
         $lines = [];
 
-        $header = ['Product', 'Price', 'Purchased today', 'Total opening', 'Total sales', 'Total closing', 'Shop transfer'];
+        $header = ['Product', 'Purchased in period', 'Total opening', 'Total sales', 'Total closing', 'Shop transfer'];
         foreach ($agents as $a) {
             $n = str_replace('"', '""', $a->name);
             $header[] = "{$n} opening";
@@ -226,7 +227,6 @@ class AgentDailyStockReportService
             $totalC = (int) $agentsCol->sum('closing');
             $line = [
                 $r['name'],
-                (string) $r['price'],
                 (string) $r['purchased_today'],
                 (string) $totalO,
                 (string) $totalS,
@@ -247,7 +247,7 @@ class AgentDailyStockReportService
         $grandO = (int) $totAgents->sum('opening');
         $grandS = (int) $totAgents->sum('sales');
         $grandC = (int) $totAgents->sum('closing');
-        $tot = ['Total', '', (string) $t['purchased_today'], (string) $grandO, (string) $grandS, (string) $grandC, (string) ($t['shop']['transfer'] ?? 0)];
+        $tot = ['Total', (string) $t['purchased_today'], (string) $grandO, (string) $grandS, (string) $grandC, (string) ($t['shop']['transfer'] ?? 0)];
         foreach ($agents as $a) {
             $c = $t['agents'][(int) $a->id] ?? ['opening' => 0, 'sales' => 0, 'closing' => 0];
             $tot[] = (string) $c['opening'];
@@ -676,17 +676,107 @@ class AgentDailyStockReportService
      */
     private function receivedTodayByProduct(Carbon $reportDate, ?int $branchId, $productIds): array
     {
+        return $this->receivedInRangeByProduct(
+            $reportDate->copy()->startOfDay(),
+            $reportDate->copy()->endOfDay(),
+            $branchId,
+            $productIds
+        );
+    }
+
+    /**
+     * New product_list rows created within the date range (received / scanned in).
+     *
+     * @param  \Illuminate\Support\Collection<int, int>|array<int>  $productIds
+     * @return array<int, int>
+     */
+    private function receivedInRangeByProduct(Carbon $rangeStart, Carbon $rangeEnd, ?int $branchId, $productIds): array
+    {
         if ($productIds->isEmpty()) {
             return [];
         }
 
         $q = $this->baseListQuery($branchId)
             ->whereIn('product_id', $productIds->all())
-            ->whereDate('created_at', $reportDate->toDateString())
+            ->whereBetween('created_at', [$rangeStart, $rangeEnd])
             ->selectRaw('product_id, COUNT(*) as c')
             ->groupBy('product_id');
 
         return $this->mapCounts($q->get());
+    }
+
+    /**
+     * Net branch transfers for shop stock across a date range.
+     *
+     * @param  \Illuminate\Support\Collection<int, int>|array<int>  $productIds
+     * @return array<int, int>
+     */
+    private function shopTransferNetByProductRange(Carbon $rangeStart, Carbon $rangeEnd, ?int $branchId, $productIds): array
+    {
+        if ($productIds->isEmpty() || ! Schema::hasTable('branch_transfer_logs')) {
+            return [];
+        }
+
+        $pids = $productIds->all();
+
+        $applyBranchOnPl = function ($q) use ($branchId) {
+            if ($branchId === null) {
+                return;
+            }
+            $q->where(function ($w) use ($branchId) {
+                $w->where('pl.branch_id', $branchId)
+                    ->orWhere(function ($inner) use ($branchId) {
+                        $inner->whereNull('pl.branch_id')
+                            ->whereExists(function ($sub) use ($branchId) {
+                                $sub->selectRaw('1')
+                                    ->from('purchases as pu')
+                                    ->whereColumn('pu.id', 'pl.purchase_id')
+                                    ->where('pu.branch_id', $branchId);
+                            });
+                    });
+            });
+        };
+
+        $makeBase = function () use ($rangeStart, $rangeEnd, $pids, $applyBranchOnPl) {
+            $q = DB::table('branch_transfer_logs as bt')
+                ->join('product_list as pl', 'pl.id', '=', 'bt.product_list_id')
+                ->whereBetween('bt.created_at', [$rangeStart, $rangeEnd])
+                ->whereIn('pl.product_id', $pids)
+                ->whereNotExists(function ($q) {
+                    $q->selectRaw('1')
+                        ->from('agent_product_list_assignments as ap')
+                        ->whereColumn('ap.product_list_id', 'pl.id');
+                });
+            $applyBranchOnPl($q);
+
+            return $q;
+        };
+
+        $inRows = $makeBase()
+            ->when($branchId !== null, fn ($q) => $q->where('bt.to_branch_id', $branchId))
+            ->whereNotNull('bt.to_branch_id')
+            ->groupBy('pl.product_id')
+            ->selectRaw('pl.product_id as product_id, COUNT(*) as c')
+            ->get();
+
+        $out = [];
+        foreach ($inRows as $r) {
+            $out[(int) $r->product_id] = (int) $r->c;
+        }
+
+        $outRows = $makeBase()
+            ->when($branchId !== null, fn ($q) => $q->where('bt.from_branch_id', $branchId))
+            ->whereNotNull('bt.from_branch_id')
+            ->groupBy('pl.product_id')
+            ->selectRaw('pl.product_id as product_id, COUNT(*) as c')
+            ->get();
+
+        foreach ($outRows as $r) {
+            $pid = (int) $r->product_id;
+            $out[$pid] = ($out[$pid] ?? 0) - (int) $r->c;
+        }
+
+        return $out;
     }
 
     /**
