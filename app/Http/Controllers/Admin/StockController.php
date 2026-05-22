@@ -1661,6 +1661,7 @@ class StockController extends Controller
 
         $rules = [
             'name' => 'nullable|string|max:255',
+            'sell_price' => 'nullable|numeric|min:0',
             'paid_date' => 'nullable|date',
             'paid_amount' => 'nullable|numeric|min:0',
             'payment_option_id' => [
@@ -1791,6 +1792,7 @@ class StockController extends Controller
         // Prepare update data
         $updateData = [
             'name' => $validated['name'] ?? $purchase->name,
+            'sell_price' => $validated['sell_price'] ?? null,
             'paid_date' => $newPaidDate,
             'paid_amount' => $newPaidAmount,
             'payment_status' => $paymentStatus,

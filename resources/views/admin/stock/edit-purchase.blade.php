@@ -76,9 +76,17 @@
                         </div>
 
                         <!-- Total Value (Read Only) -->
-                        <div class="col-span-2">
+                        <div class="col-span-1">
                             <label for="total_amount" class="admin-prod-label">Total Purchase Value</label>
                             <input type="text" id="total_amount" readonly class="admin-prod-input font-bold cursor-not-allowed" value="{{ number_format($purchase->quantity * $purchase->unit_price, 2) }}">
+                        </div>
+
+                        <!-- Sell Price -->
+                        <div class="col-span-1">
+                            <label for="sell_price" class="admin-prod-label">Sell Price (optional)</label>
+                            <input type="number" step="0.01" name="sell_price" id="sell_price" value="{{ old('sell_price', $purchase->sell_price) }}" min="0" placeholder="Optional" class="admin-prod-input">
+                            @error('sell_price') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
+                            <p class="text-xs text-slate-500 mt-1">Selling price per unit. If set, updates the product's default price.</p>
                         </div>
 
                         @php
