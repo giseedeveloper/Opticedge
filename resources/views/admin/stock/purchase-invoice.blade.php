@@ -196,7 +196,7 @@
                 <div class="block-line">Dar es Salaam, Sinza Makaburini</div>
                 <div class="block-line">info@opticedgeafrica.net</div>
                 <div class="block-line">0677 - 609929</div>
-                <div class="block-line">TIN: 148-908-613</div>
+                <div class="block-line">TIN: 202-148-522</div>
             </div>
         </div>
 
