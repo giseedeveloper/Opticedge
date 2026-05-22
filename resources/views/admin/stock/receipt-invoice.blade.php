@@ -153,7 +153,7 @@
 <div class="paper">
     <div class="center">
         <h1 class="brand">OPTIC EDGE AFRICA</h1>
-        <div class="meta">TIN: 1810810231</div>
+        <div class="meta">TIN: 202-148-522</div>
         <div class="title">{{ $title ?? 'RECEIPT' }}</div>
         <div class="order">Order #{{ $invoiceNo ?? '—' }}</div>
         <div class="sep"></div>
