@@ -219,6 +219,7 @@ Route::middleware(['auth', 'admin', 'subadmin.ability'])->prefix('admin')->name(
         Route::get('customers/regional-managers/create', [App\Http\Controllers\Admin\CustomerController::class, 'createRegionalManager'])->name('customers.regional-managers.create');
         Route::post('customers/regional-managers', [App\Http\Controllers\Admin\CustomerController::class, 'storeRegionalManager'])->name('customers.regional-managers.store');
         Route::get('customers/team-leaders', [App\Http\Controllers\Admin\CustomerController::class, 'teamLeadersIndex'])->name('customers.team-leaders.index');
+        Route::get('customers/organization-tree', [App\Http\Controllers\Admin\OrganizationTreeController::class, 'index'])->name('customers.organization-tree');
         Route::get('customers/team-leaders/create', [App\Http\Controllers\Admin\CustomerController::class, 'createTeamLeader'])->name('customers.team-leaders.create');
         Route::post('customers/team-leaders', [App\Http\Controllers\Admin\CustomerController::class, 'storeTeamLeader'])->name('customers.team-leaders.store');
         Route::patch('customers/{user}/activate', [App\Http\Controllers\Admin\CustomerController::class, 'activate'])->name('customers.activate');

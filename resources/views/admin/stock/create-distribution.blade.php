@@ -149,10 +149,8 @@
                         <option value="">Select purchase</option>
                         @foreach($purchases as $purchase)
                             @php
-                                $purchaseLabel = $purchase->name ?? ('Purchase #' . $purchase->id);
-                                if ($purchase->date) {
-                                    $purchaseLabel .= ' · ' . $purchase->date;
-                                }
+                                $invoiceNo = $purchase->name ?? ('Purchase #' . $purchase->id);
+                                $purchaseLabel = 'Inv no. ' . $invoiceNo;
                                 $models = collect();
                                 if (($purchase->lines ?? collect())->isNotEmpty()) {
                                     $models = $purchase->lines->map(fn ($line) => $line->product?->name)->filter()->unique();
