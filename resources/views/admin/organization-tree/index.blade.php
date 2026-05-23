@@ -1,125 +1,52 @@
 <x-admin-layout>
     @include('admin.partials.catalog-styles')
 
+    @php
+        $branchColors = [
+            ['leader' => '#1565c0', 'agent' => '#bbdefb', 'agentText' => '#0d47a1'],
+            ['leader' => '#2e7d32', 'agent' => '#c5e1a5', 'agentText' => '#1b5e20'],
+            ['leader' => '#ef6c00', 'agent' => '#ffe0b2', 'agentText' => '#e65100'],
+            ['leader' => '#6a1b9a', 'agent' => '#e1bee7', 'agentText' => '#4a148c'],
+            ['leader' => '#00838f', 'agent' => '#b2ebf2', 'agentText' => '#006064'],
+            ['leader' => '#ad1457', 'agent' => '#f8bbd0', 'agentText' => '#880e4f'],
+        ];
+    @endphp
+
     @push('styles')
         <style>
-            .org-tree {
-                --org-line: rgba(148, 163, 184, 0.55);
-                --org-rm: #1e3a5f;
-                --org-tl: #334155;
-                --org-agent: #475569;
-            }
-
-            .org-tree-node {
-                position: relative;
-                margin-left: 1.25rem;
-                padding-left: 1rem;
-                border-left: 2px solid var(--org-line);
-            }
-
-            .org-tree-node::before {
-                content: '';
-                position: absolute;
-                left: -2px;
-                top: 1.15rem;
-                width: 1rem;
-                height: 2px;
-                background: var(--org-line);
-            }
-
-            .org-tree-root > .org-tree-branch {
-                margin-left: 0;
-                padding-left: 0;
-                border-left: none;
-            }
-
-            .org-tree-root > .org-tree-branch::before {
-                display: none;
-            }
-
-            .org-card {
-                display: flex;
-                flex-wrap: wrap;
-                align-items: center;
-                gap: 0.5rem 0.75rem;
-                padding: 0.65rem 0.85rem;
-                border-radius: 0.75rem;
-                background: rgba(255, 255, 255, 0.85);
-                border: 1px solid rgba(203, 213, 225, 0.8);
-                box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
-            }
-
-            .org-card--rm {
-                border-color: rgba(30, 58, 95, 0.25);
-                background: linear-gradient(135deg, rgba(30, 58, 95, 0.08), rgba(255, 255, 255, 0.9));
-            }
-
-            .org-card--tl {
-                border-color: rgba(51, 65, 85, 0.2);
-            }
-
-            .org-card--agent {
-                padding: 0.5rem 0.75rem;
-                font-size: 0.875rem;
-            }
-
-            .org-role-badge {
-                display: inline-flex;
-                align-items: center;
-                padding: 0.15rem 0.5rem;
-                border-radius: 9999px;
-                font-size: 0.65rem;
-                font-weight: 600;
-                letter-spacing: 0.04em;
-                text-transform: uppercase;
-            }
-
-            .org-role-badge--rm {
-                background: rgba(30, 58, 95, 0.12);
-                color: var(--org-rm);
-            }
-
-            .org-role-badge--tl {
-                background: rgba(51, 65, 85, 0.1);
-                color: var(--org-tl);
-            }
-
-            .org-role-badge--agent {
-                background: rgba(71, 85, 105, 0.1);
-                color: var(--org-agent);
-            }
-
-            .org-meta {
-                font-size: 0.75rem;
-                color: #64748b;
-            }
-
-            .org-empty-branch {
-                margin-left: 1.25rem;
-                padding: 0.5rem 0.75rem;
-                font-size: 0.8125rem;
-                color: #94a3b8;
-                font-style: italic;
-            }
+            .oc-wrap { overflow-x: auto; padding: 1.5rem 0.5rem 2rem; }
+            .oc-section { display: flex; flex-direction: column; align-items: center; min-width: min-content; margin-bottom: 3rem; }
+            .oc-section + .oc-section { padding-top: 2.5rem; border-top: 1px dashed rgba(148, 163, 184, 0.45); }
+            .oc-node { border-radius: 10px; padding: 12px 22px; font-weight: 700; font-size: 0.9rem; text-align: center; line-height: 1.25; box-shadow: 0 2px 6px rgba(15, 23, 42, 0.1); white-space: nowrap; }
+            .oc-node--rm { background: #c0392b; color: #fff; min-width: 160px; padding: 14px 28px; font-size: 1rem; }
+            .oc-node--rm-muted { background: #d97706; color: #fff; }
+            .oc-node--tl { color: #fff; min-width: 130px; }
+            .oc-node--agent { font-size: 0.8125rem; font-weight: 600; min-width: 110px; padding: 9px 16px; }
+            .oc-node-sub { display: block; font-size: 0.65rem; font-weight: 500; opacity: 0.88; margin-top: 3px; }
+            .oc-line-v { width: 2px; background: #cbd5e1; flex-shrink: 0; }
+            .oc-rm-down { height: 28px; }
+            .oc-bridge { display: flex; flex-direction: column; align-items: center; }
+            .oc-h-rail { display: flex; justify-content: center; align-items: flex-start; position: relative; }
+            .oc-h-rail::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: #cbd5e1; }
+            .oc-col { display: flex; flex-direction: column; align-items: center; padding: 0 14px; flex-shrink: 0; }
+            .oc-col-drop { height: 28px; width: 2px; background: #cbd5e1; }
+            .oc-tl-down { height: 22px; }
+            .oc-agents { display: flex; flex-direction: column; align-items: flex-start; position: relative; margin-left: 50%; padding-left: 1px; transform: translateX(-1px); }
+            .oc-agents::before { content: ''; position: absolute; top: 0; left: 0; width: 2px; background: #cbd5e1; bottom: 14px; }
+            .oc-agent-row { display: flex; align-items: center; margin: 6px 0; position: relative; z-index: 1; }
+            .oc-agent-arm { width: 22px; height: 2px; background: #cbd5e1; }
+            .oc-empty-slot { font-size: 0.75rem; color: #94a3b8; font-style: italic; padding: 8px 12px; }
+            .oc-unassigned-agents { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-top: 8px; }
+            .oc-unassigned-agents .oc-node--agent { background: #f1f5f9; color: #475569; border: 1px dashed #cbd5e1; }
         </style>
     @endpush
 
-    <div class="admin-prod-page" x-data="{ expandAll: true }">
+    <div class="admin-prod-page">
         <div class="admin-prod-toolbar !mb-0 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div>
                 <p class="admin-prod-eyebrow">Users & Dealers</p>
                 <h1 class="admin-prod-title">Organization tree</h1>
-                <p class="admin-prod-subtitle">Hierarchy from regional managers → team leaders → agents. Expand or collapse branches below.</p>
-            </div>
-            <div class="flex flex-wrap items-center gap-2 shrink-0">
-                <button type="button" @click="expandAll = true"
-                    class="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-800 hover:bg-slate-50">
-                    Expand all
-                </button>
-                <button type="button" @click="expandAll = false"
-                    class="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-800 hover:bg-slate-50">
-                    Collapse all
-                </button>
+                <p class="admin-prod-subtitle">Visual hierarchy: regional managers → team leaders → agents.</p>
             </div>
         </div>
 
@@ -150,174 +77,117 @@
             @endif
         </div>
 
-        <div class="mt-6 admin-clay-panel p-4 sm:p-6 org-tree">
+        <div class="mt-6 admin-clay-panel p-4 sm:p-6">
             @if($regionalManagers->isEmpty() && $unassignedTeamLeaders->isEmpty() && $unassignedAgents->isEmpty())
                 <p class="text-center text-slate-500 py-12">No regional managers, team leaders, or agents found yet.</p>
             @else
-                <div class="org-tree-root space-y-4">
+                <div class="oc-wrap">
                     @foreach($regionalManagers as $manager)
                         @php
                             $managerTls = $hasManagerLink
                                 ? $teamLeadersByManager->get($manager->id, collect())
                                 : collect();
+                            $tlCount = $managerTls->count();
+                            $columnParams = [
+                                'branchColors' => $branchColors,
+                                'agentsByTeamLeader' => $agentsByTeamLeader,
+                                'hasTeamLeaderLink' => $hasTeamLeaderLink,
+                            ];
                         @endphp
-                        <div class="org-tree-branch" x-data="{ open: true }" x-effect="open = expandAll">
-                            <div class="org-card org-card--rm">
-                                <button type="button" @click="open = !open"
-                                    class="p-1 rounded hover:bg-slate-100 text-slate-500 shrink-0"
-                                    :aria-expanded="open">
-                                    <svg class="w-4 h-4 transition-transform" :class="{ 'rotate-90': open }" fill="none"
-                                        viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
-                                    </svg>
-                                </button>
-                                <span class="org-role-badge org-role-badge--rm">Regional manager</span>
-                                <span class="font-semibold text-[#232f3e]">{{ $manager->name }}</span>
+
+                        <section class="oc-section">
+                            <div class="oc-node oc-node--rm">
+                                {{ $manager->name }}
                                 @if($manager->region?->name)
-                                    <span class="org-meta">{{ $manager->region->name }}</span>
+                                    <span class="oc-node-sub">{{ $manager->region->name }}</span>
                                 @endif
-                                @if(($manager->status ?? 'active') !== 'active')
-                                    <span class="org-meta text-amber-700">{{ ucfirst($manager->status) }}</span>
-                                @endif
-                                <span class="org-meta ml-auto">{{ $managerTls->count() }} team leader(s)</span>
                             </div>
 
-                            <div x-show="open" x-cloak class="mt-2 space-y-2">
-                                @forelse($managerTls as $tl)
-                                    @php
-                                        $tlAgents = $hasTeamLeaderLink
-                                            ? $agentsByTeamLeader->get($tl->id, collect())
-                                            : collect();
-                                    @endphp
-                                    <div class="org-tree-node" x-data="{ open: true }" x-effect="open = expandAll">
-                                        <div class="org-card org-card--tl">
-                                            <button type="button" @click="open = !open"
-                                                class="p-1 rounded hover:bg-slate-100 text-slate-500 shrink-0"
-                                                :aria-expanded="open">
-                                                <svg class="w-4 h-4 transition-transform" :class="{ 'rotate-90': open }"
-                                                    fill="none" viewBox="0 0 24 24" stroke="currentColor"
-                                                    stroke-width="2">
-                                                    <path stroke-linecap="round" stroke-linejoin="round"
-                                                        d="M9 5l7 7-7 7" />
-                                                </svg>
-                                            </button>
-                                            <span class="org-role-badge org-role-badge--tl">Team leader</span>
-                                            <span class="font-medium text-slate-800">{{ $tl->name }}</span>
-                                            @if($tl->branch?->name)
-                                                <span class="org-meta">{{ $tl->branch->name }}</span>
-                                            @endif
-                                            @if(($tl->status ?? 'active') !== 'active')
-                                                <span class="org-meta text-amber-700">{{ ucfirst($tl->status) }}</span>
-                                            @endif
-                                            <span class="org-meta ml-auto">{{ $tlAgents->count() }} agent(s)</span>
-                                        </div>
+                            @if($tlCount === 0)
+                                <div class="oc-line-v oc-rm-down"></div>
+                                <p class="oc-empty-slot">No team leaders assigned</p>
+                            @else
+                                <div class="oc-bridge">
+                                    <div class="oc-line-v oc-rm-down"></div>
+                                </div>
 
-                                        <div x-show="open" x-cloak class="mt-2 space-y-1.5">
-                                            @forelse($tlAgents as $agent)
-                                                <div class="org-tree-node">
-                                                    <div class="org-card org-card--agent">
-                                                        <span class="org-role-badge org-role-badge--agent">Agent</span>
-                                                        <span class="text-slate-800">{{ $agent->name }}</span>
-                                                        @if($agent->branch?->name)
-                                                            <span class="org-meta">{{ $agent->branch->name }}</span>
-                                                        @endif
-                                                        @if(($agent->status ?? 'active') !== 'active')
-                                                            <span class="org-meta text-amber-700">{{ ucfirst($agent->status) }}</span>
-                                                        @endif
-                                                    </div>
-                                                </div>
-                                            @empty
-                                                <p class="org-empty-branch">No agents under this team leader.</p>
-                                            @endforelse
-                                        </div>
+                                @if($tlCount > 1)
+                                    <div class="oc-h-rail" style="width: {{ max(180, ($tlCount - 1) * 158 + 130) }}px;">
+                                        @foreach($managerTls as $tl)
+                                            <div class="oc-col" style="flex: 1;">
+                                                <div class="oc-col-drop"></div>
+                                                @include('admin.organization-tree.partials.team-column', array_merge($columnParams, [
+                                                    'tl' => $tl,
+                                                    'colorIndex' => $loop->index,
+                                                ]))
+                                            </div>
+                                        @endforeach
                                     </div>
-                                @empty
-                                    <p class="org-empty-branch">No team leaders assigned to this regional manager.</p>
-                                @endforelse
-                            </div>
-                        </div>
+                                @else
+                                    <div class="oc-col">
+                                        @include('admin.organization-tree.partials.team-column', array_merge($columnParams, [
+                                            'tl' => $managerTls->first(),
+                                            'colorIndex' => 0,
+                                        ]))
+                                    </div>
+                                @endif
+                            @endif
+                        </section>
                     @endforeach
 
                     @if($hasManagerLink && $unassignedTeamLeaders->isNotEmpty())
-                        <div class="org-tree-branch pt-4 border-t border-slate-200/80" x-data="{ open: true }"
-                            x-effect="open = expandAll">
-                            <div class="org-card border-amber-200/70 bg-amber-50/50">
-                                <button type="button" @click="open = !open"
-                                    class="p-1 rounded hover:bg-amber-100/80 text-amber-800 shrink-0">
-                                    <svg class="w-4 h-4 transition-transform" :class="{ 'rotate-90': open }"
-                                        fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
-                                    </svg>
-                                </button>
-                                <span class="font-semibold text-amber-900">Unassigned team leaders</span>
-                                <span class="org-meta ml-auto">{{ $unassignedTeamLeaders->count() }}</span>
-                            </div>
-                            <div x-show="open" x-cloak class="mt-2 space-y-2">
-                                @foreach($unassignedTeamLeaders as $tl)
-                                    @php
-                                        $tlAgents = $hasTeamLeaderLink
-                                            ? $agentsByTeamLeader->get($tl->id, collect())
-                                            : collect();
-                                    @endphp
-                                    <div class="org-tree-node" x-data="{ open: true }" x-effect="open = expandAll">
-                                        <div class="org-card org-card--tl">
-                                            <button type="button" @click="open = !open"
-                                                class="p-1 rounded hover:bg-slate-100 text-slate-500 shrink-0">
-                                                <svg class="w-4 h-4 transition-transform" :class="{ 'rotate-90': open }"
-                                                    fill="none" viewBox="0 0 24 24" stroke="currentColor"
-                                                    stroke-width="2">
-                                                    <path stroke-linecap="round" stroke-linejoin="round"
-                                                        d="M9 5l7 7-7 7" />
-                                                </svg>
-                                            </button>
-                                            <span class="org-role-badge org-role-badge--tl">Team leader</span>
-                                            <span class="font-medium text-slate-800">{{ $tl->name }}</span>
-                                            <span class="org-meta ml-auto">{{ $tlAgents->count() }} agent(s)</span>
+                        @php
+                            $tlCount = $unassignedTeamLeaders->count();
+                            $columnParams = [
+                                'branchColors' => $branchColors,
+                                'agentsByTeamLeader' => $agentsByTeamLeader,
+                                'hasTeamLeaderLink' => $hasTeamLeaderLink,
+                            ];
+                        @endphp
+                        <section class="oc-section">
+                            <div class="oc-node oc-node--rm oc-node--rm-muted">Unassigned team leaders</div>
+                            <div class="oc-bridge"><div class="oc-line-v oc-rm-down"></div></div>
+                            @if($tlCount > 1)
+                                <div class="oc-h-rail" style="width: {{ max(180, ($tlCount - 1) * 158 + 130) }}px;">
+                                    @foreach($unassignedTeamLeaders as $tl)
+                                        <div class="oc-col" style="flex: 1;">
+                                            <div class="oc-col-drop"></div>
+                                            @include('admin.organization-tree.partials.team-column', array_merge($columnParams, [
+                                                'tl' => $tl,
+                                                'colorIndex' => $loop->index,
+                                            ]))
                                         </div>
-                                        <div x-show="open" x-cloak class="mt-2 space-y-1.5">
-                                            @foreach($tlAgents as $agent)
-                                                <div class="org-tree-node">
-                                                    <div class="org-card org-card--agent">
-                                                        <span class="org-role-badge org-role-badge--agent">Agent</span>
-                                                        <span class="text-slate-800">{{ $agent->name }}</span>
-                                                    </div>
-                                                </div>
-                                            @endforeach
-                                        </div>
-                                    </div>
-                                @endforeach
-                            </div>
-                        </div>
+                                    @endforeach
+                                </div>
+                            @else
+                                <div class="oc-col">
+                                    @include('admin.organization-tree.partials.team-column', array_merge($columnParams, [
+                                        'tl' => $unassignedTeamLeaders->first(),
+                                        'colorIndex' => 0,
+                                    ]))
+                                </div>
+                            @endif
+                        </section>
                     @endif
 
                     @if($hasTeamLeaderLink && $unassignedAgents->isNotEmpty())
-                        <div class="org-tree-branch pt-4 border-t border-slate-200/80" x-data="{ open: true }"
-                            x-effect="open = expandAll">
-                            <div class="org-card border-amber-200/70 bg-amber-50/50">
-                                <button type="button" @click="open = !open"
-                                    class="p-1 rounded hover:bg-amber-100/80 text-amber-800 shrink-0">
-                                    <svg class="w-4 h-4 transition-transform" :class="{ 'rotate-90': open }"
-                                        fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
-                                    </svg>
-                                </button>
-                                <span class="font-semibold text-amber-900">Unassigned agents</span>
-                                <span class="org-meta ml-auto">{{ $unassignedAgents->count() }}</span>
+                        <section class="oc-section">
+                            <div class="oc-node oc-node--rm oc-node--rm-muted">
+                                Unassigned agents
+                                <span class="oc-node-sub">{{ $unassignedAgents->count() }} total</span>
                             </div>
-                            <div x-show="open" x-cloak class="mt-2 space-y-1.5">
+                            <div class="oc-line-v oc-rm-down"></div>
+                            <div class="oc-unassigned-agents">
                                 @foreach($unassignedAgents as $agent)
-                                    <div class="org-tree-node">
-                                        <div class="org-card org-card--agent">
-                                            <span class="org-role-badge org-role-badge--agent">Agent</span>
-                                            <span class="text-slate-800">{{ $agent->name }}</span>
-                                            @if($agent->branch?->name)
-                                                <span class="org-meta">{{ $agent->branch->name }}</span>
-                                            @endif
-                                        </div>
+                                    <div class="oc-node oc-node--agent">
+                                        {{ $agent->name }}
+                                        @if($agent->branch?->name)
+                                            <span class="oc-node-sub">{{ $agent->branch->name }}</span>
+                                        @endif
                                     </div>
                                 @endforeach
                             </div>
-                        </div>
+                        </section>
                     @endif
                 </div>
             @endif
