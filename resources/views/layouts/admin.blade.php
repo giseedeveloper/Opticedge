@@ -342,6 +342,9 @@
                                 <a href="{{ route('admin.customers.regional-managers.index') }}"
                                     @if (request()->routeIs('admin.customers.regional-managers.*')) aria-current="page" @endif
                                     class="admin-sidebar-sublink {{ request()->routeIs('admin.customers.regional-managers.*') ? 'admin-sidebar-sublink-active' : '' }}">Regional managers</a>
+                                <a href="{{ route('admin.agents.assign-products') }}"
+                                    @if (request()->routeIs('admin.agents.assign-products')) aria-current="page" @endif
+                                    class="admin-sidebar-sublink {{ request()->routeIs('admin.agents.assign-products') ? 'admin-sidebar-sublink-active' : '' }}">Assign to regional manager</a>
                                 <a href="{{ route('admin.customers.team-leaders.index') }}"
                                     @if (request()->routeIs('admin.customers.team-leaders.*')) aria-current="page" @endif
                                     class="admin-sidebar-sublink {{ request()->routeIs('admin.customers.team-leaders.*') ? 'admin-sidebar-sublink-active' : '' }}">Team leaders</a>
