@@ -12,13 +12,9 @@
     @endif
 
     <div class="mb-6 flex flex-wrap gap-3">
-        <a href="{{ route('agent.transfer.create') }}"
+        <a href="{{ route('agent.return-devices') }}"
             class="inline-flex items-center rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-800 hover:bg-slate-50">
-            Transfer to another agent
-        </a>
-        <a href="{{ route('agent.transfers.index') }}"
-            class="inline-flex items-center rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-800 hover:bg-slate-50">
-            My transfer requests
+            Return devices to team leader
         </a>
     </div>
 
@@ -59,7 +55,7 @@
                     </div>
                 </div>
             @empty
-                <div class="px-6 py-8 text-center text-slate-500">No products assigned yet. Admin will assign products to you.</div>
+                <div class="px-6 py-8 text-center text-slate-500">No products assigned yet. Your team leader will assign devices to you.</div>
             @endforelse
         </div>
     </div>

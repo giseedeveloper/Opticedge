@@ -4,11 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Models\AgentAssignment;
 use App\Models\AgentProductListAssignment;
-use App\Models\AgentProductTransfer;
 use App\Models\PendingSale;
 use App\Models\Product;
-use App\Models\User;
-use App\Services\AgentProductTransferService;
+use App\Models\ProductListItem;
+use App\Services\DeviceHierarchyAssignmentService;
 use App\Services\DistributionSaleService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -83,14 +82,8 @@ class AgentController extends Controller
         return redirect()->route('agent.dashboard')->with('success', 'Sale recorded. It will appear in admin Pending Sales for payment option selection.');
     }
 
-    public function transferCreate()
+    public function returnDevicesForm()
     {
-        $agents = User::where('role', 'agent')
-            ->where('status', 'active')
-            ->where('id', '!=', Auth::id())
-            ->orderBy('name')
-            ->get();
-
         $productIds = AgentProductListAssignment::query()
             ->where('agent_id', Auth::id())
             ->whereHas('productListItem', fn ($q) => $q->whereNull('sold_at'))
@@ -103,84 +96,47 @@ class AgentController extends Controller
 
         $products = Product::whereIn('id', $productIds)->with('category')->orderBy('name')->get();
 
-        return view('agent.transfer-create', compact('agents', 'products'));
+        return view('agent.return-devices', compact('products'));
     }
 
-    public function transferableImeis(Request $request)
+    public function returnableImeis(Request $request)
     {
         $validated = $request->validate([
             'product_id' => 'required|exists:models,id',
         ]);
 
-        $service = app(AgentProductTransferService::class);
-        $locked = $service->productListIdsInPendingOutgoingTransfer(Auth::id());
-
-        $rows = AgentProductListAssignment::query()
-            ->where('agent_id', Auth::id())
-            ->whereHas('productListItem', function ($q) use ($validated) {
-                $q->where('product_id', (int) $validated['product_id'])->whereNull('sold_at');
-            })
-            ->with('productListItem')
-            ->get()
-            ->pluck('productListItem')
-            ->filter(fn ($item) => $item && ! $locked->contains($item->id));
+        $items = ProductListItem::returnableByAgent((int) $validated['product_id'], (int) Auth::id())
+            ->orderBy('imei_number')
+            ->get(['id', 'imei_number', 'model']);
 
         return response()->json([
-            'data' => $rows->map(fn ($i) => [
+            'data' => $items->map(fn ($i) => [
                 'id' => $i->id,
                 'text' => $i->imei_number.($i->model ? ' – '.$i->model : ''),
             ])->values()->all(),
         ]);
     }
 
-    public function transferStore(Request $request)
+    public function returnDevicesStore(Request $request, DeviceHierarchyAssignmentService $hierarchyService)
     {
         $validated = $request->validate([
-            'to_agent_id' => 'required|exists:users,id',
+            'product_id' => 'required|exists:models,id',
             'product_list_ids' => 'required|array|min:1',
             'product_list_ids.*' => 'distinct|integer|exists:product_list,id',
-            'message' => 'nullable|string|max:2000',
         ]);
 
         try {
-            app(AgentProductTransferService::class)->createTransfer(
+            $count = $hierarchyService->returnFromAgentToTeamLeader(
                 Auth::user(),
-                (int) $validated['to_agent_id'],
-                $validated['product_list_ids'],
-                $validated['message'] ?? null
+                $validated['product_list_ids']
             );
+            $message = $count === 1
+                ? '1 device returned to your team leader.'
+                : "{$count} devices returned to your team leader.";
         } catch (\InvalidArgumentException $e) {
             return back()->withInput()->with('error', $e->getMessage());
         }
 
-        return redirect()->route('agent.transfers.index')->with('success', 'Transfer request submitted. Waiting for admin approval.');
-    }
-
-    public function transfersIndex()
-    {
-        $transfers = AgentProductTransfer::query()
-            ->where(function ($q) {
-                $q->where('from_agent_id', Auth::id())
-                    ->orWhere('to_agent_id', Auth::id());
-            })
-            ->with(['fromAgent', 'toAgent', 'items.productListItem.product.category'])
-            ->latest()
-            ->paginate(20);
-
-        return view('agent.transfers-index', compact('transfers'));
-    }
-
-    public function transferCancel(AgentProductTransfer $agent_product_transfer)
-    {
-        if ((int) $agent_product_transfer->from_agent_id !== (int) Auth::id()) {
-            abort(403);
-        }
-        try {
-            app(AgentProductTransferService::class)->cancelOwn($agent_product_transfer, Auth::user());
-        } catch (\InvalidArgumentException $e) {
-            return back()->with('error', $e->getMessage());
-        }
-
-        return back()->with('success', 'Transfer request cancelled.');
+        return redirect()->route('agent.return-devices')->with('success', $message);
     }
 }

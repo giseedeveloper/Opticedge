@@ -10,7 +10,7 @@
             </div>
             <div class="flex flex-wrap gap-2 shrink-0">
                 <a href="{{ route('admin.agents.create') }}" class="admin-prod-btn-ghost">Add agent</a>
-                <a href="{{ route('admin.agents.assign-products') }}" class="admin-prod-btn-primary">Assign products</a>
+                <a href="{{ route('admin.agents.assign-products') }}" class="admin-prod-btn-primary">Assign to regional manager</a>
             </div>
         </div>
 

@@ -34,6 +34,7 @@ class AgentSaleController extends Controller
                     'total_selling_value' => (float) ($sale->total_selling_value ?? 0),
                     'profit' => (float) ($sale->profit ?? 0),
                     'commission_paid' => (float) ($sale->commission_paid ?? 0),
+                    'payment_option_id' => $sale->payment_option_id,
                     'payment_option_name' => $sale->paymentOption?->name,
                     'date' => $sale->date ? (is_string($sale->date) ? Carbon::parse($sale->date)->toISOString() : $sale->date->toISOString()) : null,
                 ];

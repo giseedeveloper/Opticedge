@@ -194,6 +194,24 @@
                             </svg>
                             Regional inventory &amp; IMEIs
                         </a>
+                        <a href="{{ route('regional-manager.assign-team-leader') }}"
+                            class="admin-sidebar-item {{ request()->routeIs('regional-manager.assign-team-leader*') ? 'admin-sidebar-item-active' : '' }}">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2"
+                                stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round"
+                                    d="M12 4v16m8-8H4" />
+                            </svg>
+                            Assign to team leader
+                        </a>
+                        <a href="{{ route('regional-manager.return-devices') }}"
+                            class="admin-sidebar-item {{ request()->routeIs('regional-manager.return-devices*') ? 'admin-sidebar-item-active' : '' }}">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2"
+                                stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round"
+                                    d="M11 17l-5-5m0 0l5-5m-5 5h12" />
+                            </svg>
+                            Return to admin
+                        </a>
                     </div>
                 </div>
 

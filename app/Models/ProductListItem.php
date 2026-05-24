@@ -113,7 +113,9 @@ class ProductListItem extends Model
             )
             ->whereNull('pending_sale_id')
             ->whereNull('agent_credit_id')
-            ->whereDoesntHave('agentProductListAssignment');
+            ->whereDoesntHave('agentProductListAssignment')
+            ->whereDoesntHave('regionalManagerProductListAssignment')
+            ->whereDoesntHave('teamLeaderProductListAssignment');
     }
 
     /**
@@ -137,6 +139,21 @@ class ProductListItem extends Model
     public function agentProductListAssignment()
     {
         return $this->hasOne(AgentProductListAssignment::class, 'product_list_id');
+    }
+
+    public function agentProductTransferItems()
+    {
+        return $this->hasMany(AgentProductTransferItem::class, 'product_list_id');
+    }
+
+    public function regionalManagerProductListAssignment()
+    {
+        return $this->hasOne(RegionalManagerProductListAssignment::class, 'product_list_id');
+    }
+
+    public function teamLeaderProductListAssignment()
+    {
+        return $this->hasOne(TeamLeaderProductListAssignment::class, 'product_list_id');
     }
 
     /**
@@ -169,9 +186,122 @@ class ProductListItem extends Model
     }
 
     /**
-     * Unsold IMEIs for a product, not yet assigned to any agent, from an eligible purchase.
+     * Unsold IMEIs in admin warehouse (not in hierarchy), from an eligible purchase.
      */
+    public function scopeAssignableFromAdmin($query, int $productId)
+    {
+        return static::applyEligiblePurchaseScope(
+            $query->where(function ($q) use ($productId) {
+                $q->where('product_id', $productId)
+                    ->orWhereHas('purchase', fn ($p) => $p->where('product_id', $productId));
+            })
+                ->whereNull('sold_at')
+                ->whereDoesntHave('regionalManagerProductListAssignment')
+                ->whereDoesntHave('teamLeaderProductListAssignment')
+                ->whereDoesntHave('agentProductListAssignment'),
+            $productId
+        );
+    }
+
+    /** @deprecated Use assignableFromAdmin for admin pool */
     public function scopeAssignableToAgent($query, int $productId)
+    {
+        return $query->assignableFromAdmin($productId);
+    }
+
+    /**
+     * Devices held by a regional manager (from admin), not yet with team leader or agent.
+     */
+    public function scopeAssignableToTeamLeaderByRegionalManager($query, int $productId, int $regionalManagerId)
+    {
+        return $query
+            ->where(function ($q) use ($productId) {
+                $q->where('product_id', $productId)
+                    ->orWhereHas('purchase', fn ($p) => $p->where('product_id', $productId));
+            })
+            ->whereNull('sold_at')
+            ->whereDoesntHave('teamLeaderProductListAssignment')
+            ->whereDoesntHave('agentProductListAssignment')
+            ->whereHas('regionalManagerProductListAssignment', fn ($q) => $q->where('regional_manager_id', $regionalManagerId));
+    }
+
+    /**
+     * Devices held by a team leader (from regional manager), not yet with an agent.
+     */
+    public function scopeAssignableToAgentByTeamLeader($query, int $productId, int $teamLeaderId)
+    {
+        return $query
+            ->where(function ($q) use ($productId) {
+                $q->where('product_id', $productId)
+                    ->orWhereHas('purchase', fn ($p) => $p->where('product_id', $productId));
+            })
+            ->whereNull('sold_at')
+            ->whereDoesntHave('agentProductListAssignment')
+            ->whereHas('teamLeaderProductListAssignment', fn ($q) => $q->where('team_leader_id', $teamLeaderId));
+    }
+
+    /**
+     * Devices with an agent that can be returned to their team leader.
+     */
+    public function scopeReturnableByAgent($query, int $productId, int $agentId)
+    {
+        return $query
+            ->where(function ($q) use ($productId) {
+                $q->where('product_id', $productId)
+                    ->orWhereHas('purchase', fn ($p) => $p->where('product_id', $productId));
+            })
+            ->whereNull('sold_at')
+            ->whereHas('agentProductListAssignment', fn ($q) => $q->where('agent_id', $agentId));
+    }
+
+    /**
+     * Devices assigned to an agent that can be sent in a transfer request (not in a pending transfer).
+     */
+    public function scopeTransferableByAgent($query, int $productId, int $agentId)
+    {
+        return $query
+            ->returnableByAgent($productId, $agentId)
+            ->whereDoesntHave('agentProductTransferItems', function ($q) {
+                $q->whereHas('transfer', fn ($t) => $t->where('status', AgentProductTransfer::STATUS_PENDING));
+            });
+    }
+
+    /**
+     * Devices with a team leader (not with agent) that can be returned to regional manager.
+     */
+    public function scopeReturnableByTeamLeader($query, int $productId, int $teamLeaderId)
+    {
+        return $query
+            ->where(function ($q) use ($productId) {
+                $q->where('product_id', $productId)
+                    ->orWhereHas('purchase', fn ($p) => $p->where('product_id', $productId));
+            })
+            ->whereNull('sold_at')
+            ->whereDoesntHave('agentProductListAssignment')
+            ->whereHas('teamLeaderProductListAssignment', fn ($q) => $q->where('team_leader_id', $teamLeaderId));
+    }
+
+    /**
+     * Devices with regional manager only (not with TL or agent) that can be returned to admin.
+     */
+    public function scopeReturnableByRegionalManager($query, int $productId, int $regionalManagerId)
+    {
+        return $query
+            ->where(function ($q) use ($productId) {
+                $q->where('product_id', $productId)
+                    ->orWhereHas('purchase', fn ($p) => $p->where('product_id', $productId));
+            })
+            ->whereNull('sold_at')
+            ->whereDoesntHave('teamLeaderProductListAssignment')
+            ->whereDoesntHave('agentProductListAssignment')
+            ->whereHas('regionalManagerProductListAssignment', fn ($q) => $q->where('regional_manager_id', $regionalManagerId));
+    }
+
+    /**
+     * @param  \Illuminate\Database\Eloquent\Builder  $query
+     * @return \Illuminate\Database\Eloquent\Builder
+     */
+    protected static function applyEligiblePurchaseScope($query, int $productId)
     {
         $purchaseOk = function ($p) {
             $p->where('is_passthrough', false)
@@ -181,27 +311,20 @@ class ProductListItem extends Model
                 });
         };
 
-        return $query
-            ->where(function ($q) use ($productId) {
-                $q->where('product_id', $productId)
-                    ->orWhereHas('purchase', fn ($p) => $p->where('product_id', $productId));
-            })
-            ->whereNull('sold_at')
-            ->whereDoesntHave('agentProductListAssignment')
-            ->where(function ($q) use ($purchaseOk) {
-                $q->whereHas('purchase', $purchaseOk)
-                    ->orWhere(function ($q2) use ($purchaseOk) {
-                        $q2->whereNull('purchase_id')
-                            ->whereNotNull('product_list.stock_id')
-                            ->whereExists(function ($sub) use ($purchaseOk) {
-                                $sub->selectRaw('1')
-                                    ->from('purchases')
-                                    ->whereColumn('purchases.stock_id', 'product_list.stock_id')
-                                    ->whereColumn('purchases.product_id', 'product_list.product_id')
-                                    ->where($purchaseOk);
-                            });
-                    });
-            });
+        return $query->where(function ($q) use ($purchaseOk) {
+            $q->whereHas('purchase', $purchaseOk)
+                ->orWhere(function ($q2) use ($purchaseOk) {
+                    $q2->whereNull('purchase_id')
+                        ->whereNotNull('product_list.stock_id')
+                        ->whereExists(function ($sub) use ($purchaseOk) {
+                            $sub->selectRaw('1')
+                                ->from('purchases')
+                                ->whereColumn('purchases.stock_id', 'product_list.stock_id')
+                                ->whereColumn('purchases.product_id', 'product_list.product_id')
+                                ->where($purchaseOk);
+                        });
+                });
+        });
     }
 
     /**

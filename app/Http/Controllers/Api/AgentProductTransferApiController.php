@@ -3,18 +3,16 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\AgentProductListAssignment;
 use App\Models\AgentProductTransfer;
+use App\Models\ProductListItem;
 use App\Models\User;
 use App\Services\AgentProductTransferService;
+use App\Services\DeviceHierarchyAssignmentService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
 class AgentProductTransferApiController extends Controller
 {
-    /**
-     * Active agents other than the authenticated user (same rules as web AgentController::transferCreate).
-     */
     public function transferRecipients()
     {
         $agents = User::query()
@@ -25,10 +23,10 @@ class AgentProductTransferApiController extends Controller
             ->get(['id', 'name', 'email']);
 
         return response()->json([
-            'data' => $agents->map(fn (User $u) => [
-                'id' => $u->id,
-                'name' => $u->name,
-                'email' => $u->email,
+            'data' => $agents->map(fn ($a) => [
+                'id' => $a->id,
+                'name' => $a->name,
+                'email' => $a->email,
             ])->values()->all(),
         ]);
     }
@@ -39,21 +37,12 @@ class AgentProductTransferApiController extends Controller
             'product_id' => 'required|exists:models,id',
         ]);
 
-        $service = app(AgentProductTransferService::class);
-        $locked = $service->productListIdsInPendingOutgoingTransfer(Auth::id());
-
-        $rows = AgentProductListAssignment::query()
-            ->where('agent_id', Auth::id())
-            ->whereHas('productListItem', function ($q) use ($validated) {
-                $q->where('product_id', (int) $validated['product_id'])->whereNull('sold_at');
-            })
-            ->with('productListItem')
-            ->get()
-            ->pluck('productListItem')
-            ->filter(fn ($item) => $item && ! $locked->contains($item->id));
+        $items = ProductListItem::transferableByAgent((int) $validated['product_id'], (int) Auth::id())
+            ->orderBy('imei_number')
+            ->get(['id', 'imei_number', 'model']);
 
         return response()->json([
-            'data' => $rows->map(fn ($i) => [
+            'data' => $items->map(fn ($i) => [
                 'id' => $i->id,
                 'imei_number' => $i->imei_number,
                 'model' => $i->model,
@@ -62,10 +51,32 @@ class AgentProductTransferApiController extends Controller
         ]);
     }
 
+    public function index(Request $request)
+    {
+        $agentId = (int) Auth::id();
+        $page = AgentProductTransfer::query()
+            ->with(['fromAgent', 'toAgent', 'items'])
+            ->where(function ($q) use ($agentId) {
+                $q->where('from_agent_id', $agentId)->orWhere('to_agent_id', $agentId);
+            })
+            ->latest()
+            ->paginate($request->integer('per_page', 50));
+
+        return response()->json([
+            'data' => $page->getCollection()->map(fn ($t) => $this->summary($t))->values()->all(),
+            'meta' => [
+                'current_page' => $page->currentPage(),
+                'last_page' => $page->lastPage(),
+                'per_page' => $page->perPage(),
+                'total' => $page->total(),
+            ],
+        ]);
+    }
+
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'to_agent_id' => 'required|exists:users,id',
+            'to_agent_id' => 'required|integer|exists:users,id',
             'product_list_ids' => 'required|array|min:1',
             'product_list_ids.*' => 'distinct|integer|exists:product_list,id',
             'message' => 'nullable|string|max:2000',
@@ -82,101 +93,121 @@ class AgentProductTransferApiController extends Controller
             return response()->json(['message' => $e->getMessage()], 422);
         }
 
+        $transfer->load(['fromAgent', 'toAgent', 'items']);
+
         return response()->json([
-            'message' => 'Transfer request submitted.',
-            'data' => $this->transferSummary($transfer),
+            'message' => 'Transfer request submitted. Waiting for admin approval.',
+            'data' => $this->detail($transfer),
         ], 201);
-    }
-
-    public function index(Request $request)
-    {
-        $transfers = AgentProductTransfer::query()
-            ->where(function ($q) {
-                $q->where('from_agent_id', Auth::id())
-                    ->orWhere('to_agent_id', Auth::id());
-            })
-            ->with(['fromAgent', 'toAgent', 'items'])
-            ->latest()
-            ->paginate($request->integer('per_page', 20));
-
-        return response()->json([
-            'data' => $transfers->getCollection()->map(fn ($t) => $this->transferSummary($t))->values()->all(),
-            'meta' => [
-                'current_page' => $transfers->currentPage(),
-                'last_page' => $transfers->lastPage(),
-                'per_page' => $transfers->perPage(),
-                'total' => $transfers->total(),
-            ],
-        ]);
     }
 
     public function show(AgentProductTransfer $agent_product_transfer)
     {
-        $transfer = $agent_product_transfer;
-        if ((int) $transfer->from_agent_id !== (int) Auth::id() && (int) $transfer->to_agent_id !== (int) Auth::id()) {
-            return response()->json(['message' => 'Forbidden.'], 403);
+        $agentId = (int) Auth::id();
+        if (! in_array($agentId, [(int) $agent_product_transfer->from_agent_id, (int) $agent_product_transfer->to_agent_id], true)) {
+            abort(403);
         }
 
-        return response()->json([
-            'data' => $this->transferDetail($transfer),
+        $agent_product_transfer->load([
+            'fromAgent', 'toAgent', 'decidedByUser',
+            'items.productListItem.product.category',
         ]);
+
+        return response()->json(['data' => $this->detail($agent_product_transfer)]);
     }
 
     public function cancel(AgentProductTransfer $agent_product_transfer)
     {
-        if ((int) $agent_product_transfer->from_agent_id !== (int) Auth::id()) {
-            return response()->json(['message' => 'Forbidden.'], 403);
-        }
         try {
             app(AgentProductTransferService::class)->cancelOwn($agent_product_transfer, Auth::user());
         } catch (\InvalidArgumentException $e) {
             return response()->json(['message' => $e->getMessage()], 422);
         }
 
-        return response()->json(['message' => 'Cancelled.', 'data' => $this->transferSummary($agent_product_transfer->fresh())]);
+        return response()->json(['message' => 'Transfer cancelled.']);
     }
 
-    private function transferSummary(AgentProductTransfer $t): array
+    public function returnableImeis(Request $request)
     {
-        $t->loadMissing(['fromAgent', 'toAgent', 'items']);
+        $validated = $request->validate([
+            'product_id' => 'required|exists:models,id',
+        ]);
 
+        $items = ProductListItem::returnableByAgent((int) $validated['product_id'], (int) Auth::id())
+            ->orderBy('imei_number')
+            ->get(['id', 'imei_number', 'model']);
+
+        return response()->json([
+            'data' => $items->map(fn ($i) => [
+                'id' => $i->id,
+                'imei_number' => $i->imei_number,
+                'model' => $i->model,
+                'text' => $i->imei_number.($i->model ? ' – '.$i->model : ''),
+            ])->values()->all(),
+        ]);
+    }
+
+    public function returnToTeamLeader(Request $request, DeviceHierarchyAssignmentService $hierarchyService)
+    {
+        $validated = $request->validate([
+            'product_list_ids' => 'required|array|min:1',
+            'product_list_ids.*' => 'distinct|integer|exists:product_list,id',
+        ]);
+
+        try {
+            $count = $hierarchyService->returnFromAgentToTeamLeader(
+                Auth::user(),
+                $validated['product_list_ids']
+            );
+        } catch (\InvalidArgumentException $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
+        }
+
+        return response()->json([
+            'message' => $count === 1
+                ? '1 device returned to team leader.'
+                : "{$count} devices returned to team leader.",
+            'data' => ['returned_count' => $count],
+        ]);
+    }
+
+    private function summary(AgentProductTransfer $t): array
+    {
         return [
             'id' => $t->id,
             'status' => $t->status,
-            'message' => $t->message,
-            'admin_note' => $t->admin_note,
             'created_at' => $t->created_at?->toIso8601String(),
-            'decided_at' => $t->decided_at?->toIso8601String(),
             'from_agent' => $t->fromAgent ? ['id' => $t->fromAgent->id, 'name' => $t->fromAgent->name, 'email' => $t->fromAgent->email] : null,
             'to_agent' => $t->toAgent ? ['id' => $t->toAgent->id, 'name' => $t->toAgent->name, 'email' => $t->toAgent->email] : null,
             'items_count' => $t->items->count(),
+            'message' => $t->message,
+            'admin_note' => $t->admin_note,
         ];
     }
 
-    private function transferDetail(AgentProductTransfer $t): array
+    private function detail(AgentProductTransfer $t): array
     {
-        $t->loadMissing(['fromAgent', 'toAgent', 'decidedByUser', 'items.productListItem.product.category']);
-
-        $summary = $this->transferSummary($t);
-        $summary['decided_by'] = $t->decidedByUser ? [
-            'id' => $t->decidedByUser->id,
-            'name' => $t->decidedByUser->name,
-            'email' => $t->decidedByUser->email,
-        ] : null;
-        $summary['items'] = $t->items->map(function ($item) {
-            $pl = $item->productListItem;
+        $base = $this->summary($t);
+        $base['decided_at'] = $t->decided_at?->toIso8601String();
+        $base['decided_by'] = $t->decidedByUser ? ['id' => $t->decidedByUser->id, 'name' => $t->decidedByUser->name] : null;
+        $base['items'] = $t->items->map(function ($ti) {
+            $i = $ti->productListItem;
+            if (! $i) {
+                return ['product_list_id' => $ti->product_list_id];
+            }
 
             return [
-                'id' => $item->id,
-                'product_list_id' => $item->product_list_id,
-                'imei_number' => $pl?->imei_number,
-                'model' => $pl?->model,
-                'product_name' => $pl?->product?->name,
-                'category_name' => $pl?->product?->category?->name,
-                'sold_at' => $pl?->sold_at?->toIso8601String(),
+                'product_list_id' => $i->id,
+                'imei_number' => $i->imei_number,
+                'model' => $i->model,
+                'product' => $i->product ? [
+                    'id' => $i->product->id,
+                    'name' => $i->product->name,
+                    'category' => $i->product->category?->name,
+                ] : null,
             ];
         })->values()->all();
 
-        return $summary;
+        return $base;
     }
 }

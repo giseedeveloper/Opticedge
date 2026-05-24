@@ -331,6 +331,7 @@ Route::middleware(['auth', 'admin', 'subadmin.ability'])->prefix('admin')->name(
             Route::post('agent-sales/{id}/convert-to-credit', [App\Http\Controllers\Admin\StockController::class, 'convertAgentSaleToCredit'])->name('agent-sales-convert-to-credit');
             Route::delete('agent-sales/{id}', [App\Http\Controllers\Admin\StockController::class, 'destroyAgentSale'])->name('destroy-agent-sale');
 
+            Route::get('pending-sales', [App\Http\Controllers\Admin\StockController::class, 'pendingSales'])->name('pending-sales');
             Route::get('agent-transfers', [App\Http\Controllers\Admin\AgentTransferController::class, 'index'])->name('agent-transfers');
             Route::get('agent-transfers/{agent_product_transfer}', [App\Http\Controllers\Admin\AgentTransferController::class, 'show'])->name('agent-transfers.show');
             Route::post('agent-transfers/{agent_product_transfer}/approve', [App\Http\Controllers\Admin\AgentTransferController::class, 'approve'])->name('agent-transfers.approve');
@@ -415,6 +416,12 @@ Route::middleware(['auth', 'admin', 'subadmin.ability'])->prefix('admin')->name(
 Route::middleware(['auth', 'verified', 'active', 'regionalmanager'])->prefix('regional-manager')->name('regional-manager.')->group(function () {
     Route::get('dashboard', [App\Http\Controllers\RegionalManagerController::class, 'dashboard'])->name('dashboard');
     Route::get('region-inventory', [App\Http\Controllers\RegionalManagerController::class, 'regionInventory'])->name('region-inventory');
+    Route::get('assign-team-leader', [App\Http\Controllers\RegionalManagerController::class, 'assignTeamLeaderForm'])->name('assign-team-leader');
+    Route::post('assign-team-leader', [App\Http\Controllers\RegionalManagerController::class, 'storeAssignTeamLeader'])->name('assign-team-leader.store');
+    Route::get('assign-team-leader/assignable-imeis', [App\Http\Controllers\RegionalManagerController::class, 'assignableImeisForTeamLeader'])->name('assign-team-leader.assignable-imeis');
+    Route::get('return-devices', [App\Http\Controllers\RegionalManagerController::class, 'returnDevicesForm'])->name('return-devices');
+    Route::post('return-devices', [App\Http\Controllers\RegionalManagerController::class, 'storeReturnDevices'])->name('return-devices.store');
+    Route::get('return-devices/assignable-imeis', [App\Http\Controllers\RegionalManagerController::class, 'returnableImeis'])->name('return-devices.assignable-imeis');
     Route::get('profile', [App\Http\Controllers\RegionalManagerController::class, 'profile'])->name('profile');
 });
 
@@ -422,6 +429,12 @@ Route::middleware(['auth', 'verified', 'active', 'regionalmanager'])->prefix('re
 Route::middleware(['auth', 'verified', 'active', 'teamleader'])->prefix('team-leader')->name('team-leader.')->group(function () {
     Route::get('dashboard', [App\Http\Controllers\TeamLeaderController::class, 'dashboard'])->name('dashboard');
     Route::get('team-inventory', [App\Http\Controllers\TeamLeaderController::class, 'teamInventory'])->name('team-inventory');
+    Route::get('assign-agent', [App\Http\Controllers\TeamLeaderController::class, 'assignAgentForm'])->name('assign-agent');
+    Route::post('assign-agent', [App\Http\Controllers\TeamLeaderController::class, 'storeAssignAgent'])->name('assign-agent.store');
+    Route::get('assign-agent/assignable-imeis', [App\Http\Controllers\TeamLeaderController::class, 'assignableImeisForAgent'])->name('assign-agent.assignable-imeis');
+    Route::get('return-devices', [App\Http\Controllers\TeamLeaderController::class, 'returnDevicesForm'])->name('return-devices');
+    Route::post('return-devices', [App\Http\Controllers\TeamLeaderController::class, 'storeReturnDevices'])->name('return-devices.store');
+    Route::get('return-devices/assignable-imeis', [App\Http\Controllers\TeamLeaderController::class, 'returnableImeis'])->name('return-devices.assignable-imeis');
     Route::get('profile', [App\Http\Controllers\TeamLeaderController::class, 'profile'])->name('profile');
     Route::get('orders', [App\Http\Controllers\TeamLeaderController::class, 'orders'])->name('orders');
     Route::get('cart', [App\Http\Controllers\TeamLeaderController::class, 'cart'])->name('cart');
@@ -435,11 +448,15 @@ Route::middleware(['auth', 'verified', 'active', 'agent'])->prefix('agent')->nam
     Route::get('dashboard', [App\Http\Controllers\AgentController::class, 'dashboard'])->name('dashboard');
     Route::get('assignments/{assignment}/record-sale', [App\Http\Controllers\AgentController::class, 'recordSaleForm'])->name('record-sale-form');
     Route::post('record-sale', [App\Http\Controllers\AgentController::class, 'recordSale'])->name('record-sale');
-    Route::get('transfer', [App\Http\Controllers\AgentController::class, 'transferCreate'])->name('transfer.create');
-    Route::get('transferable-imeis', [App\Http\Controllers\AgentController::class, 'transferableImeis'])->name('transferable-imeis');
-    Route::post('transfer', [App\Http\Controllers\AgentController::class, 'transferStore'])->name('transfer.store');
-    Route::get('transfers', [App\Http\Controllers\AgentController::class, 'transfersIndex'])->name('transfers.index');
-    Route::post('transfers/{agent_product_transfer}/cancel', [App\Http\Controllers\AgentController::class, 'transferCancel'])->name('transfers.cancel');
+    Route::get('return-devices', [App\Http\Controllers\AgentController::class, 'returnDevicesForm'])->name('return-devices');
+    Route::post('return-devices', [App\Http\Controllers\AgentController::class, 'returnDevicesStore'])->name('return-devices.store');
+    Route::get('return-devices/assignable-imeis', [App\Http\Controllers\AgentController::class, 'returnableImeis'])->name('return-devices.assignable-imeis');
+
+    Route::get('transfers', [App\Http\Controllers\Agent\ProductTransferController::class, 'index'])->name('transfers.index');
+    Route::get('transfer/create', [App\Http\Controllers\Agent\ProductTransferController::class, 'create'])->name('transfer.create');
+    Route::post('transfer', [App\Http\Controllers\Agent\ProductTransferController::class, 'store'])->name('transfer.store');
+    Route::get('transferable-imeis', [App\Http\Controllers\Agent\ProductTransferController::class, 'transferableImeis'])->name('transferable-imeis');
+    Route::post('transfers/{transfer}/cancel', [App\Http\Controllers\Agent\ProductTransferController::class, 'cancel'])->name('transfers.cancel');
 });
 
 Route::middleware(['auth', 'active'])->group(function () {

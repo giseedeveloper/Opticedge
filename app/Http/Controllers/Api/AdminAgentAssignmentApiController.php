@@ -7,13 +7,13 @@ use App\Models\Product;
 use App\Models\ProductListItem;
 use App\Models\Purchase;
 use App\Models\User;
-use App\Services\AgentProductAssignmentService;
+use App\Services\DeviceHierarchyAssignmentService;
 use Illuminate\Http\Request;
 
 class AdminAgentAssignmentApiController extends Controller
 {
     public function __construct(
-        private AgentProductAssignmentService $assignmentService
+        private DeviceHierarchyAssignmentService $hierarchyService
     ) {}
 
     /**
@@ -52,7 +52,7 @@ class AdminAgentAssignmentApiController extends Controller
     }
 
     /**
-     * Unsold IMEIs assignable to an agent for this catalog product.
+     * Unsold IMEIs in admin warehouse for this catalog product.
      */
     public function assignableImeis(Request $request)
     {
@@ -60,7 +60,7 @@ class AdminAgentAssignmentApiController extends Controller
             'product_id' => 'required|integer|exists:models,id',
         ]);
 
-        $items = ProductListItem::assignableToAgent((int) $validated['product_id'])
+        $items = ProductListItem::assignableFromAdmin((int) $validated['product_id'])
             ->orderBy('imei_number')
             ->get(['id', 'imei_number', 'model']);
 
@@ -88,7 +88,7 @@ class AdminAgentAssignmentApiController extends Controller
         $raw = trim($validated['imei']);
         $normalized = preg_replace('/\s+/u', '', $raw) ?? $raw;
 
-        $items = ProductListItem::assignableToAgent($productId)
+        $items = ProductListItem::assignableFromAdmin($productId)
             ->orderBy('imei_number')
             ->get(['id', 'imei_number', 'model']);
 
@@ -140,37 +140,16 @@ class AdminAgentAssignmentApiController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'agent_id' => 'required|integer|exists:users,id',
+            'regional_manager_id' => 'required|integer|exists:users,id',
             'product_id' => 'required|integer|exists:models,id',
-            'assignment_type' => 'sometimes|in:imei,total',
-            'product_list_ids' => 'required_unless:assignment_type,total|array|min:1',
+            'product_list_ids' => 'required|array|min:1',
             'product_list_ids.*' => 'distinct|integer|exists:product_list,id',
-            'purchase_id' => 'required_if:assignment_type,total|nullable|integer|exists:purchases,id',
-            'quantity' => 'required_if:assignment_type,total|nullable|integer|min:1',
         ]);
 
-        $user = User::findOrFail($validated['agent_id']);
-        $assignmentType = $validated['assignment_type'] ?? 'imei';
+        $user = User::findOrFail($validated['regional_manager_id']);
 
         try {
-            if ($assignmentType === 'total') {
-                $newTotal = $this->assignmentService->assignTotalToAgent(
-                    $user,
-                    (int) $validated['product_id'],
-                    (int) $validated['quantity'],
-                    isset($validated['purchase_id']) ? (int) $validated['purchase_id'] : null
-                );
-
-                return response()->json([
-                    'message' => 'Quantity assigned to agent.',
-                    'data' => [
-                        'assignment_type' => 'total',
-                        'quantity_assigned' => $newTotal,
-                    ],
-                ], 201);
-            }
-
-            $added = $this->assignmentService->assignToAgent(
+            $added = $this->hierarchyService->assignToRegionalManager(
                 $user,
                 (int) $validated['product_id'],
                 $validated['product_list_ids']
@@ -180,9 +159,8 @@ class AdminAgentAssignmentApiController extends Controller
         }
 
         return response()->json([
-            'message' => 'Products assigned to agent.',
+            'message' => 'Devices assigned to regional manager.',
             'data' => [
-                'assignment_type' => 'imei',
                 'assigned_count' => $added,
             ],
         ], 201);

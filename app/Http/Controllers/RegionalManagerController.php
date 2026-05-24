@@ -5,7 +5,9 @@ namespace App\Http\Controllers;
 use App\Models\AgentAssignment;
 use App\Models\AgentProductListAssignment;
 use App\Models\Product;
+use App\Models\ProductListItem;
 use App\Models\User;
+use App\Services\DeviceHierarchyAssignmentService;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Auth;
@@ -309,6 +311,113 @@ class RegionalManagerController extends Controller
             'summary',
             'filterStatus'
         ));
+    }
+
+    public function assignTeamLeaderForm()
+    {
+        $teamLeaders = User::query()
+            ->where('role', 'teamleader')
+            ->where('regional_manager_id', Auth::id())
+            ->where('status', 'active')
+            ->orderBy('name')
+            ->get();
+        $products = Product::whereHas('purchases')->with('category')->orderBy('name')->get();
+
+        return view('regional-manager.assign-team-leader', compact('teamLeaders', 'products'));
+    }
+
+    public function assignableImeisForTeamLeader(Request $request)
+    {
+        $validated = $request->validate([
+            'product_id' => 'required|exists:models,id',
+        ]);
+
+        $items = ProductListItem::assignableToTeamLeaderByRegionalManager((int) $validated['product_id'], (int) Auth::id())
+            ->orderBy('imei_number')
+            ->get(['id', 'imei_number', 'model']);
+
+        return response()->json([
+            'data' => $items->map(fn ($i) => [
+                'id' => $i->id,
+                'text' => $i->imei_number.($i->model ? ' – '.$i->model : ''),
+            ])->values()->all(),
+        ]);
+    }
+
+    public function storeAssignTeamLeader(Request $request, DeviceHierarchyAssignmentService $hierarchyService)
+    {
+        $validated = $request->validate([
+            'team_leader_id' => 'required|exists:users,id',
+            'product_id' => 'required|exists:models,id',
+            'product_list_ids' => 'required|array|min:1',
+            'product_list_ids.*' => 'distinct|integer|exists:product_list,id',
+        ]);
+
+        $teamLeader = User::findOrFail($validated['team_leader_id']);
+
+        try {
+            $count = $hierarchyService->assignToTeamLeader(
+                Auth::user(),
+                $teamLeader,
+                (int) $validated['product_id'],
+                $validated['product_list_ids']
+            );
+            $message = $count === 1
+                ? '1 device assigned to team leader.'
+                : "{$count} devices assigned to team leader.";
+        } catch (\InvalidArgumentException $e) {
+            return back()->withInput()->with('error', $e->getMessage());
+        }
+
+        return redirect()->route('regional-manager.assign-team-leader')->with('success', $message);
+    }
+
+    public function returnDevicesForm()
+    {
+        $products = Product::whereHas('purchases')->with('category')->orderBy('name')->get();
+
+        return view('regional-manager.return-devices', compact('products'));
+    }
+
+    public function returnableImeis(Request $request)
+    {
+        $validated = $request->validate([
+            'product_id' => 'required|exists:models,id',
+        ]);
+
+        $items = ProductListItem::returnableByRegionalManager((int) $validated['product_id'], (int) Auth::id())
+            ->orderBy('imei_number')
+            ->get(['id', 'imei_number', 'model']);
+
+        return response()->json([
+            'data' => $items->map(fn ($i) => [
+                'id' => $i->id,
+                'text' => $i->imei_number.($i->model ? ' – '.$i->model : ''),
+            ])->values()->all(),
+        ]);
+    }
+
+    public function storeReturnDevices(Request $request, DeviceHierarchyAssignmentService $hierarchyService)
+    {
+        $validated = $request->validate([
+            'product_id' => 'required|exists:models,id',
+            'product_list_ids' => 'required|array|min:1',
+            'product_list_ids.*' => 'distinct|integer|exists:product_list,id',
+        ]);
+
+        try {
+            $count = $hierarchyService->returnFromRegionalManagerToAdmin(
+                Auth::user(),
+                $validated['product_list_ids']
+            );
+            $message = $count === 1
+                ? '1 device returned to admin.'
+                : "{$count} devices returned to admin.";
+        } catch (\InvalidArgumentException $e) {
+            return back()->withInput()->with('error', $e->getMessage());
+        }
+
+        return redirect()->route('regional-manager.return-devices')->with('success', $message);
     }
 
     public function profile()

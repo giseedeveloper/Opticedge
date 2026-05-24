@@ -26,6 +26,11 @@ use App\Http\Controllers\Api\AdminBranchTransferApiController;
 use App\Http\Controllers\Api\AgentCatalogController;
 use App\Http\Controllers\Api\AgentCustomerNeedController;
 use App\Http\Controllers\Api\AdminAgentAssignmentApiController;
+use App\Http\Controllers\Api\RegionalManagerApiController;
+use App\Http\Controllers\Api\RegionalManagerDashboardController;
+use App\Http\Controllers\Api\TeamLeaderApiController;
+use App\Http\Controllers\Api\TeamLeaderDashboardController;
+use App\Http\Controllers\Api\UserProfileApiController;
 
 Route::post('/login', [AuthController::class, 'login']);
 
@@ -65,9 +70,11 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('payment-options/{id}', [ApiPaymentOptionController::class, 'update']);
         Route::delete('payment-options/{id}', [ApiPaymentOptionController::class, 'destroy']);
         Route::patch('payment-options/{id}/toggle-visibility', [ApiPaymentOptionController::class, 'toggleVisibility']);
+        Route::patch('payment-options/{id}/shrink-balance', [ApiPaymentOptionController::class, 'shrinkBalance']);
         Route::get('agent-sales', [ApiAgentSaleController::class, 'index']);
         Route::get('orders', [ApiOrderController::class, 'index']);
         Route::get('orders/{order}', [ApiOrderController::class, 'show']);
+        Route::put('orders/{order}', [ApiOrderController::class, 'update']);
         Route::get('users', [ApiUserController::class, 'index']); // ?role=customer|dealer|agent
 
         Route::get('agents/products-for-assign', [AdminAgentAssignmentApiController::class, 'productsForAssign'])
@@ -136,8 +143,41 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('transfer-recipients', [AgentProductTransferApiController::class, 'transferRecipients']);
         Route::get('transferable-imeis', [AgentProductTransferApiController::class, 'transferableImeis']);
         Route::get('transfers', [AgentProductTransferApiController::class, 'index']);
-        Route::get('transfers/{agent_product_transfer}', [AgentProductTransferApiController::class, 'show']);
         Route::post('transfers', [AgentProductTransferApiController::class, 'store']);
+        Route::get('transfers/{agent_product_transfer}', [AgentProductTransferApiController::class, 'show']);
         Route::post('transfers/{agent_product_transfer}/cancel', [AgentProductTransferApiController::class, 'cancel']);
+
+        Route::get('return-devices/assignable-imeis', [AgentProductTransferApiController::class, 'returnableImeis']);
+        Route::post('return-devices', [AgentProductTransferApiController::class, 'returnToTeamLeader']);
+    });
+
+    Route::middleware('regionalmanager')->prefix('regional-manager')->group(function () {
+        Route::get('dashboard', [RegionalManagerDashboardController::class, 'index']);
+        Route::get('region-inventory', [RegionalManagerApiController::class, 'regionInventory']);
+        Route::get('assign-team-leader/form-data', [RegionalManagerApiController::class, 'assignTeamLeaderFormData']);
+        Route::get('assign-team-leader/assignable-imeis', [RegionalManagerApiController::class, 'assignableImeisForTeamLeader']);
+        Route::post('assign-team-leader/validate-imei', [RegionalManagerApiController::class, 'validateAssignTeamLeaderImei']);
+        Route::post('assign-team-leader', [RegionalManagerApiController::class, 'storeAssignTeamLeader']);
+        Route::get('return-devices/form-data', [RegionalManagerApiController::class, 'returnDevicesFormData']);
+        Route::get('return-devices/assignable-imeis', [RegionalManagerApiController::class, 'returnableImeis']);
+        Route::post('return-devices', [RegionalManagerApiController::class, 'storeReturnDevices']);
+        Route::get('profile', [UserProfileApiController::class, 'show']);
+        Route::put('profile', [UserProfileApiController::class, 'update']);
+        Route::put('profile/password', [UserProfileApiController::class, 'updatePassword']);
+    });
+
+    Route::middleware('teamleader')->prefix('team-leader')->group(function () {
+        Route::get('dashboard', [TeamLeaderDashboardController::class, 'index']);
+        Route::get('team-inventory', [TeamLeaderApiController::class, 'teamInventory']);
+        Route::get('assign-agent/form-data', [TeamLeaderApiController::class, 'assignAgentFormData']);
+        Route::get('assign-agent/assignable-imeis', [TeamLeaderApiController::class, 'assignableImeisForAgent']);
+        Route::post('assign-agent/validate-imei', [TeamLeaderApiController::class, 'validateAssignAgentImei']);
+        Route::post('assign-agent', [TeamLeaderApiController::class, 'storeAssignAgent']);
+        Route::get('return-devices/form-data', [TeamLeaderApiController::class, 'returnDevicesFormData']);
+        Route::get('return-devices/assignable-imeis', [TeamLeaderApiController::class, 'returnableImeis']);
+        Route::post('return-devices', [TeamLeaderApiController::class, 'storeReturnDevices']);
+        Route::get('profile', [UserProfileApiController::class, 'show']);
+        Route::put('profile', [UserProfileApiController::class, 'update']);
+        Route::put('profile/password', [UserProfileApiController::class, 'updatePassword']);
     });
 });

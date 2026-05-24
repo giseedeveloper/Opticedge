@@ -169,6 +169,34 @@ class PaymentOptionController extends Controller
         ]);
     }
 
+    public function shrinkBalance(Request $request, int $id)
+    {
+        $opt = PaymentOption::findOrFail($id);
+        $validated = $request->validate([
+            'shrink_amount' => 'required|numeric|min:0.01',
+        ]);
+
+        $shrinkAmount = (float) $validated['shrink_amount'];
+        $currentBalance = (float) ($opt->balance ?? 0);
+
+        if ($currentBalance < $shrinkAmount) {
+            return response()->json([
+                'message' => 'Insufficient channel balance to shrink that amount.',
+            ], 422);
+        }
+
+        $opt->decrement('balance', $shrinkAmount);
+        $opt->refresh();
+
+        return response()->json([
+            'message' => 'Channel balance reduced successfully.',
+            'data' => [
+                'id' => $opt->id,
+                'balance' => (float) $opt->balance,
+            ],
+        ]);
+    }
+
     public function transfer(Request $request)
     {
         $validated = $request->validate([

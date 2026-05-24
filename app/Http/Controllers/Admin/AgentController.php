@@ -10,7 +10,7 @@ use App\Models\Purchase;
 use App\Models\ProductListItem;
 use App\Models\SubadminRole;
 use App\Models\User;
-use App\Services\AgentProductAssignmentService;
+use App\Services\DeviceHierarchyAssignmentService;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -54,7 +54,10 @@ class AgentController extends Controller
 
     public function assignProductsForm()
     {
-        $agents = User::where('role', 'agent')->orderBy('name')->get();
+        $regionalManagers = User::where('role', 'regional_manager')
+            ->where('status', 'active')
+            ->orderBy('name')
+            ->get();
         $products = Product::whereHas('purchases')->orderBy('name')->get();
         $purchases = Purchase::with(['product.category', 'lines.product.category'])
             ->whereNotNull('product_id')
@@ -62,7 +65,7 @@ class AgentController extends Controller
             ->orderByDesc('id')
             ->get();
 
-        return view('admin.agents.assign-products', compact('agents', 'products', 'purchases'));
+        return view('admin.agents.assign-products', compact('regionalManagers', 'products', 'purchases'));
     }
 
     /**
@@ -74,7 +77,7 @@ class AgentController extends Controller
             'product_id' => 'required|exists:models,id',
         ]);
 
-        $items = ProductListItem::assignableToAgent((int) $validated['product_id'])
+        $items = ProductListItem::assignableFromAdmin((int) $validated['product_id'])
             ->orderBy('imei_number')
             ->get(['id', 'imei_number', 'model']);
 
@@ -86,37 +89,26 @@ class AgentController extends Controller
         ]);
     }
 
-    public function storeAssignment(Request $request, AgentProductAssignmentService $assignmentService)
+    public function storeAssignment(Request $request, DeviceHierarchyAssignmentService $hierarchyService)
     {
         $validated = $request->validate([
-            'agent_id' => 'required|exists:users,id',
+            'regional_manager_id' => 'required|exists:users,id',
             'product_id' => 'required|exists:models,id',
-            'assignment_type' => 'required|in:imei,total',
-            'product_list_ids' => 'required_if:assignment_type,imei|array',
+            'product_list_ids' => 'required|array|min:1',
             'product_list_ids.*' => 'distinct|integer|exists:product_list,id',
-            'purchase_id' => 'required_if:assignment_type,total|nullable|exists:purchases,id',
-            'quantity' => 'required_if:assignment_type,total|nullable|integer|min:1',
         ]);
 
-        $user = User::findOrFail($validated['agent_id']);
+        $user = User::findOrFail($validated['regional_manager_id']);
 
         try {
-            if ($validated['assignment_type'] === 'total') {
-                $assignmentService->assignTotalToAgent(
-                    $user,
-                    (int) $validated['product_id'],
-                    (int) $validated['quantity'],
-                    isset($validated['purchase_id']) ? (int) $validated['purchase_id'] : null
-                );
-                $message = 'Quantity assigned to agent.';
-            } else {
-                $assignmentService->assignToAgent(
-                    $user,
-                    (int) $validated['product_id'],
-                    $validated['product_list_ids']
-                );
-                $message = 'Products assigned to agent.';
-            }
+            $count = $hierarchyService->assignToRegionalManager(
+                $user,
+                (int) $validated['product_id'],
+                $validated['product_list_ids']
+            );
+            $message = $count === 1
+                ? '1 device assigned to regional manager.'
+                : "{$count} devices assigned to regional manager.";
         } catch (\InvalidArgumentException $e) {
             return back()->withInput()->with('error', $e->getMessage());
         }

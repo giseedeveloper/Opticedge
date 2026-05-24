@@ -4,7 +4,9 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Order;
+use App\Models\PaymentOption;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class OrderController extends Controller
 {
@@ -76,10 +78,51 @@ class OrderController extends Controller
                     'email' => $order->user->email,
                     'role' => $order->user->role ?? 'customer',
                 ] : null,
+                'payment_option_id' => $order->payment_option_id,
                 'payment_channel' => $order->paymentOption?->name,
                 'address' => $address,
                 'items' => $items,
             ],
         ]);
+    }
+
+    public function update(Request $request, Order $order): JsonResponse
+    {
+        $validated = $request->validate([
+            'status' => 'required|in:pending,processed,on the way,delivered,cancelled',
+            'payment_option_id' => 'nullable|exists:payment_options,id',
+        ]);
+
+        $oldOptionId = $order->payment_option_id;
+        $newOptionId = $validated['payment_option_id'] ?? null;
+        $amount = (float) ($order->total_price ?? 0);
+
+        if ($amount > 0) {
+            if ($oldOptionId && $oldOptionId != $newOptionId) {
+                $oldOption = PaymentOption::find($oldOptionId);
+                if ($oldOption) {
+                    $oldOption->decrement('balance', $amount);
+                }
+            }
+
+            if ($newOptionId) {
+                $newOption = PaymentOption::find($newOptionId);
+                if ($newOption) {
+                    $newOption->increment('balance', $amount);
+                }
+            } elseif ($oldOptionId && ! $newOptionId) {
+                $oldOption = PaymentOption::find($oldOptionId);
+                if ($oldOption) {
+                    $oldOption->decrement('balance', $amount);
+                }
+            }
+        }
+
+        $order->update([
+            'status' => $validated['status'],
+            'payment_option_id' => $newOptionId,
+        ]);
+
+        return $this->show($order->fresh(['user', 'items.product', 'address', 'paymentOption']));
     }
 }
