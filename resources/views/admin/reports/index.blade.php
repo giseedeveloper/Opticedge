@@ -2,43 +2,6 @@
     @include('admin.partials.catalog-styles')
 
     <div class="admin-prod-page">
-        <div class="admin-prod-toolbar">
-            <div>
-                <p class="admin-prod-eyebrow">Analytics</p>
-                <h1 class="admin-prod-title">Sales reports</h1>
-                <p class="admin-prod-subtitle">Storefront totals, branch purchase mix, and recent sales trend.</p>
-            </div>
-            <button type="button"
-                class="admin-prod-btn-ghost shrink-0 cursor-default opacity-80"
-                title="Placeholder — wire export when ready">
-                Export data
-            </button>
-        </div>
-
-        <div class="grid grid-cols-1 gap-6 md:grid-cols-3 mb-8">
-            <div class="admin-clay-panel overflow-hidden">
-                <div class="admin-prod-form-head !py-4">
-                    <p class="admin-prod-eyebrow !mb-1">Revenue</p>
-                    <p class="admin-prod-form-title !text-2xl font-variant-numeric">{{ number_format($totalSales, 0) }} TZS</p>
-                    <p class="admin-prod-form-hint !mt-1 text-green-700">+12% vs last month (sample)</p>
-                </div>
-            </div>
-            <div class="admin-clay-panel overflow-hidden">
-                <div class="admin-prod-form-head !py-4">
-                    <p class="admin-prod-eyebrow !mb-1">Orders</p>
-                    <p class="admin-prod-form-title !text-2xl font-variant-numeric">{{ number_format($totalOrders) }}</p>
-                    <p class="admin-prod-form-hint !mt-1 text-green-700">+5% vs last month (sample)</p>
-                </div>
-            </div>
-            <div class="admin-clay-panel overflow-hidden">
-                <div class="admin-prod-form-head !py-4">
-                    <p class="admin-prod-eyebrow !mb-1">Customers</p>
-                    <p class="admin-prod-form-title !text-2xl font-variant-numeric">{{ number_format($totalCustomers) }}</p>
-                    <p class="admin-prod-form-hint !mt-1">Active accounts</p>
-                </div>
-            </div>
-        </div>
-
         @php
             $asr = $agentStockReport;
             $agentColorBands = [

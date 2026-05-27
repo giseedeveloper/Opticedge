@@ -7,7 +7,6 @@ use App\Models\Branch;
 use App\Models\Order;
 use App\Models\ProductListItem;
 use App\Models\Purchase;
-use App\Models\User;
 use App\Services\AgentDailyStockReportService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -32,11 +31,6 @@ class ReportController extends Controller
         if ($dateTo->lt($dateFrom)) {
             $dateTo = $dateFrom->copy()->endOfDay();
         }
-
-        // Basic Stats
-        $totalSales = Order::sum('total_price');
-        $totalOrders = Order::count();
-        $totalCustomers = User::where('role', 'customer')->count();
 
         // Sales chart data (Last 7 days)
         $salesData = [];
@@ -128,9 +122,6 @@ class ReportController extends Controller
             : collect();
 
         return view('admin.reports.index', compact(
-            'totalSales',
-            'totalOrders',
-            'totalCustomers',
             'salesData',
             'branchesBusiness',
             'unassignedPurchases',
