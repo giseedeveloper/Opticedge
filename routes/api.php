@@ -25,7 +25,6 @@ use App\Http\Controllers\Api\AdminAgentProductTransferApiController;
 use App\Http\Controllers\Api\AdminBranchTransferApiController;
 use App\Http\Controllers\Api\AgentCatalogController;
 use App\Http\Controllers\Api\AgentCustomerNeedController;
-use App\Http\Controllers\Api\AdminAgentAssignmentApiController;
 use App\Http\Controllers\Api\RegionalManagerApiController;
 use App\Http\Controllers\Api\RegionalManagerDashboardController;
 use App\Http\Controllers\Api\TeamLeaderApiController;
@@ -76,15 +75,6 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('orders/{order}', [ApiOrderController::class, 'show']);
         Route::put('orders/{order}', [ApiOrderController::class, 'update']);
         Route::get('users', [ApiUserController::class, 'index']); // ?role=customer|dealer|agent
-
-        Route::get('agents/products-for-assign', [AdminAgentAssignmentApiController::class, 'productsForAssign'])
-            ->name('admin.agents.products-for-assign');
-        Route::get('agents/assignable-imeis', [AdminAgentAssignmentApiController::class, 'assignableImeis'])
-            ->name('admin.agents.assignable-imeis');
-        Route::post('agents/assignments/validate-imei', [AdminAgentAssignmentApiController::class, 'validateImei'])
-            ->name('admin.agents.assignments.validate-imei');
-        Route::post('agents/assignments', [AdminAgentAssignmentApiController::class, 'store'])
-            ->name('admin.agents.assignments.store');
         Route::get('distribution-sales', [ApiDistributionSaleController::class, 'index']);
         Route::get('distribution-sales/{id}', [ApiDistributionSaleController::class, 'show']);
         Route::get('pending-sales', [ApiPendingSaleController::class, 'index']);

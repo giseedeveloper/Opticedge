@@ -85,7 +85,7 @@
             <h3 class="mt-2 text-sm font-medium text-gray-900">No orders placed </h3>
             <p class="mt-1 text-sm text-gray-500">You have no orders yet.</p>
             <div class="mt-6">
-                <a href="/" class="text-sm font-medium text-blue-600 hover:text-blue-500">Start shopping<span
+                <a href="{{ route('shop') }}" class="text-sm font-medium text-blue-600 hover:text-blue-500">Start shopping<span
                         aria-hidden="true"> &rarr;</span></a>
             </div>
         </div>

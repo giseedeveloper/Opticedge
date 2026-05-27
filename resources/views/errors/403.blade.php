@@ -1,4 +1,10 @@
 @if(auth()->check() && request()->is('admin*'))
+    @php
+        $authUser = auth()->user();
+        $isPlatformUser = $authUser->isSuperadmin() || $authUser->role === 'superadmin';
+        $dashboardUrl = $isPlatformUser ? route('superadmin.dashboard') : route('admin.dashboard');
+        $dashboardLabel = $isPlatformUser ? 'Go to platform console' : 'Back to dashboard';
+    @endphp
     <x-admin-layout>
         @include('admin.partials.catalog-styles')
 
@@ -7,14 +13,25 @@
                 <div class="admin-prod-form-head">
                     <p class="admin-prod-eyebrow">Access denied</p>
                     <h1 class="admin-prod-form-title">You do not have permission</h1>
-                    <p class="admin-prod-form-hint">Your role does not include access to this section.</p>
+                    @if ($isPlatformUser)
+                        <p class="admin-prod-form-hint">Platform superadmin accounts use the superadmin console, not vendor admin.</p>
+                    @else
+                        <p class="admin-prod-form-hint">Your role does not include access to this section.</p>
+                    @endif
                 </div>
                 <div class="admin-prod-form-body">
                     <div class="admin-prod-alert admin-prod-alert--warning mb-4">
-                        Contact an administrator to update your role permissions if this access is required.
+                        @if ($isPlatformUser)
+                            Sign in with a <strong>vendor admin</strong> account (e.g. <code>admin@example.com</code>) to open the old admin panel, or continue in the platform console.
+                        @else
+                            Contact an administrator to update your role permissions if this access is required.
+                        @endif
                     </div>
+                    @if ($message = $exception->getMessage())
+                        <p class="text-sm text-slate-600 mb-4">{{ $message }}</p>
+                    @endif
                     <div class="flex flex-wrap gap-2">
-                        <a href="{{ route('admin.dashboard') }}" class="admin-prod-btn-primary">Back to dashboard</a>
+                        <a href="{{ $dashboardUrl }}" class="admin-prod-btn-primary">{{ $dashboardLabel }}</a>
                         <a href="{{ url()->previous() }}" class="admin-prod-btn-ghost">Go back</a>
                     </div>
                 </div>

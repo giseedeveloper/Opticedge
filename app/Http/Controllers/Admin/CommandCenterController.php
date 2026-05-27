@@ -90,6 +90,15 @@ class CommandCenterController extends Controller
         $phpVersion = PHP_VERSION;
         $phpSapi = PHP_SAPI;
 
+        $commandRoutes = [
+            'execute' => 'superadmin.command.execute',
+            'migratePath' => 'superadmin.command.migrate-path',
+            'seedClass' => 'superadmin.command.seed-class',
+            'emptyTable' => 'superadmin.command.empty-table',
+            'extensionTrack' => 'superadmin.command.extension-track',
+            'extensionUntrack' => 'superadmin.command.extension-untrack',
+        ];
+
         return view('admin.command-center', compact(
             'allowedCommands',
             'migrationFiles',
@@ -99,7 +108,8 @@ class CommandCenterController extends Controller
             'trackedExtensions',
             'dbTables',
             'phpVersion',
-            'phpSapi'
+            'phpSapi',
+            'commandRoutes'
         ));
     }
 

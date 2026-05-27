@@ -51,7 +51,7 @@ class ProductController extends Controller
             }
         }
 
-        Product::create([
+        $productData = [
             'category_id' => $validated['category_id'],
             'name' => $validated['name'],
             'brand' => 'Samsung',
@@ -60,7 +60,13 @@ class ProductController extends Controller
             'stock_quantity' => 0,
             'description' => $validated['description'] ?? null,
             'images' => $imagePaths,
-        ]);
+            'is_platform' => false,
+        ];
+        if (auth()->user()?->tenant_id) {
+            $productData['created_by_tenant_id'] = auth()->user()->tenant_id;
+        }
+
+        Product::create($productData);
 
         return redirect()->route('admin.products.index')->with('success', 'Model added successfully.');
     }
@@ -146,6 +152,11 @@ class ProductController extends Controller
 
     public function destroy(Product $product)
     {
+        if ($product->isPlatformCatalog()) {
+            return redirect()->route('admin.products.index')
+                ->with('error', 'Cannot delete platform-managed models.');
+        }
+
         if ($product->purchases()->exists()) {
             return redirect()->route('admin.products.index')->with('error', 'Cannot delete this product because it has linked purchases.');
         }

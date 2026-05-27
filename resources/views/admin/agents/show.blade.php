@@ -38,8 +38,6 @@
                     @endif
                 </p>
             </div>
-            <a href="{{ route('admin.agents.assign-products') }}?agent_id={{ $agent->id }}"
-                class="admin-prod-btn-primary shrink-0">Assign products</a>
         </div>
 
         <div class="admin-clay-panel admin-prod-form-shell overflow-hidden mb-6">

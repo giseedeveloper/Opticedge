@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToTenant;
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -10,7 +11,7 @@ use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable
 {
-    use HasApiTokens, HasFactory, Notifiable;
+    use BelongsToTenant, HasApiTokens, HasFactory, Notifiable;
 
     /**
      * The attributes that are mass assignable.
@@ -21,6 +22,7 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
+        'tenant_id',
         'role',
         'status',
         'ability',
@@ -112,6 +114,21 @@ class User extends Authenticatable
     public function subadminRole()
     {
         return $this->belongsTo(SubadminRole::class, 'subadmin_role_id');
+    }
+
+    public function tenant()
+    {
+        return $this->belongsTo(Tenant::class);
+    }
+
+    public function isSuperadmin(): bool
+    {
+        return $this->role === 'superadmin' && $this->tenant_id === null;
+    }
+
+    public function isTenantAdmin(): bool
+    {
+        return in_array($this->role, ['admin', 'subadmin'], true) && $this->tenant_id !== null;
     }
 
     /**

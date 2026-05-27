@@ -1,0 +1,126 @@
+<x-superadmin-layout>
+    @include('admin.partials.catalog-styles')
+
+    <div class="admin-prod-page" x-data="{ tab: 'selcom' }">
+        <div class="mb-8">
+            <p class="admin-prod-eyebrow">Platform</p>
+            <h1 class="admin-prod-title">Platform settings</h1>
+            <p class="admin-prod-subtitle">Selcom payment gateway and system email delivery (platform-wide).</p>
+        </div>
+
+        @include('superadmin.partials.flash')
+
+        <div class="mb-5 inline-flex rounded-xl bg-white/70 p-1 border border-white/80">
+            <button type="button" @click="tab = 'selcom'"
+                :class="tab === 'selcom' ? 'bg-[#fa8900] text-white' : 'text-slate-600'"
+                class="px-4 py-2 rounded-lg text-sm font-semibold transition-colors duration-200">
+                Selcom
+            </button>
+            <button type="button" @click="tab = 'email'"
+                :class="tab === 'email' ? 'bg-[#fa8900] text-white' : 'text-slate-600'"
+                class="px-4 py-2 rounded-lg text-sm font-semibold transition-colors duration-200">
+                Email
+            </button>
+        </div>
+
+        <form action="{{ route('superadmin.settings.update') }}" method="POST">
+            @csrf
+
+            <div x-show="tab === 'selcom'" x-cloak class="admin-clay-panel admin-prod-form-shell overflow-hidden">
+                <div class="admin-prod-form-head">
+                    <h2 class="admin-prod-form-title">Selcom configuration</h2>
+                    <p class="admin-prod-form-hint">Used for storefront checkout, commission payouts, and webhooks.</p>
+                </div>
+                <div class="admin-prod-form-body space-y-6">
+                    <div>
+                        <label for="selcom_vendor_id" class="admin-prod-label">Vendor ID</label>
+                        <input type="text" name="selcom_vendor_id" id="selcom_vendor_id"
+                            value="{{ $settings['selcom_vendor_id'] ?? '' }}" class="admin-prod-input">
+                    </div>
+                    <div>
+                        <label for="selcom_api_key" class="admin-prod-label">API key</label>
+                        <input type="text" name="selcom_api_key" id="selcom_api_key"
+                            value="{{ $settings['selcom_api_key'] ?? '' }}" class="admin-prod-input" autocomplete="off">
+                    </div>
+                    <div>
+                        <label for="selcom_api_secret" class="admin-prod-label">API secret</label>
+                        <input type="password" name="selcom_api_secret" id="selcom_api_secret"
+                            value="{{ $settings['selcom_api_secret'] ?? '' }}" class="admin-prod-input"
+                            autocomplete="new-password">
+                    </div>
+                    <div>
+                        <label for="selcom_is_live" class="admin-prod-label">Environment</label>
+                        <select name="selcom_is_live" id="selcom_is_live" class="admin-prod-select">
+                            <option value="0" @selected(($settings['selcom_is_live'] ?? '0') == '0')>Test (apigwtest.selcommobile.com)</option>
+                            <option value="1" @selected(($settings['selcom_is_live'] ?? '0') == '1')>Live (apigw.selcommobile.com)</option>
+                        </select>
+                        <p class="text-xs text-slate-500 mt-2">Use <strong>Live</strong> for real payments; <strong>Test</strong> for sandbox.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div x-show="tab === 'email'" x-cloak class="admin-clay-panel admin-prod-form-shell overflow-hidden">
+                <div class="admin-prod-form-head">
+                    <h2 class="admin-prod-form-title">Email configuration</h2>
+                    <p class="admin-prod-form-hint">SMTP and sender details for platform emails.</p>
+                </div>
+                <div class="admin-prod-form-body">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label for="mail_mailer" class="admin-prod-label">Mailer</label>
+                            <input type="text" name="mail_mailer" id="mail_mailer"
+                                value="{{ $settings['mail_mailer'] ?? '' }}" class="admin-prod-input" placeholder="smtp">
+                        </div>
+                        <div>
+                            <label for="mail_host" class="admin-prod-label">Host</label>
+                            <input type="text" name="mail_host" id="mail_host"
+                                value="{{ $settings['mail_host'] ?? '' }}" class="admin-prod-input"
+                                placeholder="smtp.example.com">
+                        </div>
+                        <div>
+                            <label for="mail_port" class="admin-prod-label">Port</label>
+                            <input type="number" name="mail_port" id="mail_port"
+                                value="{{ $settings['mail_port'] ?? '' }}" class="admin-prod-input" placeholder="587"
+                                min="1" max="65535">
+                        </div>
+                        <div>
+                            <label for="mail_encryption" class="admin-prod-label">Encryption</label>
+                            <input type="text" name="mail_encryption" id="mail_encryption"
+                                value="{{ $settings['mail_encryption'] ?? '' }}" class="admin-prod-input" placeholder="tls">
+                        </div>
+                        <div>
+                            <label for="mail_username" class="admin-prod-label">Username</label>
+                            <input type="text" name="mail_username" id="mail_username"
+                                value="{{ $settings['mail_username'] ?? '' }}" class="admin-prod-input">
+                        </div>
+                        <div>
+                            <label for="mail_password" class="admin-prod-label">Password</label>
+                            <input type="password" name="mail_password" id="mail_password"
+                                value="{{ $settings['mail_password'] ?? '' }}" class="admin-prod-input"
+                                autocomplete="new-password">
+                        </div>
+                        <div>
+                            <label for="mail_from_address" class="admin-prod-label">From address</label>
+                            <input type="email" name="mail_from_address" id="mail_from_address"
+                                value="{{ $settings['mail_from_address'] ?? '' }}" class="admin-prod-input"
+                                placeholder="no-reply@example.com">
+                        </div>
+                        <div>
+                            <label for="mail_from_name" class="admin-prod-label">From name</label>
+                            <input type="text" name="mail_from_name" id="mail_from_name"
+                                value="{{ $settings['mail_from_name'] ?? '' }}" class="admin-prod-input"
+                                placeholder="OpticEdge Africa">
+                        </div>
+                    </div>
+                    <p class="text-xs text-slate-500 mt-4">
+                        Values are applied at runtime for outgoing mail across the platform.
+                    </p>
+                </div>
+            </div>
+
+            <div class="mt-6 flex justify-end">
+                <button type="submit" class="admin-prod-btn-primary px-8">Save changes</button>
+            </div>
+        </form>
+    </div>
+</x-superadmin-layout>

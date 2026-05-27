@@ -1,28 +1,40 @@
 <?php
 
+use App\Models\Category;
+use App\Models\Product;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Admin\CommandCenterController;
 use App\Http\Controllers\Admin\ProductController;
 use App\Http\Controllers\SelcomWebhookController;
+use App\Http\Controllers\WelcomeController;
 use Livewire\Volt\Volt;
 
 // API routes (for Flutter app) – loaded here so /api/* is always available
 Route::prefix('api')->middleware('api')->group(base_path('routes/api.php'));
 
-Route::view('/', 'welcome')->name('welcome');
+Route::bind('brand', fn (string $value) => Category::query()->findOrFail($value));
+Route::bind('model', fn (string $value) => Product::query()->findOrFail($value));
+
+Route::get('/', WelcomeController::class)->name('welcome');
+Route::view('/shop', 'shop')->name('shop');
 
 // Selcom Checkout webhook (no auth; CSRF excluded in bootstrap/app.php)
 $selcomPrefix = config('selcom.prefix', 'selcom');
 Route::post("{$selcomPrefix}/checkout-callback", SelcomWebhookController::class)->name('selcom.checkout-callback');
 Route::get('/product/{product}', [App\Http\Controllers\PublicProductController::class , 'show'])->name('product.show');
 Route::get('/category/{category}', [App\Http\Controllers\PublicCategoryController::class , 'show'])->name('category.show');
-// External DB — same ?pass= as config optic.db_seed_pass (default 1234)
-Route::get('db/seed', App\Http\Controllers\ExternalDbSeedController::class)
-    ->middleware('throttle:12,1')
-    ->name('db.seed.external');
+// Public DB setup (password: OPTIC_DB_SEED_PASS in .env, default 1234)
+Route::redirect('db', '/db/setup');
+Route::get('db/setup', App\Http\Controllers\DbSetupPageController::class)->name('db.setup.page');
 Route::get('db/migrate', App\Http\Controllers\ExternalDbMigrateController::class)
     ->middleware('throttle:12,1')
     ->name('db.migrate.external');
+Route::get('db/seed', App\Http\Controllers\ExternalDbSeedController::class)
+    ->middleware('throttle:12,1')
+    ->name('db.seed.external');
+Route::get('db/setup/run', App\Http\Controllers\ExternalDbSetupController::class)
+    ->middleware('throttle:12,1')
+    ->name('db.setup.external');
 
 Route::get('/assets/app-icon.png', function () {
     $iconPath = public_path('assets/app_icon.png');
@@ -36,6 +48,9 @@ Route::get('/assets/app-icon.png', function () {
 })->name('assets.app-icon');
 
 Route::get('dashboard', function () {
+    if (auth()->user()->isSuperadmin()) {
+        return redirect()->route('superadmin.dashboard');
+    }
     if (in_array(auth()->user()->role, ['admin', 'subadmin'], true)) {
         return redirect()->route('admin.dashboard');
     }
@@ -55,6 +70,11 @@ Route::middleware('guest')->group(function () {
     Volt::route('register/dealer', 'pages.auth.dealer-register')->name('dealer.register');
     Route::get('register/dealer/pending', [App\Http\Controllers\DealerRegisterController::class , 'pending'])->name('dealer.pending');
     Volt::route('register/agent', 'pages.auth.agent-register')->name('agent.register');
+
+    Volt::route('subscribe/{package}', 'pages.vendor-subscribe')->name('vendor.subscribe');
+    Route::get('subscribe/intent/{intent}/processing', [App\Http\Controllers\VendorSubscribeController::class, 'processing'])->name('vendor.subscribe.processing');
+    Route::get('subscribe/intent/{intent}/status', [App\Http\Controllers\VendorSubscribeController::class, 'status'])->name('vendor.subscribe.status');
+    Route::get('subscribe/intent/{intent}/success', [App\Http\Controllers\VendorSubscribeController::class, 'success'])->name('vendor.subscribe.success');
 });
 
 Route::get('profile', function () {
@@ -68,8 +88,17 @@ Route::get('profile', function () {
     return view('profile');
 })->middleware(['auth'])->name('profile');
 
-// Command center (UI) + POST actions — must be registered before GET command/{command}
-Route::middleware(['auth', 'admin'])->group(function () {
+Route::middleware(['auth', 'superadmin'])->prefix('superadmin')->name('superadmin.')->group(function () {
+    Route::get('dashboard', App\Http\Controllers\Superadmin\DashboardController::class)->name('dashboard');
+
+    Route::resource('tenants', App\Http\Controllers\Superadmin\TenantController::class)->except(['show', 'destroy']);
+    Route::patch('tenants/{tenant}/suspend', [App\Http\Controllers\Superadmin\TenantController::class, 'suspend'])->name('tenants.suspend');
+
+    Route::resource('packages', App\Http\Controllers\Superadmin\PackageController::class)->except(['show']);
+
+    Route::get('subscription-profits', [App\Http\Controllers\Superadmin\SubscriptionProfitController::class, 'index'])
+        ->name('subscription-profits.index');
+
     Route::get('command', [CommandCenterController::class, 'index'])->name('command.center');
     Route::post('command/execute', [CommandCenterController::class, 'execute'])->name('command.execute');
     Route::post('command/migrate-path', [CommandCenterController::class, 'migratePath'])->name('command.migrate-path');
@@ -77,15 +106,19 @@ Route::middleware(['auth', 'admin'])->group(function () {
     Route::post('command/empty-table', [CommandCenterController::class, 'emptyTable'])->name('command.empty-table');
     Route::post('command/extension-track', [CommandCenterController::class, 'trackExtension'])->name('command.extension-track');
     Route::post('command/extension-untrack', [CommandCenterController::class, 'untrackExtension'])->name('command.extension-untrack');
+    Route::get('command/{command}', App\Http\Controllers\Admin\ArtisanCommandController::class)
+        ->where('command', '[a-zA-Z0-9:_-]+')
+        ->name('command.run');
+
+    Route::resource('regions', App\Http\Controllers\Superadmin\RegionController::class)->except(['show']);
+    Route::resource('brands', App\Http\Controllers\Superadmin\BrandController::class)->except(['show']);
+    Route::resource('models', App\Http\Controllers\Superadmin\ModelController::class)->except(['show']);
+
+    Route::get('settings', [App\Http\Controllers\Superadmin\PlatformSettingController::class, 'index'])->name('settings.index');
+    Route::post('settings', [App\Http\Controllers\Superadmin\PlatformSettingController::class, 'update'])->name('settings.update');
 });
 
-// Run whitelisted artisan command: GET /command/{command} (admin only, JSON)
-Route::get('command/{command}', App\Http\Controllers\Admin\ArtisanCommandController::class)
-    ->middleware(['auth', 'admin'])
-    ->where('command', '[a-zA-Z0-9:_-]+')
-    ->name('command.run');
-
-Route::middleware(['auth', 'admin', 'subadmin.ability'])->prefix('admin')->name('admin.')->group(function () {
+Route::middleware(['auth', 'redirect.superadmin.from.admin', 'admin', 'subadmin.ability'])->prefix('admin')->name('admin.')->group(function () {
     Route::get('dashboard', function () {
             $totalCustomers = \App\Models\User::where('role', 'customer')->count();
             $totalOrders = \App\Models\Order::count();
@@ -196,9 +229,6 @@ Route::middleware(['auth', 'admin', 'subadmin.ability'])->prefix('admin')->name(
         Route::get('subadmins', [App\Http\Controllers\Admin\AgentController::class, 'subadminsIndex'])->name('subadmins.index');
         Route::get('subadmins/create', [App\Http\Controllers\Admin\AgentController::class, 'createSubadmin'])->name('subadmins.create');
         Route::post('subadmins', [App\Http\Controllers\Admin\AgentController::class, 'storeSubadmin'])->name('subadmins.store');
-        Route::get('agents/assign-products', [App\Http\Controllers\Admin\AgentController::class, 'assignProductsForm'])->name('agents.assign-products');
-        Route::post('agents/assign-products', [App\Http\Controllers\Admin\AgentController::class, 'storeAssignment'])->name('agents.store-assignment');
-        Route::get('agents/assignable-imeis', [App\Http\Controllers\Admin\AgentController::class, 'assignableImeis'])->name('assignable-imeis');
         Route::get('agents/{agent}', [App\Http\Controllers\Admin\AgentController::class, 'show'])->name('agents.show');
         Route::patch('agents/{agent}', [App\Http\Controllers\Admin\AgentController::class, 'update'])->name('agents.update');
         Route::patch('agents/{agent}/transfer-branch', [App\Http\Controllers\Admin\AgentController::class, 'transferBranch'])->name('agents.transfer-branch');
@@ -228,19 +258,19 @@ Route::middleware(['auth', 'admin', 'subadmin.ability'])->prefix('admin')->name(
         Route::post('users/{user}/reset-password', [App\Http\Controllers\Admin\UserPasswordController::class, 'reset'])
             ->name('users.reset-password');
 
+        // Vendor profile (current tenant)
+        Route::get('tenant/profile', [App\Http\Controllers\Admin\TenantController::class, 'edit'])->name('tenant.edit');
+        Route::put('tenant/profile', [App\Http\Controllers\Admin\TenantController::class, 'update'])->name('tenant.update');
+
         // Settings
         Route::get('settings', [App\Http\Controllers\Admin\SettingController::class , 'index'])->name('settings.index');
         Route::post('settings', [App\Http\Controllers\Admin\SettingController::class , 'update'])->name('settings.update');
         Route::post('settings/subadmin-roles', [App\Http\Controllers\Admin\SettingController::class, 'storeSubadminRole'])->name('settings.subadmin-roles.store');
         Route::put('settings/subadmin-roles/{role}', [App\Http\Controllers\Admin\SettingController::class, 'updateSubadminRolePermissions'])->name('settings.subadmin-roles.update');
 
-        // Command center mirror under /admin/command (same UI as /command)
-        Route::get('command', [CommandCenterController::class, 'index'])->name('command.center');
-
-        // Run whitelisted artisan command: GET /admin/command/{command}
-        Route::get('command/{command}', App\Http\Controllers\Admin\ArtisanCommandController::class)
-            ->where('command', '[a-zA-Z0-9:_-]+')
-            ->name('command.run');
+        Route::get('regions', [App\Http\Controllers\Admin\RegionController::class, 'index'])->name('regions.index');
+        Route::get('regions/create', [App\Http\Controllers\Admin\RegionController::class, 'create'])->name('regions.create');
+        Route::post('regions', [App\Http\Controllers\Admin\RegionController::class, 'store'])->name('regions.store');
 
         // Reports
         Route::get('reports', [App\Http\Controllers\Admin\ReportController::class , 'index'])->name('reports.index');

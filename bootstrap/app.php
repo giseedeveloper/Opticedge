@@ -13,11 +13,17 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->alias([
             'admin' => \App\Http\Middleware\AdminMiddleware::class,
+            'superadmin' => \App\Http\Middleware\SuperadminMiddleware::class,
+            'tenant.context' => \App\Http\Middleware\SetTenantFromAuthenticatedUser::class,
+            'redirect.superadmin.from.admin' => \App\Http\Middleware\RedirectSuperadminFromAdmin::class,
             'agent' => \App\Http\Middleware\AgentMiddleware::class,
             'teamleader' => \App\Http\Middleware\TeamLeaderMiddleware::class,
             'regionalmanager' => \App\Http\Middleware\RegionalManagerMiddleware::class,
             'active' => \App\Http\Middleware\EnsureUserIsActive::class,
             'subadmin.ability' => \App\Http\Middleware\SubadminAbilityMiddleware::class,
+        ]);
+        $middleware->appendToGroup('web', [
+            \App\Http\Middleware\SetTenantFromAuthenticatedUser::class,
         ]);
         $middleware->validateCsrfTokens(except: [
             'selcom/checkout-callback',

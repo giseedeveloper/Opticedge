@@ -71,7 +71,7 @@
             <div class="admin-clay-panel px-8 py-14 text-center">
                 <p class="text-sm font-semibold text-[#232f3e]">No orders yet</p>
                 <p class="mt-2 text-sm text-slate-600">When you place orders from the shop, they will show up here.</p>
-                <a href="{{ route('welcome') }}"
+                <a href="{{ route('shop') }}"
                     class="mt-6 inline-flex items-center rounded-lg bg-gradient-to-br from-[#fa8900] to-[#e07800] px-5 py-2.5 text-sm font-bold text-white shadow-md hover:opacity-95">
                     Browse shop
                 </a>

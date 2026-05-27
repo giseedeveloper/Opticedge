@@ -2,14 +2,30 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasPlatformCatalog;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Facades\Schema;
 
 class Category extends Model
 {
+    use HasPlatformCatalog;
+
     protected static ?string $resolvedTable = null;
 
-    protected $fillable = ['name', 'image'];
+    protected $fillable = ['name', 'image', 'is_platform', 'created_by_tenant_id'];
+
+    protected function casts(): array
+    {
+        return [
+            'is_platform' => 'boolean',
+        ];
+    }
+
+    public function createdByTenant(): BelongsTo
+    {
+        return $this->belongsTo(Tenant::class, 'created_by_tenant_id');
+    }
 
     public function getTable()
     {

@@ -1,4 +1,14 @@
-<x-admin-layout>
+@php
+    $commandRoutes = $commandRoutes ?? [
+        'execute' => 'superadmin.command.execute',
+        'migratePath' => 'superadmin.command.migrate-path',
+        'seedClass' => 'superadmin.command.seed-class',
+        'emptyTable' => 'superadmin.command.empty-table',
+        'extensionTrack' => 'superadmin.command.extension-track',
+        'extensionUntrack' => 'superadmin.command.extension-untrack',
+    ];
+@endphp
+<x-superadmin-layout>
     @include('admin.partials.catalog-styles')
 
     <div class="admin-prod-page">
@@ -29,7 +39,7 @@
                         @endforeach
                     </ul>
 
-                    <form action="{{ route('command.execute') }}" method="POST" class="space-y-4 border-t border-slate-200/60 pt-4">
+                    <form action="{{ route($commandRoutes['execute']) }}" method="POST" class="space-y-4 border-t border-slate-200/60 pt-4">
                         @csrf
                         <div>
                             <label for="command" class="admin-prod-label">Command</label>
@@ -66,7 +76,7 @@
                     <p class="admin-prod-form-hint">Run <code class="text-xs">migrate --path=…</code> for one file.</p>
                 </div>
                 <div class="admin-prod-form-body space-y-4">
-                    <form action="{{ route('command.migrate-path') }}" method="POST" class="space-y-3">
+                    <form action="{{ route($commandRoutes['migratePath']) }}" method="POST" class="space-y-3">
                         @csrf
                         <div>
                             <label for="migration" class="admin-prod-label">Migration file</label>
@@ -95,7 +105,7 @@
                             class="text-xs text-slate-100 bg-[#1e293b] rounded-xl p-3 max-h-64 overflow-auto custom-scrollbar whitespace-pre-wrap font-mono border border-slate-700/50">{{ $migrateStatus }}</pre>
                     </div>
 
-                    <form action="{{ route('command.seed-class') }}" method="POST" class="space-y-3 border-t border-slate-200/60 pt-4">
+                    <form action="{{ route($commandRoutes['seedClass']) }}" method="POST" class="space-y-3 border-t border-slate-200/60 pt-4">
                         @csrf
                         <div>
                             <label for="seeder_class" class="admin-prod-label">Seeder class</label>
@@ -122,7 +132,7 @@
                         </button>
                     </form>
 
-                    <form action="{{ route('command.empty-table') }}" method="POST" class="space-y-3 border-t border-slate-200/60 pt-4">
+                    <form action="{{ route($commandRoutes['emptyTable']) }}" method="POST" class="space-y-3 border-t border-slate-200/60 pt-4">
                         @csrf
                         <div>
                             <label for="table" class="admin-prod-label">Table to empty</label>
@@ -183,7 +193,7 @@
                                                 <span class="ml-2 text-xs text-amber-600 font-semibold">not loaded</span>
                                             @endif
                                         </span>
-                                        <form action="{{ route('command.extension-untrack') }}" method="POST" class="inline">
+                                        <form action="{{ route($commandRoutes['extensionUntrack']) }}" method="POST" class="inline">
                                             @csrf
                                             <input type="hidden" name="extension" value="{{ $ext }}">
                                             <button type="submit" class="admin-prod-link--danger text-xs font-semibold">Remove</button>
@@ -195,7 +205,7 @@
                             <p class="text-sm text-slate-500 mb-3">Nothing tracked yet.</p>
                         @endif
 
-                        <form action="{{ route('command.extension-track') }}" method="POST" class="flex flex-wrap items-end gap-2">
+                        <form action="{{ route($commandRoutes['extensionTrack']) }}" method="POST" class="flex flex-wrap items-end gap-2">
                             @csrf
                             <div class="flex-1 min-w-[8rem]">
                                 <label for="extension" class="admin-prod-label !text-xs">Extension (e.g. gd, intl)</label>
@@ -213,4 +223,4 @@
             </div>
         </div>
     </div>
-</x-admin-layout>
+</x-superadmin-layout>

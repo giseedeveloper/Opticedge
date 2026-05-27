@@ -15,8 +15,22 @@ class AdminMiddleware
      */
     public function handle(Request $request, Closure $next): Response
     {
-        if (! $request->user() || ! in_array($request->user()->role, ['admin', 'subadmin'], true)) {
+        $user = $request->user();
+
+        if (! $user) {
             abort(403);
+        }
+
+        if ($user->isSuperadmin() || $user->role === 'superadmin') {
+            return redirect()->route('superadmin.dashboard');
+        }
+
+        if (! in_array($user->role, ['admin', 'subadmin'], true)) {
+            abort(403, 'Vendor admin access requires an admin or subadmin account.');
+        }
+
+        if ($user->tenant_id === null) {
+            abort(403, 'This account is not linked to a vendor. Sign in with a vendor admin user or use the platform console.');
         }
 
         return $next($request);

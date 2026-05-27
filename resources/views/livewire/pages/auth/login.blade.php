@@ -19,9 +19,12 @@ new #[Layout('layouts.guest')] class extends Component {
 
         Session::regenerate();
 
-        $url = in_array(auth()->user()->role, ['admin', 'subadmin'], true)
-            ? route('admin.dashboard', absolute: false)
-            : route('dashboard', absolute: false);
+        $user = auth()->user();
+        $url = $user->isSuperadmin()
+            ? route('superadmin.dashboard', absolute: false)
+            : (in_array($user->role, ['admin', 'subadmin'], true)
+                ? route('admin.dashboard', absolute: false)
+                : route('dashboard', absolute: false));
 
         $this->redirectIntended(default: $url, navigate: true);
     }

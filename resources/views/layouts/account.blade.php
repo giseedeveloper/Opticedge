@@ -70,7 +70,7 @@
             </button>
 
             <!-- Logo -->
-            <a href="/"
+            <a href="{{ route('shop') }}"
                 class="flex items-center pt-2 px-2 border border-transparent hover:border-white rounded-sm transition-all duration-200">
                 <span class="text-2xl font-bold tracking-tight">opticedg<span class="text-[#fa8900]">eafrica</span></span>
             </a>
@@ -118,7 +118,7 @@
                     x-transition:leave-start="transform opacity-100 scale-100"
                     x-transition:leave-end="transform opacity-0 scale-95"
                     class="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg border border-slate-200 py-1 z-50">
-                    <a href="/" class="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-50">
+                    <a href="{{ route('shop') }}" class="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-50">
                         <div class="flex items-center gap-2">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24"
                                 stroke="currentColor">
@@ -273,7 +273,7 @@
                 <div>
                     <h3 class="px-2 text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Shopping</h3>
                     <div class="space-y-1">
-                        <a href="/"
+                        <a href="{{ route('shop') }}"
                             class="flex items-center gap-3 px-2 py-2 text-sm font-medium text-slate-700 rounded-md hover:bg-slate-50 group">
                             <svg xmlns="http://www.w3.org/2000/svg"
                                 class="w-5 h-5 text-slate-400 group-hover:text-slate-600" fill="none"

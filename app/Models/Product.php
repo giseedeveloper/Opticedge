@@ -2,11 +2,15 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasPlatformCatalog;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Facades\Schema;
 
 class Product extends Model
 {
+    use HasPlatformCatalog;
+
     protected static ?string $resolvedTable = null;
 
     protected $fillable = [
@@ -18,11 +22,19 @@ class Product extends Model
         'stock_quantity',
         'description',
         'images',
+        'is_platform',
+        'created_by_tenant_id',
     ];
 
     protected $casts = [
         'images' => 'array',
+        'is_platform' => 'boolean',
     ];
+
+    public function createdByTenant(): BelongsTo
+    {
+        return $this->belongsTo(Tenant::class, 'created_by_tenant_id');
+    }
 
     public function getTable()
     {

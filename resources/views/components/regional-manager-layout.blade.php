@@ -55,7 +55,7 @@
                 <div class="flex-grow"></div>
 
                 <div class="hidden md:flex items-center gap-2">
-                    <a href="{{ route('welcome') }}"
+                    <a href="{{ route('shop') }}"
                         class="flex items-center gap-2 p-2 px-3 rounded-xl admin-clay-inset text-slate-600 hover:text-[#232f3e] transition-all duration-200">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24"
                             stroke="currentColor">
@@ -128,8 +128,8 @@
                     class="px-3 py-1.5 rounded-xl shrink-0 {{ request()->routeIs('regional-manager.region-inventory') ? 'bg-white/90 text-[#232f3e] shadow-sm' : 'text-slate-600 hover:text-[#232f3e] hover:bg-white/70' }} transition-all">IMEIs</a>
                 <a href="{{ route('regional-manager.profile') }}"
                     class="px-3 py-1.5 rounded-xl shrink-0 {{ request()->routeIs('regional-manager.profile') ? 'bg-white/90 text-[#232f3e] shadow-sm' : 'text-slate-600 hover:text-[#232f3e] hover:bg-white/70' }} transition-all">Profile</a>
-                <a href="{{ route('welcome') }}"
-                    class="px-3 py-1.5 rounded-xl shrink-0 {{ request()->routeIs('welcome') ? 'bg-white/90 text-[#232f3e] shadow-sm' : 'text-slate-600 hover:text-[#232f3e] hover:bg-white/70' }} transition-all">Browse shop</a>
+                <a href="{{ route('shop') }}"
+                    class="px-3 py-1.5 rounded-xl shrink-0 {{ request()->routeIs('shop') ? 'bg-white/90 text-[#232f3e] shadow-sm' : 'text-slate-600 hover:text-[#232f3e] hover:bg-white/70' }} transition-all">Browse shop</a>
             </div>
         </div>
     </header>
@@ -159,8 +159,8 @@
                 <div>
                     <p class="admin-sidebar-section-title">Store</p>
                     <div class="space-y-1">
-                        <a href="{{ route('welcome') }}"
-                            class="admin-sidebar-item {{ request()->routeIs('welcome') ? 'admin-sidebar-item-active' : '' }}">
+                        <a href="{{ route('shop') }}"
+                            class="admin-sidebar-item {{ request()->routeIs('shop') ? 'admin-sidebar-item-active' : '' }}">
                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2"
                                 stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round"

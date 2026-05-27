@@ -68,7 +68,10 @@ class CategoryController extends Controller
              return back()->withInput()->withErrors(['image' => "The uploaded file exceeded the server upload limit of {$maxSize}."]);
         }
 
-        $data = ['name' => $request->name];
+        $data = ['name' => $request->name, 'is_platform' => false];
+        if (auth()->user()?->tenant_id) {
+            $data['created_by_tenant_id'] = auth()->user()->tenant_id;
+        }
         if ($request->hasFile('image') && $request->file('image')->isValid()) {
             $data['image'] = $request->file('image')->store('categories', 'public');
         }
@@ -119,6 +122,11 @@ class CategoryController extends Controller
 
     public function destroy(Category $category)
     {
+        if ($category->isPlatformCatalog()) {
+            return redirect()->route('admin.categories.index')
+                ->with('error', 'Cannot delete platform-managed brands.');
+        }
+
         $category->delete();
 
         return redirect()->route('admin.categories.index')->with('success', 'Brand deleted successfully.');

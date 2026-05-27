@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use App\Models\Region;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\Schema;
 
 class TanzaniaRegionSeeder extends Seeder
 {
@@ -48,9 +49,12 @@ class TanzaniaRegionSeeder extends Seeder
             'Tanga',
         ];
 
+        $platformAttrs = Schema::hasColumn('regions', 'is_platform') ? ['is_platform' => true] : [];
+
         foreach ($names as $name) {
             Region::firstOrCreate(
                 ['name' => $name],
+                $platformAttrs,
             );
         }
     }

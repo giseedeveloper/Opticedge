@@ -74,7 +74,7 @@
                 </button>
 
                 <!-- Logo -->
-                <a href="/"
+                <a href="{{ route('shop') }}"
                     class="flex items-center pt-1 px-2 border border-transparent hover:border-white rounded-sm transition-all duration-200">
                     <span class="text-xl lg:text-2xl font-bold tracking-tight">opticedge<span
                             class="text-[#fa8900]">africa</span></span>

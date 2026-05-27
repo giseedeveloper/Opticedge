@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Selcompay;
 use App\Services\AgentCommissionExpenseService;
+use App\Services\VendorSubscriptionPaymentService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Log;
@@ -47,11 +48,16 @@ class SelcomWebhookController extends Controller
         if (in_array($status, ['completed', 'cancelled', 'failed', 'rejected', 'usercancelled'], true)) {
             $selcompay->update(['payment_status' => $status]);
 
-            if ($status === 'completed'
-                && Schema::hasColumn('selcompays', 'purpose')
-                && $selcompay->purpose === Selcompay::PURPOSE_AGENT_COMMISSION_CHECKOUT) {
+            if ($status === 'completed' && Schema::hasColumn('selcompays', 'purpose')) {
                 $selcompay->refresh();
-                app(AgentCommissionExpenseService::class)->bookFromSelcompay($selcompay);
+
+                if ($selcompay->purpose === Selcompay::PURPOSE_AGENT_COMMISSION_CHECKOUT) {
+                    app(AgentCommissionExpenseService::class)->bookFromSelcompay($selcompay);
+                }
+
+                if ($selcompay->purpose === Selcompay::PURPOSE_VENDOR_SUBSCRIPTION) {
+                    app(VendorSubscriptionPaymentService::class)->handleWebhookCompleted($selcompay);
+                }
             }
         }
 

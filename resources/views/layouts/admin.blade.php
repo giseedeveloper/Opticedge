@@ -151,6 +151,8 @@
                 class="px-3 py-1.5 rounded-xl text-slate-600 hover:text-[#232f3e] hover:bg-white/70 transition-all shrink-0">Vendors</a>
             <a href="{{ route('admin.agents.index') }}"
                 class="px-3 py-1.5 rounded-xl text-slate-600 hover:text-[#232f3e] hover:bg-white/70 transition-all shrink-0">Agents</a>
+            <a href="{{ route('admin.tenant.edit') }}"
+                class="px-3 py-1.5 rounded-xl text-slate-600 hover:text-[#232f3e] hover:bg-white/70 transition-all shrink-0 {{ request()->routeIs('admin.tenant.*') ? 'bg-white/80 text-[#232f3e] font-semibold' : '' }}">Vendor profile</a>
             <a href="{{ route('admin.settings.index') }}"
                 class="px-3 py-1.5 rounded-xl text-slate-600 hover:text-[#232f3e] hover:bg-white/70 transition-all shrink-0">Settings</a>
         </div>
@@ -197,7 +199,6 @@
                 $sidebarStockActive = request()->routeIs([
                     'admin.stock.*',
                     'admin.branches.*',
-                    'admin.orders.*',
                 ]);
                 $navStockImei = request()->routeIs([
                     'admin.stock.imei-search',
@@ -342,9 +343,6 @@
                                 <a href="{{ route('admin.customers.regional-managers.index') }}"
                                     @if (request()->routeIs('admin.customers.regional-managers.*')) aria-current="page" @endif
                                     class="admin-sidebar-sublink {{ request()->routeIs('admin.customers.regional-managers.*') ? 'admin-sidebar-sublink-active' : '' }}">Regional managers</a>
-                                <a href="{{ route('admin.agents.assign-products') }}"
-                                    @if (request()->routeIs('admin.agents.assign-products')) aria-current="page" @endif
-                                    class="admin-sidebar-sublink {{ request()->routeIs('admin.agents.assign-products') ? 'admin-sidebar-sublink-active' : '' }}">Assign to regional manager</a>
                                 <a href="{{ route('admin.customers.team-leaders.index') }}"
                                     @if (request()->routeIs('admin.customers.team-leaders.*')) aria-current="page" @endif
                                     class="admin-sidebar-sublink {{ request()->routeIs('admin.customers.team-leaders.*') ? 'admin-sidebar-sublink-active' : '' }}">Team leaders</a>
@@ -405,21 +403,16 @@
                                     class="admin-sidebar-sublink {{ $navStockPurchases ? 'admin-sidebar-sublink-active' : '' }}">Purchases</a>
                                 <a href="{{ route('admin.stock.passthrough') }}"
                                     @if ($navStockPassthrough) aria-current="page" @endif
-                                    class="admin-sidebar-sublink {{ $navStockPassthrough ? 'admin-sidebar-sublink-active' : '' }}">Passthrough</a>
-                                <a href="{{ route('admin.orders.index') }}"
-                                    @if (request()->routeIs('admin.orders.*')) aria-current="page" @endif
-                                    class="admin-sidebar-sublink {{ request()->routeIs('admin.orders.*') ? 'admin-sidebar-sublink-active' : '' }} flex items-center justify-between gap-2">
-                                    <span>Orders</span>
-                                </a>
+                                    class="admin-sidebar-sublink {{ $navStockPassthrough ? 'admin-sidebar-sublink-active' : '' }}">Passthrough Sales</a>
                                 <a href="{{ route('admin.stock.distribution') }}"
                                     @if ($navStockDistribution) aria-current="page" @endif
-                                    class="admin-sidebar-sublink {{ $navStockDistribution ? 'admin-sidebar-sublink-active' : '' }}">Distribution</a>
+                                    class="admin-sidebar-sublink {{ $navStockDistribution ? 'admin-sidebar-sublink-active' : '' }}">Distribution Sales</a>
                                 <a href="{{ route('admin.stock.agent-sales') }}"
                                     @if ($navStockAgentSales) aria-current="page" @endif
-                                    class="admin-sidebar-sublink {{ $navStockAgentSales ? 'admin-sidebar-sublink-active' : '' }}">Agent Sales</a>
+                                    class="admin-sidebar-sublink {{ $navStockAgentSales ? 'admin-sidebar-sublink-active' : '' }}">Cash Agent Sales</a>
                                 <a href="{{ route('admin.stock.agent-credits') }}"
                                     @if ($navStockAgentCredits) aria-current="page" @endif
-                                    class="admin-sidebar-sublink {{ $navStockAgentCredits ? 'admin-sidebar-sublink-active' : '' }}">Agent Credit</a>
+                                    class="admin-sidebar-sublink {{ $navStockAgentCredits ? 'admin-sidebar-sublink-active' : '' }}">Agent Credit Sales</a>
                                 <a href="{{ route('admin.stock.branch-transfer') }}"
                                     @if ($navStockBranchTransfer) aria-current="page" @endif
                                     class="admin-sidebar-sublink {{ $navStockBranchTransfer ? 'admin-sidebar-sublink-active' : '' }}">Branch transfer</a>
@@ -482,25 +475,26 @@
                             </svg>
                             Leads report
                         </a>
+                        <a href="{{ route('admin.tenant.edit') }}"
+                            @if (request()->routeIs('admin.tenant.*')) aria-current="page" @endif
+                            class="admin-sidebar-item {{ request()->routeIs('admin.tenant.*') ? 'admin-sidebar-item-active' : '' }}">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+                                stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round"
+                                    d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                            </svg>
+                            Vendor profile
+                        </a>
                         <a href="{{ route('admin.settings.index') }}"
                             @if (request()->routeIs('admin.settings.*')) aria-current="page" @endif
                             class="admin-sidebar-item {{ request()->routeIs('admin.settings.*') ? 'admin-sidebar-item-active' : '' }}">
                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
                                 stroke="currentColor" stroke-width="2">
                                 <path stroke-linecap="round" stroke-linejoin="round"
-                                    d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                                    d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                             </svg>
                             Store Settings
-                        </a>
-                        <a href="{{ route('command.center') }}"
-                            @if (request()->routeIs('command.*', 'admin.command.*')) aria-current="page" @endif
-                            class="admin-sidebar-item {{ request()->routeIs('command.*', 'admin.command.*') ? 'admin-sidebar-item-active' : '' }}">
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
-                                stroke="currentColor" stroke-width="2">
-                                <path stroke-linecap="round" stroke-linejoin="round"
-                                    d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                            </svg>
-                            Command center
                         </a>
                     </div>
                 </div>

@@ -103,7 +103,7 @@
                         </div>
                         <div class="mt-6 flex justify-center text-sm text-center text-slate-500">
                             <p>
-                                or <a href="/" class="text-[#fa8900] font-medium hover:text-orange-600">Continue
+                                or <a href="{{ route('shop') }}" class="text-[#fa8900] font-medium hover:text-orange-600">Continue
                                     Shopping<span aria-hidden="true"> &rarr;</span></a>
                             </p>
                         </div>
@@ -120,7 +120,7 @@
                 <h3 class="mt-2 text-sm font-medium text-slate-900">Your cart is empty</h3>
                 <p class="mt-1 text-sm text-slate-500">Start adding some items to your cart!</p>
                 <div class="mt-6">
-                    <a href="/"
+                    <a href="{{ route('shop') }}"
                         class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-[#fa8900] hover:bg-orange-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#fa8900]">
                         Go Shopping
                     </a>

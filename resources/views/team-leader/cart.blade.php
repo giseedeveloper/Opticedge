@@ -88,7 +88,7 @@
                             Proceed to checkout
                         </a>
                         <p class="mt-4 text-center text-xs text-slate-600">
-                            or <a href="{{ route('welcome') }}" class="font-semibold text-[#fa8900] hover:underline">continue shopping</a>
+                            or <a href="{{ route('shop') }}" class="font-semibold text-[#fa8900] hover:underline">continue shopping</a>
                         </p>
                     </div>
                 </div>
@@ -97,7 +97,7 @@
             <div class="admin-clay-panel px-8 py-14 text-center">
                 <p class="text-sm font-semibold text-[#232f3e]">Your cart is empty</p>
                 <p class="mt-2 text-sm text-slate-600">Add products from the shop to see them here.</p>
-                <a href="{{ route('welcome') }}"
+                <a href="{{ route('shop') }}"
                     class="mt-6 inline-flex items-center rounded-lg bg-gradient-to-br from-[#fa8900] to-[#e07800] px-5 py-2.5 text-sm font-bold text-white shadow-md hover:opacity-95">
                     Browse shop
                 </a>

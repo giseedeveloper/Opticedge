@@ -8,7 +8,7 @@
     <div class="max-w-[1400px] mx-auto px-4 py-8 bg-white min-h-screen">
         <!-- Breadcrumb (Optional) -->
         <nav class="flex text-sm text-slate-500 mb-6 gap-2">
-            <a href="/" class="hover:text-[#fa8900]">Home</a>
+            <a href="{{ route('shop') }}" class="hover:text-[#fa8900]">Home</a>
             <span>/</span>
             <span class="text-slate-900 font-medium truncate">{{ $product->name }}</span>
         </nav>

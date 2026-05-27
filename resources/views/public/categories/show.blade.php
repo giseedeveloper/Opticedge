@@ -5,7 +5,7 @@
             <div class="max-w-[1600px] mx-auto px-4 py-8 lg:py-12">
                 <nav class="flex mb-4 text-sm text-gray-500" aria-label="Breadcrumb">
                     <ol class="flex items-center space-x-2">
-                        <li><a href="/" class="hover:text-[#fa8900]">Home</a></li>
+                        <li><a href="{{ route('shop') }}" class="hover:text-[#fa8900]">Home</a></li>
                         <li>
                             <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                                 <path fill-rule="evenodd"

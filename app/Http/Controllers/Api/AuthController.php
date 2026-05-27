@@ -37,9 +37,16 @@ class AuthController extends Controller
         $user->tokens()->where('name', 'optic-app')->delete();
         $token = $user->createToken('optic-app')->plainTextToken;
 
+        $user->loadMissing('tenant:id,brand_name');
+
+        $payload = $user->only(['id', 'name', 'email', 'role', 'tenant_id']);
+        if ($user->tenant) {
+            $payload['brand_name'] = $user->tenant->brand_name;
+        }
+
         return response()->json([
             'token' => $token,
-            'user' => $user->only(['id', 'name', 'email', 'role']),
+            'user' => $payload,
         ]);
     }
 }

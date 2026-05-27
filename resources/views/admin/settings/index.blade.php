@@ -5,7 +5,7 @@
         <div class="mb-8">
             <p class="admin-prod-eyebrow">Store</p>
             <h1 class="admin-prod-title">Store settings</h1>
-            <p class="admin-prod-subtitle">Configure checkout and subadmin permissions.</p>
+            <p class="admin-prod-subtitle">Sales channel defaults for your store and subadmin permissions.</p>
         </div>
 
         @if(session('success'))
@@ -30,35 +30,11 @@
 
         <div x-show="tab === 'store'" x-cloak class="admin-clay-panel admin-prod-form-shell overflow-hidden">
             <div class="admin-prod-form-head">
-                <h2 class="admin-prod-form-title">Selcom + sales defaults</h2>
-                <p class="admin-prod-form-hint">Used for storefront checkout and agent app sale defaults.</p>
+                <h2 class="admin-prod-form-title">Sales channel defaults</h2>
+                <p class="admin-prod-form-hint">Defaults for agent app sales and commission expenses. Selcom and email are managed in platform superadmin settings.</p>
             </div>
             <form action="{{ route('admin.settings.update') }}" method="POST" class="admin-prod-form-body space-y-6">
                 @csrf
-
-                <div>
-                    <label for="selcom_vendor_id" class="admin-prod-label">Vendor ID</label>
-                    <input type="text" name="selcom_vendor_id" id="selcom_vendor_id" value="{{ $settings['selcom_vendor_id'] ?? '' }}" class="admin-prod-input">
-                </div>
-
-                <div>
-                    <label for="selcom_api_key" class="admin-prod-label">API key</label>
-                    <input type="text" name="selcom_api_key" id="selcom_api_key" value="{{ $settings['selcom_api_key'] ?? '' }}" class="admin-prod-input" autocomplete="off">
-                </div>
-
-                <div>
-                    <label for="selcom_api_secret" class="admin-prod-label">API secret</label>
-                    <input type="password" name="selcom_api_secret" id="selcom_api_secret" value="{{ $settings['selcom_api_secret'] ?? '' }}" class="admin-prod-input" autocomplete="new-password">
-                </div>
-
-                <div>
-                    <label for="selcom_is_live" class="admin-prod-label">Environment</label>
-                    <select name="selcom_is_live" id="selcom_is_live" class="admin-prod-select">
-                        <option value="0" @selected(($settings['selcom_is_live'] ?? '0') == '0')>Test (apigwtest.selcommobile.com)</option>
-                        <option value="1" @selected(($settings['selcom_is_live'] ?? '0') == '1')>Live (apigw.selcommobile.com)</option>
-                    </select>
-                    <p class="text-xs text-slate-500 mt-2">Use <strong>Live</strong> for real payments; <strong>Test</strong> for sandbox.</p>
-                </div>
 
                 <div>
                     <label for="default_watu_channel_id" class="admin-prod-label">Default Watu channel</label>
@@ -104,49 +80,6 @@
                         When you save commission on an agent credit, an expense is posted to this channel (balance is reduced by the commission amount).
                     </p>
                 </div>
-
-                <fieldset class="rounded-xl border border-slate-200/80 bg-white/50 p-4 space-y-4">
-                    <legend class="px-2 text-sm font-semibold text-[#232f3e]">Email configuration</legend>
-
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <label for="mail_mailer" class="admin-prod-label">Mailer</label>
-                            <input type="text" name="mail_mailer" id="mail_mailer" value="{{ $settings['mail_mailer'] ?? '' }}" class="admin-prod-input" placeholder="smtp">
-                        </div>
-                        <div>
-                            <label for="mail_host" class="admin-prod-label">Host</label>
-                            <input type="text" name="mail_host" id="mail_host" value="{{ $settings['mail_host'] ?? '' }}" class="admin-prod-input" placeholder="smtp.example.com">
-                        </div>
-                        <div>
-                            <label for="mail_port" class="admin-prod-label">Port</label>
-                            <input type="number" name="mail_port" id="mail_port" value="{{ $settings['mail_port'] ?? '' }}" class="admin-prod-input" placeholder="587" min="1" max="65535">
-                        </div>
-                        <div>
-                            <label for="mail_encryption" class="admin-prod-label">Encryption</label>
-                            <input type="text" name="mail_encryption" id="mail_encryption" value="{{ $settings['mail_encryption'] ?? '' }}" class="admin-prod-input" placeholder="tls">
-                        </div>
-                        <div>
-                            <label for="mail_username" class="admin-prod-label">Username</label>
-                            <input type="text" name="mail_username" id="mail_username" value="{{ $settings['mail_username'] ?? '' }}" class="admin-prod-input">
-                        </div>
-                        <div>
-                            <label for="mail_password" class="admin-prod-label">Password</label>
-                            <input type="password" name="mail_password" id="mail_password" value="{{ $settings['mail_password'] ?? '' }}" class="admin-prod-input" autocomplete="new-password">
-                        </div>
-                        <div>
-                            <label for="mail_from_address" class="admin-prod-label">From address</label>
-                            <input type="email" name="mail_from_address" id="mail_from_address" value="{{ $settings['mail_from_address'] ?? '' }}" class="admin-prod-input" placeholder="no-reply@example.com">
-                        </div>
-                        <div>
-                            <label for="mail_from_name" class="admin-prod-label">From name</label>
-                            <input type="text" name="mail_from_name" id="mail_from_name" value="{{ $settings['mail_from_name'] ?? '' }}" class="admin-prod-input" placeholder="Optic">
-                        </div>
-                    </div>
-
-                    <p class="text-xs text-slate-500">
-                        These values are saved in settings for email delivery configuration.
-                    </p>
-                </fieldset>
 
                 <div class="admin-prod-form-footer !mt-0 !pt-0 !border-0 !shadow-none">
                     <button type="submit" class="admin-prod-btn-primary px-8">Save changes</button>

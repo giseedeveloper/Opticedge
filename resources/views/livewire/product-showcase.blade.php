@@ -56,7 +56,7 @@
                 </div>
                 <h3 class="text-lg font-semibold text-gray-600">No products found</h3>
                 <p class="text-gray-400">We couldn't find any products in this category at the moment.</p>
-                <a href="/" class="mt-4 text-[#fa8900] font-medium hover:underline inline-block">Show all products</a>
+                <a href="{{ route('shop') }}" class="mt-4 text-[#fa8900] font-medium hover:underline inline-block">Show all products</a>
             </div>
         @else
             <div class="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-6">

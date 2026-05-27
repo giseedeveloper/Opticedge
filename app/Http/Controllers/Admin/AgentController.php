@@ -5,12 +5,8 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\AgentAssignment;
 use App\Models\Branch;
-use App\Models\Product;
-use App\Models\Purchase;
-use App\Models\ProductListItem;
 use App\Models\SubadminRole;
 use App\Models\User;
-use App\Services\DeviceHierarchyAssignmentService;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -50,70 +46,6 @@ class AgentController extends Controller
         $branches = Branch::orderBy('name')->get();
 
         return view('admin.agents.show', compact('agent', 'assignments', 'teamLeaders', 'branches'));
-    }
-
-    public function assignProductsForm()
-    {
-        $regionalManagers = User::where('role', 'regional_manager')
-            ->where('status', 'active')
-            ->orderBy('name')
-            ->get();
-        $products = Product::whereHas('purchases')->orderBy('name')->get();
-        $purchases = Purchase::with(['product.category', 'lines.product.category'])
-            ->whereNotNull('product_id')
-            ->orderByDesc('date')
-            ->orderByDesc('id')
-            ->get();
-
-        return view('admin.agents.assign-products', compact('regionalManagers', 'products', 'purchases'));
-    }
-
-    /**
-     * JSON for Select2: unsold, eligible purchase (paid / partial / unpaid or limit remaining), not yet assigned.
-     */
-    public function assignableImeis(Request $request)
-    {
-        $validated = $request->validate([
-            'product_id' => 'required|exists:models,id',
-        ]);
-
-        $items = ProductListItem::assignableFromAdmin((int) $validated['product_id'])
-            ->orderBy('imei_number')
-            ->get(['id', 'imei_number', 'model']);
-
-        return response()->json([
-            'data' => $items->map(fn ($i) => [
-                'id' => $i->id,
-                'text' => $i->imei_number.($i->model ? ' – '.$i->model : ''),
-            ])->values()->all(),
-        ]);
-    }
-
-    public function storeAssignment(Request $request, DeviceHierarchyAssignmentService $hierarchyService)
-    {
-        $validated = $request->validate([
-            'regional_manager_id' => 'required|exists:users,id',
-            'product_id' => 'required|exists:models,id',
-            'product_list_ids' => 'required|array|min:1',
-            'product_list_ids.*' => 'distinct|integer|exists:product_list,id',
-        ]);
-
-        $user = User::findOrFail($validated['regional_manager_id']);
-
-        try {
-            $count = $hierarchyService->assignToRegionalManager(
-                $user,
-                (int) $validated['product_id'],
-                $validated['product_list_ids']
-            );
-            $message = $count === 1
-                ? '1 device assigned to regional manager.'
-                : "{$count} devices assigned to regional manager.";
-        } catch (\InvalidArgumentException $e) {
-            return back()->withInput()->with('error', $e->getMessage());
-        }
-
-        return redirect()->route('admin.agents.assign-products')->with('success', $message);
     }
 
     public function create()

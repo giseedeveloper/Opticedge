@@ -50,21 +50,9 @@ class SettingController extends Controller
     public function update(Request $request)
     {
         $data = $request->validate([
-            'selcom_vendor_id' => 'nullable|string|max:255',
-            'selcom_api_key' => 'nullable|string|max:255',
-            'selcom_api_secret' => 'nullable|string|max:255',
-            'selcom_is_live' => 'nullable|in:0,1',
             'default_agent_sale_channel_id' => 'nullable|integer|exists:payment_options,id',
             'default_agent_commission_channel_id' => 'nullable|integer|exists:payment_options,id',
             'default_watu_channel_id' => 'nullable|integer|exists:payment_options,id',
-            'mail_mailer' => 'nullable|string|max:100',
-            'mail_host' => 'nullable|string|max:255',
-            'mail_port' => 'nullable|integer|min:1|max:65535',
-            'mail_username' => 'nullable|string|max:255',
-            'mail_password' => 'nullable|string|max:255',
-            'mail_encryption' => 'nullable|string|max:50',
-            'mail_from_address' => 'nullable|email|max:255',
-            'mail_from_name' => 'nullable|string|max:255',
         ]);
 
         foreach ($data as $key => $value) {
