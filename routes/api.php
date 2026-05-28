@@ -30,8 +30,24 @@ use App\Http\Controllers\Api\RegionalManagerDashboardController;
 use App\Http\Controllers\Api\TeamLeaderApiController;
 use App\Http\Controllers\Api\TeamLeaderDashboardController;
 use App\Http\Controllers\Api\UserProfileApiController;
+use App\Http\Controllers\Api\AdminImeiApiController;
+use App\Http\Controllers\Api\AdminPassthroughApiController;
+use App\Http\Controllers\Api\AdminAgentCreditsAdminApiController;
+use App\Http\Controllers\Api\AdminLeadsReportApiController;
+use App\Http\Controllers\Api\AdminTenantApiController;
+use App\Http\Controllers\Api\AdminOrganizationApiController;
+use App\Http\Controllers\Api\AdminPayablesApiController;
+use App\Http\Controllers\Api\AdminShopRecordsApiController;
+use App\Http\Controllers\Api\AdminPayoutApiController;
+use App\Http\Controllers\Api\AdminProductApiController;
+use App\Http\Controllers\Api\AdminUserManagementApiController;
+use App\Http\Controllers\Api\AdminVendorApiController;
 
 Route::post('/login', [AuthController::class, 'login']);
+Route::post('/register', [AuthController::class, 'register']);
+Route::post('/register/agent', [AuthController::class, 'registerAgent']);
+Route::post('/register/dealer', [AuthController::class, 'registerDealer']);
+Route::post('/password/forgot', [AuthController::class, 'forgotPassword']);
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/user', function (Request $request) {
@@ -46,6 +62,14 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('stocks/under-limit', [ApiStockController::class, 'stocksUnderLimit']);
         Route::get('stocks/{id}/models', [ApiStockController::class, 'modelsForStock']);
         Route::get('branches', [ApiBranchController::class, 'index']);
+        Route::post('branches', [ApiBranchController::class, 'store']);
+        Route::put('branches/{branch}', [ApiBranchController::class, 'update']);
+        Route::delete('branches/{branch}', [ApiBranchController::class, 'destroy']);
+        Route::get('vendors', [AdminVendorApiController::class, 'index']);
+        Route::get('vendors/{vendor}', [AdminVendorApiController::class, 'show']);
+        Route::post('vendors', [AdminVendorApiController::class, 'store']);
+        Route::put('vendors/{vendor}', [AdminVendorApiController::class, 'update']);
+        Route::delete('vendors/{vendor}', [AdminVendorApiController::class, 'destroy']);
         Route::get('purchases', [ApiPurchaseController::class, 'index']);
         Route::get('purchases/for-add-product', [ApiPurchaseController::class, 'forAddProduct']);
         Route::get('purchases/{id}', [ApiPurchaseController::class, 'show']);
@@ -53,6 +77,40 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('brands', [ApiCategoryController::class, 'index']);
         Route::get('categories', [ApiCategoryController::class, 'index']); // backward compatible alias
         Route::get('categories/{category}/models', [ApiCategoryController::class, 'models']);
+        Route::post('categories', [ApiCategoryController::class, 'store']);
+        Route::put('categories/{category}', [ApiCategoryController::class, 'update']);
+        Route::delete('categories/{category}', [ApiCategoryController::class, 'destroy']);
+        Route::get('products', [AdminProductApiController::class, 'index']);
+        Route::post('products', [AdminProductApiController::class, 'store']);
+        Route::put('products/{product}', [AdminProductApiController::class, 'update']);
+        Route::delete('products/{product}', [AdminProductApiController::class, 'destroy']);
+        Route::get('products/{product}/imei', [AdminProductApiController::class, 'imeiList']);
+        Route::get('imei-search', [AdminImeiApiController::class, 'search']);
+        Route::get('imei-items/{productListItem}', [AdminImeiApiController::class, 'show']);
+        Route::get('passthrough-sales', [AdminPassthroughApiController::class, 'index']);
+        Route::get('passthrough-sales/{id}', [AdminPassthroughApiController::class, 'show']);
+        Route::get('agent-credits', [AdminAgentCreditsAdminApiController::class, 'index']);
+        Route::get('agent-credits/{id}', [AdminAgentCreditsAdminApiController::class, 'show']);
+        Route::post('agent-credits/pay', [AdminAgentCreditsAdminApiController::class, 'pay']);
+        Route::get('customer-needs', [AdminLeadsReportApiController::class, 'index']);
+        Route::get('tenant', [AdminTenantApiController::class, 'show']);
+        Route::put('tenant', [AdminTenantApiController::class, 'update']);
+        Route::get('organization-tree', [AdminOrganizationApiController::class, 'index']);
+        Route::get('payables', [AdminPayablesApiController::class, 'index']);
+        Route::get('shop-records', [AdminShopRecordsApiController::class, 'index']);
+        Route::get('payout', [AdminPayoutApiController::class, 'index']);
+        Route::get('users', [ApiUserController::class, 'index']); // ?role=customer|dealer|agent|subadmin
+        Route::get('users/{user}', [AdminUserManagementApiController::class, 'show']);
+        Route::post('users', [AdminUserManagementApiController::class, 'store']);
+        Route::put('users/{user}', [AdminUserManagementApiController::class, 'update']);
+        Route::post('users/{user}/activate', [AdminUserManagementApiController::class, 'activate']);
+        Route::post('users/{user}/deactivate', [AdminUserManagementApiController::class, 'deactivate']);
+        Route::post('users/{user}/approve-dealer', [AdminUserManagementApiController::class, 'approveDealer']);
+        Route::post('users/{user}/reject-dealer', [AdminUserManagementApiController::class, 'rejectDealer']);
+        Route::get('subadmin-roles', [AdminUserManagementApiController::class, 'subadminRoles']);
+        Route::get('profile', [UserProfileApiController::class, 'show']);
+        Route::put('profile', [UserProfileApiController::class, 'update']);
+        Route::put('profile/password', [UserProfileApiController::class, 'updatePassword']);
         Route::post('product-list', [ProductListController::class, 'store']);
         Route::post('product-list/batch', [ProductListController::class, 'batchStore']);
         Route::post('barcodes/decode-image', [BarcodeDecodeController::class, 'decodeImage']);
@@ -74,7 +132,6 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('orders', [ApiOrderController::class, 'index']);
         Route::get('orders/{order}', [ApiOrderController::class, 'show']);
         Route::put('orders/{order}', [ApiOrderController::class, 'update']);
-        Route::get('users', [ApiUserController::class, 'index']); // ?role=customer|dealer|agent
         Route::get('distribution-sales', [ApiDistributionSaleController::class, 'index']);
         Route::get('distribution-sales/{id}', [ApiDistributionSaleController::class, 'show']);
         Route::get('pending-sales', [ApiPendingSaleController::class, 'index']);

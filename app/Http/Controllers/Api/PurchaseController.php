@@ -7,7 +7,7 @@ use App\Models\Purchase;
 
 class PurchaseController extends Controller
 {
-    private function serializePurchase(Purchase $p): array
+    public function serializePurchase(Purchase $p): array
     {
         $qty = (int) ($p->quantity ?? 0);
         $unit = (float) ($p->unit_price ?? 0);

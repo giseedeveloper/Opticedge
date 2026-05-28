@@ -49,4 +49,96 @@ class AuthController extends Controller
             'user' => $payload,
         ]);
     }
+
+    /**
+     * Self-registration for customer role (mirrors web register when enabled).
+     */
+    public function register(Request $request)
+    {
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => 'required|string|email|max:255|unique:users',
+            'password' => 'required|string|min:8|confirmed',
+        ]);
+
+        $user = \App\Models\User::create([
+            'name' => $validated['name'],
+            'email' => $validated['email'],
+            'password' => \Illuminate\Support\Facades\Hash::make($validated['password']),
+            'role' => 'customer',
+            'status' => 'active',
+        ]);
+        $user->forceFill(['email_verified_at' => now()])->save();
+
+        $token = $user->createToken('optic-app')->plainTextToken;
+
+        return response()->json([
+            'token' => $token,
+            'user' => $user->only(['id', 'name', 'email', 'role']),
+            'message' => 'Account created.',
+        ], 201);
+    }
+
+    public function registerAgent(Request $request)
+    {
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => 'required|string|email|max:255|unique:users',
+            'password' => 'required|string|min:8|confirmed',
+            'phone' => 'nullable|string|max:100',
+        ]);
+
+        $user = \App\Models\User::create([
+            'name' => $validated['name'],
+            'email' => $validated['email'],
+            'password' => \Illuminate\Support\Facades\Hash::make($validated['password']),
+            'phone' => $validated['phone'] ?? null,
+            'role' => 'agent',
+            'status' => 'pending',
+        ]);
+
+        return response()->json([
+            'message' => 'Agent registration submitted. An administrator must activate your account before you can sign in.',
+        ], 201);
+    }
+
+    public function registerDealer(Request $request)
+    {
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => 'required|string|email|max:255|unique:users',
+            'password' => 'required|string|min:8|confirmed',
+            'phone' => 'nullable|string|max:100',
+            'business_name' => 'required|string|max:255',
+        ]);
+
+        \App\Models\User::create([
+            'name' => $validated['name'],
+            'email' => $validated['email'],
+            'password' => \Illuminate\Support\Facades\Hash::make($validated['password']),
+            'phone' => $validated['phone'] ?? null,
+            'business_name' => $validated['business_name'],
+            'role' => 'dealer',
+            'status' => 'pending',
+        ]);
+
+        return response()->json([
+            'message' => 'Dealer registration submitted. You will be notified when approved.',
+        ], 201);
+    }
+
+    public function forgotPassword(Request $request)
+    {
+        $request->validate(['email' => 'required|email']);
+
+        $status = \Illuminate\Support\Facades\Password::sendResetLink(
+            $request->only('email')
+        );
+
+        if ($status === \Illuminate\Support\Facades\Password::RESET_LINK_SENT) {
+            return response()->json(['message' => __($status)]);
+        }
+
+        return response()->json(['message' => __($status)], 422);
+    }
 }

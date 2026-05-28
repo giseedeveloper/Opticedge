@@ -45,4 +45,52 @@ class CategoryController extends Controller
 
         return response()->json(['data' => $products]);
     }
+
+    public function store(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'name' => 'required|string|max:255|unique:brands,name',
+        ]);
+
+        $data = ['name' => $validated['name'], 'is_platform' => false];
+        if ($request->user()?->tenant_id) {
+            $data['created_by_tenant_id'] = $request->user()->tenant_id;
+        }
+
+        $category = Category::create($data);
+
+        return response()->json([
+            'message' => 'Brand created.',
+            'data' => ['id' => $category->id, 'name' => $category->name],
+        ], 201);
+    }
+
+    public function update(Request $request, Category $category): JsonResponse
+    {
+        if ($category->isPlatformCatalog()) {
+            return response()->json(['message' => 'Cannot edit platform-managed brands.'], 403);
+        }
+
+        $validated = $request->validate([
+            'name' => 'required|string|max:255|unique:brands,name,'.$category->id,
+        ]);
+
+        $category->update(['name' => $validated['name']]);
+
+        return response()->json(['message' => 'Brand updated.', 'data' => ['id' => $category->id, 'name' => $category->name]]);
+    }
+
+    public function destroy(Category $category): JsonResponse
+    {
+        if ($category->isPlatformCatalog()) {
+            return response()->json(['message' => 'Cannot delete platform-managed brands.'], 403);
+        }
+        if ($category->products()->exists()) {
+            return response()->json(['message' => 'Brand has models. Remove them first.'], 422);
+        }
+
+        $category->delete();
+
+        return response()->json(['message' => 'Brand deleted.']);
+    }
 }

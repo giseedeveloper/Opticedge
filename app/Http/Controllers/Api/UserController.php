@@ -11,7 +11,8 @@ class UserController extends Controller
     public function index(Request $request)
     {
         $role = $request->query('role', 'customer');
-        if (! in_array($role, User::customerDirectoryRoleFilters(), true)) {
+        $allowed = array_merge(User::customerDirectoryRoleFilters(), ['subadmin']);
+        if (! in_array($role, $allowed, true)) {
             $role = 'customer';
         }
 
