@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\DB;
 
 class PurchaseImeiRegistrationService
 {
-    public function register(Purchase $purchase, int $catalogProductId, string $imeiNumbersRaw): PurchaseImeiRegistrationResult
+    public function register(Purchase $purchase, int $catalogProductId, string $imeiNumbersRaw, bool $oneImeiPerLine = false): PurchaseImeiRegistrationResult
     {
         $result = new PurchaseImeiRegistrationResult;
 
@@ -55,12 +55,16 @@ class PurchaseImeiRegistrationService
             $remainingForModel = (int) $purchase->limit_remaining;
         }
 
-        $imeis = ImeiListParser::parse($imeiNumbersRaw);
+        $imeis = $oneImeiPerLine
+            ? ImeiListParser::parseOnePerLine($imeiNumbersRaw)
+            : ImeiListParser::parse($imeiNumbersRaw);
         $result->parsedCount = count($imeis);
 
         if ($imeis === []) {
             $result->errorField = 'imei_numbers';
-            $result->errorMessage = 'Enter at least one IMEI. Use one per line, or separate with spaces, commas, or semicolons.';
+            $result->errorMessage = $oneImeiPerLine
+                ? 'Enter at least one IMEI — one IMEI per line.'
+                : 'Enter at least one IMEI. Use one per line, or separate with spaces, commas, or semicolons.';
 
             return $result;
         }

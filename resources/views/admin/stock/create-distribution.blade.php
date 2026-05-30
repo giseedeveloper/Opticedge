@@ -197,7 +197,7 @@
                             </button>
                             <button type="button" class="dist-tab-btn" data-dist-tab="register" role="tab" aria-selected="false" aria-controls="dist-tab-register">
                                 <span class="dist-tab-btn__title">Register IMEIs</span>
-                                <span class="dist-tab-btn__hint">Paste or scan devices onto the purchase first.</span>
+                                <span class="dist-tab-btn__hint">Paste IMEIs onto the purchase first.</span>
                             </button>
                         </div>
                     </div>
@@ -231,13 +231,6 @@
                             <p class="helper-text">After registering, open the <strong>Add to sale</strong> tab and pick the model to include IMEIs in this distribution.</p>
                             <p id="dist-register-no-slots" class="hidden text-sm text-slate-600 bg-slate-50 border border-slate-200/80 rounded-lg px-3 py-2">No open slots on this purchase — sell already registered IMEIs from the <strong>Add to sale</strong> tab.</p>
                             <div id="dist-register-form" class="space-y-4 hidden">
-                        <div class="rounded-xl border border-slate-200/80 bg-slate-50/60 p-4">
-                            <h4 class="text-sm font-semibold text-slate-900 mb-2">Capture &amp; scan barcodes</h4>
-                            <p class="text-xs text-slate-600 mb-3">Photo of IMEI barcodes (Code 128, QR, EAN) — codes are read in your browser.</p>
-                            <input type="file" id="dist_barcode_photos" accept="image/*" class="admin-prod-file">
-                            <button type="button" id="dist_btn_decode_photos" class="mt-3 bg-slate-800 text-white text-sm px-4 py-2 rounded-lg hover:bg-slate-700">Capture &amp; scan</button>
-                            <p id="dist_decode_status" class="text-xs text-slate-500 mt-2 min-h-[1rem]"></p>
-                        </div>
                         <div>
                             <label for="dist_register_model" class="admin-prod-label">Model</label>
                             <select id="dist_register_model" class="admin-prod-select w-full">
@@ -246,8 +239,8 @@
                         </div>
                         <div>
                             <label for="dist_register_imei_numbers" class="admin-prod-label">IMEI / serial numbers</label>
-                            <p class="text-xs text-slate-500 mb-1">One per line, or separate with spaces, commas, or semicolons.</p>
-                            <textarea id="dist_register_imei_numbers" rows="6" class="admin-prod-textarea font-mono text-sm" placeholder="352123456789012&#10;352123456789013"></textarea>
+                            <p class="text-xs text-slate-500 mb-1"><strong>One IMEI per line.</strong> Do not put multiple IMEIs on the same line (no commas or spaces between codes).</p>
+                            <textarea id="dist_register_imei_numbers" rows="8" class="admin-prod-textarea font-mono text-sm" placeholder="352123456789012&#10;352123456789013&#10;352123456789014"></textarea>
                             <p id="dist_register_imei_count" class="helper-text mt-1"></p>
                         </div>
                         <div id="dist_register_feedback" class="hidden text-sm rounded-lg p-3" role="status"></div>
@@ -756,7 +749,7 @@
 
             function countParsedImeis(text) {
                 if (!text || !text.trim()) return 0;
-                return text.replace(/\r\n/g, '\n').split(/[\n,;\s]+/).map(function (s) { return s.trim(); }).filter(Boolean).length;
+                return text.replace(/\r\n/g, '\n').split('\n').map(function (s) { return s.trim(); }).filter(Boolean).length;
             }
 
             function updateRegisterImeiCount() {
@@ -1005,124 +998,6 @@
                 }
                 recalcGrandTotal();
             });
-
-            (function () {
-                var fileInput = document.getElementById('dist_barcode_photos');
-                var btn = document.getElementById('dist_btn_decode_photos');
-                var statusEl = document.getElementById('dist_decode_status');
-                var ta = document.getElementById('dist_register_imei_numbers');
-                if (!fileInput || !btn || !ta) return;
-
-                var _zxingReady = false;
-                var _zxingLoadPromise = null;
-                function loadZXing() {
-                    if (_zxingReady) return Promise.resolve();
-                    if (_zxingLoadPromise) return _zxingLoadPromise;
-                    _zxingLoadPromise = new Promise(function (resolve, reject) {
-                        var s = document.createElement('script');
-                        s.src = 'https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js';
-                        s.onload = function () { _zxingReady = true; resolve(); };
-                        s.onerror = reject;
-                        document.head.appendChild(s);
-                    });
-                    return _zxingLoadPromise;
-                }
-
-                function mergeCodes(codes) {
-                    var existing = ta.value.replace(/\r\n/g, '\n').split('\n')
-                        .map(function (s) { return s.trim(); }).filter(Boolean);
-                    var seen = {};
-                    existing.forEach(function (c) { seen[c] = true; });
-                    var added = 0;
-                    codes.forEach(function (c) {
-                        c = (c || '').trim();
-                        if (c && !seen[c]) { seen[c] = true; existing.push(c); added++; }
-                    });
-                    ta.value = existing.join('\n');
-                    updateRegisterImeiCount();
-                    return added;
-                }
-
-                async function decodeFileZXing(reader, file) {
-                    var found = new Set();
-                    var imgUrl = URL.createObjectURL(file);
-                    var img = await new Promise(function (res, rej) {
-                        var i = new Image();
-                        i.onload = function () { res(i); };
-                        i.onerror = rej;
-                        i.src = imgUrl;
-                    });
-                    var W = img.naturalWidth;
-                    var H = img.naturalHeight;
-                    var canvas = document.createElement('canvas');
-                    var ctx = canvas.getContext('2d');
-                    async function tryRegion(sx, sy, sw, sh) {
-                        if (sw < 10 || sh < 10) return;
-                        canvas.width = sw;
-                        canvas.height = sh;
-                        ctx.clearRect(0, 0, sw, sh);
-                        ctx.drawImage(img, sx, sy, sw, sh, 0, 0, sw, sh);
-                        var dataUrl = canvas.toDataURL('image/jpeg', 0.92);
-                        try {
-                            var result = await reader.decodeFromImageUrl(dataUrl);
-                            var text = (result && (result.text || (result.getText && result.getText()))) || '';
-                            if (text.trim()) found.add(text.trim());
-                        } catch (e) { /* no barcode */ }
-                    }
-                    await tryRegion(0, 0, W, H);
-                    var grids = [[4, 3], [3, 3], [4, 2], [3, 2], [4, 1], [3, 1], [2, 1]];
-                    for (var g = 0; g < grids.length; g++) {
-                        var rows = grids[g][0], cols = grids[g][1];
-                        if (Math.floor(W / cols) < 30 || Math.floor(H / rows) < 30) continue;
-                        var cellW = Math.floor(W / cols);
-                        var cellH = Math.floor(H / rows);
-                        for (var r = 0; r < rows; r++) {
-                            for (var c = 0; c < cols; c++) {
-                                await tryRegion(c * cellW, r * cellH, cellW, cellH);
-                            }
-                        }
-                        if (found.size > 0 && g >= 1) break;
-                    }
-                    URL.revokeObjectURL(imgUrl);
-                    return Array.from(found);
-                }
-
-                btn.addEventListener('click', async function () {
-                    var files = fileInput.files;
-                    if (!files || !files.length) {
-                        statusEl.textContent = 'Choose a photo first.';
-                        return;
-                    }
-                    btn.disabled = true;
-                    statusEl.textContent = 'Loading decoder…';
-                    try {
-                        await loadZXing();
-                    } catch (e) {
-                        statusEl.textContent = 'Could not load barcode library.';
-                        btn.disabled = false;
-                        return;
-                    }
-                    statusEl.textContent = 'Scanning…';
-                    var allCodes = [];
-                    try {
-                        var reader = new ZXing.BrowserMultiFormatReader();
-                        for (var i = 0; i < files.length; i++) {
-                            allCodes = allCodes.concat(await decodeFileZXing(reader, files[i]));
-                        }
-                    } catch (e) {
-                        statusEl.textContent = 'Decode error: ' + (e.message || e);
-                        btn.disabled = false;
-                        return;
-                    }
-                    btn.disabled = false;
-                    if (allCodes.length) {
-                        var added = mergeCodes(allCodes);
-                        statusEl.textContent = 'Found ' + allCodes.length + ' barcode(s). Added ' + added + ' new code(s).';
-                    } else {
-                        statusEl.textContent = 'No barcode found. Paste IMEIs manually.';
-                    }
-                });
-            })();
         </script>
     @endpush
 </x-admin-layout>

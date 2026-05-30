@@ -2033,7 +2033,8 @@ class StockController extends Controller
         $result = $registrationService->register(
             $purchase,
             (int) $validated['catalog_product_id'],
-            (string) $validated['imei_numbers']
+            (string) $validated['imei_numbers'],
+            oneImeiPerLine: true
         );
 
         if ($result->hasValidationError()) {

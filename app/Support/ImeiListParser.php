@@ -47,6 +47,26 @@ final class ImeiListParser
     }
 
     /**
+     * One IMEI per line only (no comma, space, or semicolon splitting).
+     *
+     * @return list<string>
+     */
+    public static function parseOnePerLine(string $raw): array
+    {
+        $raw = str_replace(["\r\n", "\r"], "\n", $raw);
+        $out = [];
+
+        foreach (explode("\n", $raw) as $line) {
+            $line = trim($line);
+            if ($line !== '') {
+                $out[] = $line;
+            }
+        }
+
+        return array_values(array_unique($out));
+    }
+
+    /**
      * If scanners paste many IMEIs with no separator, digits-only string may be 15*n digits.
      *
      * @return list<string>
