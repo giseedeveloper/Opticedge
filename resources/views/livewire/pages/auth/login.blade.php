@@ -102,29 +102,4 @@ new #[Layout('layouts.guest')] class extends Component {
             </button>
         </div>
     </form>
-
-    <div class="mt-8 relative">
-        <div class="absolute inset-0 flex items-center" aria-hidden="true">
-            <div class="w-full border-t border-slate-200"></div>
-        </div>
-        <div class="relative flex justify-center">
-            <span class="bg-white/90 px-3 text-xs font-medium text-slate-500">New to OpticEdgeAfrica?</span>
-        </div>
-    </div>
-
-    <div class="mt-5">
-        <a href="{{ route('register') }}" wire:navigate
-            class="w-full flex justify-center items-center py-3 px-4 rounded-xl border border-slate-200 bg-white text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50 hover:border-slate-300 transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2">
-            Create your OpticEdgeAfrica account
-        </a>
-    </div>
-
-    <div class="mt-5 text-center space-y-2">
-        <a href="{{ route('dealer.register') }}" class="block text-xs font-medium text-slate-500 hover:text-[#fa8900] transition-colors">
-            Want to become a seller? Register as a Dealer
-        </a>
-        <a href="{{ route('agent.register') }}" wire:navigate class="block text-xs font-medium text-slate-500 hover:text-[#fa8900] transition-colors">
-            Register as an Agent
-        </a>
-    </div>
 </div>

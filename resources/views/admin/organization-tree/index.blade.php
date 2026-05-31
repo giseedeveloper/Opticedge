@@ -44,7 +44,7 @@
     <div class="admin-prod-page">
         <div class="admin-prod-toolbar !mb-0 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div>
-                <p class="admin-prod-eyebrow">Users & Dealers</p>
+                <p class="admin-prod-eyebrow">Staff</p>
                 <h1 class="admin-prod-title">Organization tree</h1>
                 <p class="admin-prod-subtitle">Visual hierarchy: regional managers → team leaders → agents.</p>
             </div>

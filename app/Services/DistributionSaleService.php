@@ -71,18 +71,75 @@ class DistributionSaleService
 
     /**
      * Get buy price (unit) for a product from purchase data.
-     * Uses latest purchase unit_price as cost basis for distribution/agent-sale profit.
+     * When $purchaseId is set, uses that purchase; otherwise the latest purchase for the product.
      */
-    public function getBuyPriceForProduct(int $productId): float
+    public function getBuyPriceForProduct(int $productId, ?int $purchaseId = null): float
     {
-        $purchase = Purchase::where('product_id', $productId)
-            ->latest('date')
-            ->first();
+        $purchase = $this->resolvePurchaseForProduct($productId, $purchaseId);
 
-        if (!$purchase) {
+        if (! $purchase) {
             return 0;
         }
 
-        return (float) ($purchase->unit_price ?? 0);
+        return $this->getPricesForProductOnPurchase($productId, $purchase)['buy'];
+    }
+
+    /**
+     * Get sell price (unit) for a product from purchase data.
+     * When $purchaseId is set, uses that purchase; otherwise the latest purchase for the product.
+     */
+    public function getSellPriceForProduct(int $productId, ?int $purchaseId = null): float
+    {
+        $purchase = $this->resolvePurchaseForProduct($productId, $purchaseId);
+
+        if (! $purchase) {
+            return 0;
+        }
+
+        return $this->getPricesForProductOnPurchase($productId, $purchase)['sell'];
+    }
+
+    /**
+     * @return array{buy: float, sell: float}
+     */
+    public function getPricesForProductOnPurchase(int $productId, Purchase $purchase): array
+    {
+        $purchase->loadMissing('lines');
+
+        if ($purchase->lines->isNotEmpty()) {
+            $line = $purchase->lines->firstWhere('product_id', $productId);
+            if ($line) {
+                $buy = (float) ($line->unit_price ?? 0);
+                $sell = $line->sell_price !== null
+                    ? (float) $line->sell_price
+                    : $buy;
+
+                return ['buy' => $buy, 'sell' => $sell];
+            }
+
+            return ['buy' => 0.0, 'sell' => 0.0];
+        }
+
+        if ($purchase->product_id && (int) $purchase->product_id !== $productId) {
+            return ['buy' => 0.0, 'sell' => 0.0];
+        }
+
+        $buy = (float) ($purchase->unit_price ?? 0);
+        $sell = $purchase->sell_price !== null
+            ? (float) $purchase->sell_price
+            : $buy;
+
+        return ['buy' => $buy, 'sell' => $sell];
+    }
+
+    private function resolvePurchaseForProduct(int $productId, ?int $purchaseId): ?Purchase
+    {
+        if ($purchaseId !== null) {
+            return Purchase::with('lines')->find($purchaseId);
+        }
+
+        return Purchase::where('product_id', $productId)
+            ->latest('date')
+            ->first();
     }
 }

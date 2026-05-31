@@ -60,14 +60,6 @@
                     class="cursor-pointer inline-flex items-center justify-center px-6 py-3 rounded-xl admin-clay-inset text-[#232f3e] font-semibold transition-colors duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#fa8900]">
                     Sign in
                 </a>
-                <a href="{{ route('shop') }}"
-                    class="cursor-pointer inline-flex items-center justify-center px-6 py-3 rounded-xl text-[#007185] font-semibold hover:text-[#232f3e] transition-colors duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#007185]">
-                    Browse shop
-                    <svg class="ml-1.5 w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"
-                        aria-hidden="true">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
-                    </svg>
-                </a>
             </div>
         </div>
     </section>

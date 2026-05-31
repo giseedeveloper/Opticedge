@@ -3,78 +3,68 @@
 namespace App\Support;
 
 use App\Models\Purchase;
-use Carbon\CarbonInterface;
 
 class PurchaseInvoiceNumber
 {
     /**
-     * Full distributor name as a URL-safe slug (letters, digits, hyphens between words).
+     * Vendor prefix: uppercase letters and digits from distributor name (no spaces/symbols).
      */
-    public static function slugifyDistributor(?string $distributorName): string
+    public static function vendorPrefix(?string $distributorName): string
     {
         $s = trim((string) $distributorName);
         if ($s === '') {
             return 'UNKNOWN';
         }
-        $s = preg_replace('/\s+/', '-', $s);
-        $s = preg_replace('/[^a-zA-Z0-9\-]/', '', $s);
-        $s = preg_replace('/-+/', '-', $s);
-        $s = trim($s, '-');
+        $s = preg_replace('/[^a-zA-Z0-9]/', '', $s);
+        $s = strtoupper($s);
 
         return $s !== '' ? $s : 'UNKNOWN';
     }
 
     /**
-     * Base invoice: {DistributorSlug}-{Y-m-d}-{H-i} (time from "now" when generated).
-     * Truncates slug so total length stays within $maxLength (DB column limit).
+     * Base invoice: {VendorPrefix}-{6 random chars}, e.g. WILLY-PSUT&8
      */
-    public static function baseName(?string $distributorName, string $dateYmd, ?CarbonInterface $at = null, int $maxLength = 255): string
+    public static function baseName(?string $distributorName, int $maxLength = 255): string
     {
-        $at = $at ?? now();
-        $datePart = \Carbon\Carbon::parse($dateYmd)->format('Y-m-d');
-        $timePart = $at->format('H-i');
-        $suffix = '-' . $datePart . '-' . $timePart;
-        $maxSlug = max(8, $maxLength - strlen($suffix) - 4);
-        $slug = self::slugifyDistributor($distributorName);
-        if (strlen($slug) > $maxSlug) {
-            $slug = substr($slug, 0, $maxSlug);
-            $slug = rtrim($slug, '-');
-            if ($slug === '') {
-                $slug = 'UNKNOWN';
-            }
+        $suffix = '-' . self::randomSuffix(6);
+        $maxPrefixLen = max(1, $maxLength - strlen($suffix));
+        $prefix = self::vendorPrefix($distributorName);
+        if (strlen($prefix) > $maxPrefixLen) {
+            $prefix = substr($prefix, 0, $maxPrefixLen);
         }
 
-        return $slug . $suffix;
+        return $prefix . $suffix;
     }
 
     /**
-     * Unique invoice name; appends -2, -3, ... if base already exists (stays within DB string length).
+     * Unique invoice name; regenerates random suffix if collision.
      */
-    public static function unique(?string $distributorName, string $dateYmd, ?CarbonInterface $at = null): string
+    public static function unique(?string $distributorName): string
     {
-        $maxLen = 255;
-        $base = self::baseName($distributorName, $dateYmd, $at);
-        if (strlen($base) > $maxLen) {
-            $base = rtrim(substr($base, 0, $maxLen), '-');
+        for ($attempt = 0; $attempt < 50; $attempt++) {
+            $name = self::baseName($distributorName);
+            if (! Purchase::where('name', $name)->exists()) {
+                return $name;
+            }
         }
-        $name = $base;
-        $n = 2;
-        while (Purchase::where('name', $name)->exists()) {
-            $suffix = '-' . $n;
-            $trunc = substr($base, 0, max(1, $maxLen - strlen($suffix)));
-            $name = $trunc . $suffix;
-            $n++;
-        }
+
+        $prefix = self::vendorPrefix($distributorName);
+        do {
+            $name = $prefix . '-' . self::randomSuffix(8);
+        } while (Purchase::where('name', $name)->exists());
 
         return $name;
     }
 
-    public static function dateString(CarbonInterface|string $date): string
+    private static function randomSuffix(int $length): string
     {
-        if ($date instanceof CarbonInterface) {
-            return $date->format('Y-m-d');
+        $chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789&';
+        $max = strlen($chars) - 1;
+        $result = '';
+        for ($i = 0; $i < $length; $i++) {
+            $result .= $chars[random_int(0, $max)];
         }
 
-        return \Carbon\Carbon::parse($date)->format('Y-m-d');
+        return $result;
     }
 }

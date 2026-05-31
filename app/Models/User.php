@@ -136,6 +136,6 @@ class User extends Authenticatable
      */
     public static function customerDirectoryRoleFilters(): array
     {
-        return ['dealer', 'customer', 'agent', 'teamleader', 'regional_manager'];
+        return ['dealer', 'customer', 'agent', 'teamleader', 'regional_manager', 'subadmin'];
     }
 }

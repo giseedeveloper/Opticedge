@@ -4,7 +4,7 @@
     <div class="admin-prod-page admin-prod-page--narrow">
         <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between mb-8">
             <div>
-                <p class="admin-prod-eyebrow">Users & Dealers</p>
+                <p class="admin-prod-eyebrow">Staff</p>
                 <h1 class="admin-prod-title">Add team leader</h1>
                 <p class="admin-prod-subtitle">Create a team leader account tied to a branch and regional manager. They are active immediately and can sign in to the team leader area.</p>
             </div>

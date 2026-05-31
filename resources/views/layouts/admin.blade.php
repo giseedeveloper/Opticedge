@@ -152,7 +152,7 @@
             <a href="{{ route('admin.agents.index') }}"
                 class="px-3 py-1.5 rounded-xl text-slate-600 hover:text-[#232f3e] hover:bg-white/70 transition-all shrink-0">Agents</a>
             <a href="{{ route('admin.tenant.edit') }}"
-                class="px-3 py-1.5 rounded-xl text-slate-600 hover:text-[#232f3e] hover:bg-white/70 transition-all shrink-0 {{ request()->routeIs('admin.tenant.*') ? 'bg-white/80 text-[#232f3e] font-semibold' : '' }}">Vendor profile</a>
+                class="px-3 py-1.5 rounded-xl text-slate-600 hover:text-[#232f3e] hover:bg-white/70 transition-all shrink-0 {{ request()->routeIs('admin.tenant.*') ? 'bg-white/80 text-[#232f3e] font-semibold' : '' }}">Subscription</a>
             <a href="{{ route('admin.settings.index') }}"
                 class="px-3 py-1.5 rounded-xl text-slate-600 hover:text-[#232f3e] hover:bg-white/70 transition-all shrink-0">Settings</a>
         </div>
@@ -327,7 +327,7 @@
                                         <path stroke-linecap="round" stroke-linejoin="round"
                                             d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
                                     </svg>
-                                    <span class="truncate">Users & Dealers</span>
+                                    <span class="truncate">Staff</span>
                                 </div>
                                 <svg class="admin-sidebar-chevron transition-transform" :class="{ 'rotate-180': open }"
                                     fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -339,16 +339,7 @@
                                 class="mt-1.5 ml-3 pl-3 space-y-0.5 border-l border-slate-300/50">
                                 <a href="{{ route('admin.customers.index') }}"
                                     @if (request()->routeIs('admin.customers.index')) aria-current="page" @endif
-                                    class="admin-sidebar-sublink {{ request()->routeIs('admin.customers.index') ? 'admin-sidebar-sublink-active' : '' }}">Customers</a>
-                                <a href="{{ route('admin.customers.regional-managers.index') }}"
-                                    @if (request()->routeIs('admin.customers.regional-managers.*')) aria-current="page" @endif
-                                    class="admin-sidebar-sublink {{ request()->routeIs('admin.customers.regional-managers.*') ? 'admin-sidebar-sublink-active' : '' }}">Regional managers</a>
-                                <a href="{{ route('admin.customers.team-leaders.index') }}"
-                                    @if (request()->routeIs('admin.customers.team-leaders.*')) aria-current="page" @endif
-                                    class="admin-sidebar-sublink {{ request()->routeIs('admin.customers.team-leaders.*') ? 'admin-sidebar-sublink-active' : '' }}">Team leaders</a>
-                                <a href="{{ route('admin.agents.index') }}"
-                                    @if (request()->routeIs('admin.agents.*')) aria-current="page" @endif
-                                    class="admin-sidebar-sublink {{ request()->routeIs('admin.agents.*') ? 'admin-sidebar-sublink-active' : '' }}">Agents</a>
+                                    class="admin-sidebar-sublink {{ request()->routeIs('admin.customers.index') ? 'admin-sidebar-sublink-active' : '' }}">All staff</a>
                                 <a href="{{ route('admin.customers.organization-tree') }}"
                                     @if (request()->routeIs('admin.customers.organization-tree')) aria-current="page" @endif
                                     class="admin-sidebar-sublink {{ request()->routeIs('admin.customers.organization-tree') ? 'admin-sidebar-sublink-active' : '' }}">Organization tree</a>
@@ -409,7 +400,7 @@
                                     class="admin-sidebar-sublink {{ $navStockDistribution ? 'admin-sidebar-sublink-active' : '' }}">Distribution Sales</a>
                                 <a href="{{ route('admin.stock.agent-sales') }}"
                                     @if ($navStockAgentSales) aria-current="page" @endif
-                                    class="admin-sidebar-sublink {{ $navStockAgentSales ? 'admin-sidebar-sublink-active' : '' }}">Cash Agent Sales</a>
+                                    class="admin-sidebar-sublink {{ $navStockAgentSales ? 'admin-sidebar-sublink-active' : '' }}">Agent Cash Sales</a>
                                 <a href="{{ route('admin.stock.agent-credits') }}"
                                     @if ($navStockAgentCredits) aria-current="page" @endif
                                     class="admin-sidebar-sublink {{ $navStockAgentCredits ? 'admin-sidebar-sublink-active' : '' }}">Agent Credit Sales</a>
@@ -483,7 +474,7 @@
                                 <path stroke-linecap="round" stroke-linejoin="round"
                                     d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                             </svg>
-                            Vendor profile
+                            Subscription
                         </a>
                         <a href="{{ route('admin.settings.index') }}"
                             @if (request()->routeIs('admin.settings.*')) aria-current="page" @endif

@@ -2,27 +2,36 @@
     @include('admin.partials.catalog-styles')
 
     <div class="admin-prod-page">
-        <div class="admin-prod-toolbar">
+        <div class="admin-prod-toolbar !mb-0 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div>
-                <p class="admin-prod-eyebrow">Users</p>
-                <h1 class="admin-prod-title">Customers & accounts</h1>
-                <p class="admin-prod-subtitle">Storefront customers, dealers, and other roles in one list.</p>
+                <p class="admin-prod-eyebrow">Staff</p>
+                <h1 class="admin-prod-title">All staff</h1>
             </div>
+            @php
+                $addButton = match(request('role')) {
+                    'agent'            => ['label' => 'Add agent',           'route' => route('admin.agents.create')],
+                    'teamleader'       => ['label' => 'Add team leader',     'route' => route('admin.customers.team-leaders.create')],
+                    'regional_manager' => ['label' => 'Add regional manager','route' => route('admin.customers.regional-managers.create')],
+                    'subadmin'         => ['label' => 'Add leader',          'route' => route('admin.subadmins.create')],
+                    default            => null,
+                };
+            @endphp
+            @if($addButton)
+                <a href="{{ $addButton['route'] }}"
+                   class="rounded-lg bg-slate-800 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 shrink-0">
+                    {{ $addButton['label'] }}
+                </a>
+            @endif
             <div class="admin-prod-filter-row shrink-0" role="tablist" aria-label="Filter by role">
                 <a href="{{ route('admin.customers.index') }}"
                     class="admin-prod-filter-tab {{ !request('role') ? 'admin-prod-filter-tab--active' : '' }}"
                     @if(!request('role')) aria-current="page" @endif>
                     All
                 </a>
-                <a href="{{ route('admin.customers.index', ['role' => 'dealer']) }}"
-                    class="admin-prod-filter-tab {{ request('role') == 'dealer' ? 'admin-prod-filter-tab--active' : '' }}"
-                    @if(request('role') == 'dealer') aria-current="page" @endif>
-                    Dealers
-                </a>
-                <a href="{{ route('admin.customers.index', ['role' => 'customer']) }}"
-                    class="admin-prod-filter-tab {{ request('role') == 'customer' ? 'admin-prod-filter-tab--active' : '' }}"
-                    @if(request('role') == 'customer') aria-current="page" @endif>
-                    Customers
+                <a href="{{ route('admin.customers.index', ['role' => 'agent']) }}"
+                    class="admin-prod-filter-tab {{ request('role') == 'agent' ? 'admin-prod-filter-tab--active' : '' }}"
+                    @if(request('role') == 'agent') aria-current="page" @endif>
+                    Agents
                 </a>
                 <a href="{{ route('admin.customers.index', ['role' => 'teamleader']) }}"
                     class="admin-prod-filter-tab {{ request('role') == 'teamleader' ? 'admin-prod-filter-tab--active' : '' }}"
@@ -33,6 +42,11 @@
                     class="admin-prod-filter-tab {{ request('role') == 'regional_manager' ? 'admin-prod-filter-tab--active' : '' }}"
                     @if(request('role') == 'regional_manager') aria-current="page" @endif>
                     Regional managers
+                </a>
+                <a href="{{ route('admin.customers.index', ['role' => 'subadmin']) }}"
+                    class="admin-prod-filter-tab {{ request('role') == 'subadmin' ? 'admin-prod-filter-tab--active' : '' }}"
+                    @if(request('role') == 'subadmin') aria-current="page" @endif>
+                    Leaders
                 </a>
             </div>
         </div>

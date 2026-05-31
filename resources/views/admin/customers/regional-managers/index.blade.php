@@ -4,7 +4,7 @@
     <div class="admin-prod-page">
         <div class="admin-prod-toolbar !mb-0 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div>
-                <p class="admin-prod-eyebrow">Users & Dealers</p>
+                <p class="admin-prod-eyebrow">Staff</p>
                 <h1 class="admin-prod-title">Regional managers</h1>
                 <p class="admin-prod-subtitle">People who oversee a region. They distribute devices to team leaders and agents.</p>
             </div>

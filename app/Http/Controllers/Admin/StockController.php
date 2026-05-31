@@ -24,6 +24,7 @@ use App\Support\PdfDownload;
 use App\Support\PurchaseInvoiceNumber;
 use App\Services\AgentCommissionExpenseService;
 use App\Services\AgentSaleCreditMigrationService;
+use App\Services\DistributionSaleService;
 use App\Services\PurchaseImeiRegistrationService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -1125,8 +1126,7 @@ class StockController extends Controller
 
             $nameInput = trim((string) ($validated['name'] ?? ''));
             if ($nameInput === '') {
-                $dateStr = PurchaseInvoiceNumber::dateString($validated['date']);
-                $validated['name'] = PurchaseInvoiceNumber::unique($validated['distributor_name'] ?? null, $dateStr);
+                $validated['name'] = PurchaseInvoiceNumber::unique($validated['distributor_name'] ?? null);
             } else {
                 $validated['name'] = $nameInput;
             }
@@ -1288,8 +1288,7 @@ class StockController extends Controller
 
         $nameInput = trim((string) ($validated['name'] ?? ''));
         if ($nameInput === '') {
-            $dateStr = PurchaseInvoiceNumber::dateString($validated['date']);
-            $purchaseName = PurchaseInvoiceNumber::unique($validated['distributor_name'] ?? null, $dateStr);
+            $purchaseName = PurchaseInvoiceNumber::unique($validated['distributor_name'] ?? null);
         } else {
             $purchaseName = $nameInput;
         }
@@ -1967,21 +1966,25 @@ class StockController extends Controller
             ->orderBy('name')
             ->get();
 
-        $purchaseId = (int) $purchase->id;
+        $pricingService = app(DistributionSaleService::class);
 
-        $data = $products->map(function (Product $product) use ($purchaseId) {
+        $data = $products->map(function (Product $product) use ($purchase, $pricingService) {
             $pid = (int) $product->id;
+            $purchaseId = (int) $purchase->id;
             $available = ProductListItem::availableForDistribution($pid)
                 ->fromPurchase($purchaseId)
                 ->count();
             $categoryName = $product->category?->name ?? '—';
             $label = $categoryName.' — '.$product->name;
+            $prices = $pricingService->getPricesForProductOnPurchase($pid, $purchase);
 
             return [
                 'product_id' => $pid,
                 'label' => $label,
                 'available_imeis' => $available,
-                'suggest' => (float) ($product->price ?? 0),
+                'unit_price' => $prices['buy'],
+                'sell_price' => $prices['sell'],
+                'suggest' => $prices['sell'],
                 'picker_label' => $label.' ('.$available.' IMEI'.($available === 1 ? '' : 's').' on this purchase)',
             ];
         })->values()->all();
@@ -2143,14 +2146,14 @@ class StockController extends Controller
             'lines.*.product_id' => 'required|integer|exists:models,id',
             'lines.*.product_list_ids' => 'required|array|min:1',
             'lines.*.product_list_ids.*' => 'integer|distinct|exists:product_list,id',
-            'lines.*.selling_price' => 'required|numeric|min:0.01',
             'paid_amount' => 'nullable|numeric|min:0',
         ]);
 
-        $service = app(\App\Services\DistributionSaleService::class);
+        $service = app(DistributionSaleService::class);
+        $purchaseId = (int) $validated['purchase_id'];
+        $purchase = Purchase::stockPurchases()->with('lines')->findOrFail($purchaseId);
         $dealer = User::findOrFail((int) $validated['dealer_id']);
         $dealerName = $dealer->business_name ?? $dealer->name;
-        $purchaseId = (int) $validated['purchase_id'];
 
         $linePayloads = [];
         $grandSellingTotal = 0.0;
@@ -2158,8 +2161,19 @@ class StockController extends Controller
 
         foreach ($validated['lines'] as $lineIndex => $line) {
             $pid = (int) $line['product_id'];
-            $sellUnit = (float) $line['selling_price'];
             $imeiIds = array_values(array_unique(array_map('intval', $line['product_list_ids'] ?? [])));
+            $product = Product::findOrFail($pid);
+            $prices = $service->getPricesForProductOnPurchase($pid, $purchase);
+            $buyPrice = $prices['buy'];
+            $sellUnit = $prices['sell'];
+
+            if ($sellUnit <= 0) {
+                return redirect()->back()
+                    ->withInput()
+                    ->withErrors([
+                        'lines' => 'No sell price on the selected purchase for '.$product->name.'. Update the purchase first.',
+                    ]);
+            }
 
             foreach ($imeiIds as $imeiId) {
                 if (isset($usedImeiIds[$imeiId])) {
@@ -2172,7 +2186,6 @@ class StockController extends Controller
                 $usedImeiIds[$imeiId] = true;
             }
 
-            $product = Product::findOrFail($pid);
             $items = ProductListItem::availableForDistribution($pid)
                 ->fromPurchase($purchaseId)
                 ->whereIn('id', $imeiIds)
@@ -2206,7 +2219,6 @@ class StockController extends Controller
                     ]);
             }
 
-            $buyPrice = $service->getBuyPriceForProduct($pid);
             $totalSell = $qty * $sellUnit;
             $totalBuy = $qty * $buyPrice;
             $grandSellingTotal += $totalSell;

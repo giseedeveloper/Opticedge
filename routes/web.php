@@ -258,9 +258,8 @@ Route::middleware(['auth', 'redirect.superadmin.from.admin', 'admin', 'subadmin.
         Route::post('users/{user}/reset-password', [App\Http\Controllers\Admin\UserPasswordController::class, 'reset'])
             ->name('users.reset-password');
 
-        // Vendor profile (current tenant)
+        // Subscription (current tenant)
         Route::get('tenant/profile', [App\Http\Controllers\Admin\TenantController::class, 'edit'])->name('tenant.edit');
-        Route::put('tenant/profile', [App\Http\Controllers\Admin\TenantController::class, 'update'])->name('tenant.update');
 
         // Settings
         Route::get('settings', [App\Http\Controllers\Admin\SettingController::class , 'index'])->name('settings.index');

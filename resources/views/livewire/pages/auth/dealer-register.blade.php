@@ -22,15 +22,13 @@ new #[Layout('layouts.guest')] class extends Component {
     public string $business_name = '';
     public string $phone = '';
 
-    // Step 3: Location & Extras
+    // Step 3: Location
     public string $address = '';
     public string $city = '';
     public string $state = '';
     public string $zip = '';
     public $latitude;
     public $longitude;
-    public string $how_did_you_hear = '';
-    public $referred_by = null; // User ID of friend who made them join (for 500k commission on first purchase)
 
     public function nextStep()
     {
@@ -70,8 +68,6 @@ new #[Layout('layouts.guest')] class extends Component {
             'city' => ['required', 'string', 'max:255'],
             'state' => ['required', 'string', 'max:255'],
             'zip' => ['nullable', 'string', 'max:20'],
-            'how_did_you_hear' => ['nullable', 'string', 'max:255'],
-            'referred_by' => ['nullable', 'exists:users,id'],
         ]);
 
         $user = User::create([
@@ -82,8 +78,6 @@ new #[Layout('layouts.guest')] class extends Component {
             'phone' => $this->phone,
             'role' => 'dealer',
             'status' => 'pending',
-            'how_did_you_hear' => $this->how_did_you_hear,
-            'referred_by' => $this->referred_by ?: null,
         ]);
 
         $user->addresses()->create([
@@ -101,12 +95,6 @@ new #[Layout('layouts.guest')] class extends Component {
         event(new Registered($user));
 
         $this->redirect(route('dealer.pending'), navigate: true);
-    }
-
-    public function with()
-    {
-        $referrers = User::where('role', 'dealer')->where('status', 'active')->orderBy('name')->get(['id', 'name']);
-        return ['referrers' => $referrers];
     }
 }; ?>
 
@@ -290,24 +278,6 @@ new #[Layout('layouts.guest')] class extends Component {
                 <div class="hidden">
                     <input type="hidden" wire:model="latitude">
                     <input type="hidden" wire:model="longitude">
-                </div>
-
-                <div class="mt-6 border-t border-slate-200 pt-6">
-                    <label class="block text-sm font-bold text-slate-900 mb-1">Referred by (friend who invited you – they get commission on your first purchase)</label>
-                    <select wire:model="referred_by" class="w-full rounded-md border-slate-300 shadow-sm focus:border-[#fa8900] focus:ring focus:ring-[#fa8900] focus:ring-opacity-50 text-sm py-2">
-                        <option value="">None / I was not referred</option>
-                        @foreach($referrers as $ref)
-                            <option value="{{ $ref->id }}">{{ $ref->name }}</option>
-                        @endforeach
-                    </select>
-                    <x-input-error :messages="$errors->get('referred_by')" class="mt-1" />
-                </div>
-                <div class="mt-4">
-                    <label class="block text-sm font-bold text-slate-900 mb-1">How did you hear about us?</label>
-                    <input wire:model="how_did_you_hear" type="text"
-                        class="w-full rounded-md border-slate-300 shadow-sm focus:border-[#fa8900] focus:ring focus:ring-[#fa8900] focus:ring-opacity-50 text-sm py-2"
-                        placeholder="e.g. Social Media, Advertisement...">
-                    <x-input-error :messages="$errors->get('how_did_you_hear')" class="mt-1" />
                 </div>
             </div>
         @endif

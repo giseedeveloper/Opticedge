@@ -4,18 +4,11 @@
     <div class="admin-prod-page admin-prod-page--narrow">
         <div class="admin-prod-toolbar !mb-6">
             <div>
-                <p class="admin-prod-eyebrow">Vendor</p>
-                <h1 class="admin-prod-title">Vendor profile</h1>
-                <p class="admin-prod-subtitle">Update your store name and branding. Package and subscription are managed by the platform.</p>
+                <p class="admin-prod-eyebrow">Account</p>
+                <h1 class="admin-prod-title">Subscription</h1>
+                <p class="admin-prod-subtitle">View your package and billing status. Contact platform support to change package or status.</p>
             </div>
         </div>
-
-        @if (session('success'))
-            <div class="admin-prod-alert admin-prod-alert--success mb-4" role="status">{{ session('success') }}</div>
-        @endif
-        @if ($errors->any())
-            <div class="admin-prod-alert admin-prod-alert--error mb-4" role="alert">{{ $errors->first() }}</div>
-        @endif
 
         <div class="admin-clay-panel admin-prod-form-shell overflow-hidden mb-6">
             <div class="admin-prod-form-head">
@@ -53,32 +46,5 @@
                 </div>
             </dl>
         </div>
-
-        <form action="{{ route('admin.tenant.update') }}" method="POST" class="admin-clay-panel admin-prod-form-shell overflow-hidden">
-            @csrf
-            @method('PUT')
-            <div class="admin-prod-form-head">
-                <h2 class="admin-prod-form-title">Store details</h2>
-            </div>
-            <div class="admin-prod-form-body space-y-4">
-                <div>
-                    <label for="name" class="admin-prod-label">Vendor name</label>
-                    <input id="name" name="name" required class="admin-prod-input w-full"
-                        value="{{ old('name', $tenant->name) }}">
-                </div>
-                <div>
-                    <label for="brand_name" class="admin-prod-label">Brand name</label>
-                    <input id="brand_name" name="brand_name" class="admin-prod-input w-full"
-                        value="{{ old('brand_name', $tenant->brand_name) }}">
-                </div>
-                <div>
-                    <label for="slug" class="admin-prod-label">Slug</label>
-                    <input id="slug" name="slug" required class="admin-prod-input w-full"
-                        value="{{ old('slug', $tenant->slug) }}">
-                    <p class="mt-1 text-xs text-slate-500">Used in URLs and internal references. Must be unique.</p>
-                </div>
-                <button type="submit" class="admin-prod-btn-primary">Save changes</button>
-            </div>
-        </form>
     </div>
 </x-admin-layout>

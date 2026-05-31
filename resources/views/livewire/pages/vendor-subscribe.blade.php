@@ -150,6 +150,7 @@ new #[Layout('layouts.marketing')] class extends Component {
             </div>
         </div>
 
+        <form wire:submit="{{ $step < 3 ? 'nextStep' : 'startPayment' }}">
         @if ($step === 1)
             <div class="space-y-4">
                 <div>
@@ -221,17 +222,18 @@ new #[Layout('layouts.marketing')] class extends Component {
             @endif
 
             @if ($step < 3)
-                <button type="button" wire:click="nextStep"
+                <button type="submit"
                     class="cursor-pointer ml-auto px-6 py-2.5 rounded-xl bg-[#fa8900] hover:bg-[#e07800] text-white text-sm font-bold transition-colors duration-200">
                     Continue
                 </button>
             @else
-                <button type="button" wire:click="startPayment" wire:loading.attr="disabled"
+                <button type="submit" wire:loading.attr="disabled"
                     class="cursor-pointer ml-auto px-6 py-2.5 rounded-xl bg-[#232f3e] hover:bg-[#1a2430] text-white text-sm font-bold transition-colors duration-200 disabled:opacity-60">
                     <span wire:loading.remove wire:target="startPayment">Pay with Selcom</span>
                     <span wire:loading wire:target="startPayment">Starting payment…</span>
                 </button>
             @endif
         </div>
+        </form>
     </div>
 </div>

@@ -215,6 +215,7 @@
                                 <thead class="bg-slate-50/90">
                                     <tr>
                                         <th scope="col" class="text-left px-4 py-3 font-semibold">Model / IMEIs</th>
+                                        <th scope="col" class="text-right px-3 py-3 font-semibold w-[9rem]">Unit buy (TZS)</th>
                                         <th scope="col" class="text-right px-3 py-3 font-semibold w-[9rem]">Unit sell (TZS)</th>
                                         <th scope="col" class="text-right px-3 py-3 font-semibold w-[10rem]">Line total</th>
                                         <th scope="col" class="w-12 px-2 py-3"></th>
@@ -263,7 +264,7 @@
                         <span id="dist-total-display" class="text-2xl font-bold text-slate-900">0.00 TZS</span>
                     </div>
                     <input type="hidden" id="total-amount" name="total_amount_meta" value="0">
-                    <p class="text-xs text-slate-600 mt-2">Sum of each line: selected IMEIs × unit selling price.</p>
+                    <p class="text-xs text-slate-600 mt-2">Sum of each line: selected IMEIs × unit sell price from the selected purchase.</p>
                 </div>
 
                 <div>
@@ -361,7 +362,8 @@
             }
 
             function lineTotalRow(tr) {
-                return lineQty(tr) * parseMoney(tr.querySelector('.line-price'));
+                const sell = parseFloat(tr.getAttribute('data-sell-price') || '0') || 0;
+                return lineQty(tr) * sell;
             }
 
             function selectedProductIds(excludeRow) {
@@ -383,7 +385,6 @@
                 const rows = tbody.querySelectorAll('tr[data-line-row]');
                 rows.forEach((tr, idx) => {
                     tr.querySelector('.line-product-id').name = 'lines[' + idx + '][product_id]';
-                    tr.querySelector('.line-price').name = 'lines[' + idx + '][selling_price]';
                     tr.querySelectorAll('.line-imei-id').forEach(inp => {
                         inp.name = 'lines[' + idx + '][product_list_ids][]';
                     });
@@ -457,7 +458,8 @@
                     return;
                 }
 
-                const suggest = meta.suggest > 0 ? meta.suggest : '';
+                const sellPrice = meta.sell_price || meta.suggest || 0;
+                const buyPrice = meta.unit_price || meta.buy_price || 0;
                 let tr = existingRow;
 
                 if (!tr) {
@@ -466,6 +468,8 @@
                     tr.className = 'border-b border-slate-100 hover:bg-slate-50/50';
                     tr.setAttribute('data-line-row', '1');
                     tr.setAttribute('data-product-id', idStr);
+                    tr.setAttribute('data-sell-price', String(sellPrice));
+                    tr.setAttribute('data-buy-price', String(buyPrice));
 
                     tr.innerHTML =
                         '<td class="px-4 py-3 align-top">' +
@@ -474,9 +478,8 @@
                             '<button type="button" class="text-[#fa8900] font-semibold hover:underline change-imeis">Change IMEIs</button></div>' +
                             '<input type="hidden" class="line-product-id" name="lines[' + idx + '][product_id]" value="' + idStr + '">' +
                         '</td>' +
-                        '<td class="px-3 py-3 align-top text-right">' +
-                            '<input type="text" required inputmode="decimal" placeholder="0" class="admin-prod-input text-right w-full max-w-[8rem] ml-auto line-price" name="lines[' + idx + '][selling_price]" value="' + (suggest !== '' ? suggest : '') + '">' +
-                        '</td>' +
+                        '<td class="px-3 py-3 align-top text-right font-variant-numeric text-slate-700 line-buy-cell">' + formatCurrency(buyPrice) + '</td>' +
+                        '<td class="px-3 py-3 align-top text-right font-variant-numeric text-slate-700 line-sell-cell">' + formatCurrency(sellPrice) + '</td>' +
                         '<td class="px-3 py-3 align-top text-right font-variant-numeric font-semibold text-[#232f3e] line-line-total">0.00 TZS</td>' +
                         '<td class="px-2 py-3 align-top">' +
                             '<button type="button" class="text-red-600 hover:text-red-800 text-sm font-semibold remove-line">Remove</button>' +
@@ -487,7 +490,6 @@
 
                     tbody.appendChild(tr);
 
-                    tr.querySelector('.line-price').addEventListener('input', recalcGrandTotal);
                     tr.querySelector('.remove-line').addEventListener('click', function () {
                         tr.remove();
                         renumberLines();
@@ -592,7 +594,9 @@
                             PRODUCT_META[id] = {
                                 id: row.product_id,
                                 label: row.label,
-                                suggest: row.suggest || 0,
+                                unit_price: row.unit_price || 0,
+                                sell_price: row.sell_price || row.suggest || 0,
+                                suggest: row.sell_price || row.suggest || 0,
                                 available_imeis: row.available_imeis || 0,
                             };
                             const opt = new Option(row.picker_label || row.label, id, false, false);
