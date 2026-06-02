@@ -16,9 +16,9 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
     <script src="https://unpkg.com/@tailwindcss/browser@4"></script>
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/cdn.min.js"></script>
 
     @include('layouts.partials.admin-surface-styles')
+    @livewireStyles
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     @stack('styles')
 </head>
@@ -28,9 +28,9 @@
     x-data="{ sidebarOpen: false }">
 
     <!-- Header (clay slab) -->
-    <header class="sticky top-0 z-50 px-3 pt-3 sm:px-4 sm:pt-4">
+    <header class="sticky top-0 z-[100] px-3 pt-3 sm:px-4 sm:pt-4">
         <div
-            class="max-w-[1600px] mx-auto rounded-[1.75rem] border border-white/80 bg-gradient-to-br from-white/95 via-slate-50/90 to-slate-100/85 text-slate-700 shadow-[10px_14px_28px_rgba(163,177,198,0.28),-6px_-8px_20px_rgba(255,255,255,0.95),inset_2px_2px_4px_rgba(255,255,255,0.9),inset_-1px_-2px_6px_rgba(148,163,184,0.06)] overflow-hidden">
+            class="max-w-[1600px] mx-auto rounded-[1.75rem] border border-white/80 bg-gradient-to-br from-white/95 via-slate-50/90 to-slate-100/85 text-slate-700 shadow-[10px_14px_28px_rgba(163,177,198,0.28),-6px_-8px_20px_rgba(255,255,255,0.95),inset_2px_2px_4px_rgba(255,255,255,0.9),inset_-1px_-2px_6px_rgba(148,163,184,0.06)] overflow-visible">
             <div class="flex items-center gap-2 lg:gap-4 px-3 py-2.5 sm:px-4 sm:py-3">
                 <button @click="sidebarOpen = !sidebarOpen"
                     class="flex items-center gap-1 p-2 rounded-xl admin-clay-inset text-slate-600 hover:text-[#232f3e] transition-all duration-200"
@@ -64,8 +64,12 @@
                     </a>
                 </div>
 
-                <div class="relative" x-data="{ userMenuOpen: false }">
-                    <button @click="userMenuOpen = !userMenuOpen"
+                <div class="relative z-[110]" x-data="{ userMenuOpen: false, displayName: @js(Auth::user()->name) }"
+                    @keydown.escape.window="userMenuOpen = false"
+                    @profile-updated.window="displayName = $event.detail.name">
+                    <button type="button" @click.stop="userMenuOpen = !userMenuOpen"
+                        :aria-expanded="userMenuOpen"
+                        aria-haspopup="menu"
                         class="flex items-center gap-2 p-1.5 pr-2 rounded-2xl admin-clay-inset text-slate-700 hover:text-[#232f3e] transition-all duration-200">
                         <div
                             class="w-9 h-9 rounded-full bg-gradient-to-br from-slate-700 to-slate-900 flex items-center justify-center text-sm font-bold text-white shadow-[inset_1px_2px_4px_rgba(255,255,255,0.2),2px_3px_8px_rgba(30,41,59,0.3)]">
@@ -73,7 +77,7 @@
                         </div>
                         <div class="hidden md:flex flex-col items-start">
                             <span class="text-xs text-slate-500">Platform</span>
-                            <span class="text-sm font-medium text-slate-800">{{ Auth::user()->name }}</span>
+                            <span class="text-sm font-medium text-slate-800" x-text="displayName">{{ Auth::user()->name }}</span>
                         </div>
                         <svg class="w-4 h-4 text-slate-400 transition-transform" :class="{ 'rotate-180': userMenuOpen }"
                             fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -81,14 +85,27 @@
                         </svg>
                     </button>
 
-                    <div x-show="userMenuOpen" @click.away="userMenuOpen = false" x-cloak
+                    <div x-show="userMenuOpen" x-cloak @click.outside="userMenuOpen = false" @click.stop
                         x-transition:enter="transition ease-out duration-100"
                         x-transition:enter-start="transform opacity-0 scale-95"
                         x-transition:enter-end="transform opacity-100 scale-100"
                         x-transition:leave="transition ease-in duration-75"
                         x-transition:leave-start="transform opacity-100 scale-100"
                         x-transition:leave-end="transform opacity-0 scale-95"
-                        class="absolute right-0 mt-2 w-52 rounded-2xl border border-white/90 bg-gradient-to-br from-white/98 to-slate-50/95 py-1 z-50 shadow-[12px_16px_32px_rgba(163,177,198,0.35),-4px_-4px_12px_rgba(255,255,255,0.9),inset_1px_1px_2px_rgba(255,255,255,0.8)]">
+                        class="absolute right-0 top-full mt-2 w-52 rounded-2xl border border-white/90 bg-gradient-to-br from-white/98 to-slate-50/95 py-1 z-[120] shadow-[12px_16px_32px_rgba(163,177,198,0.35),-4px_-4px_12px_rgba(255,255,255,0.9),inset_1px_1px_2px_rgba(255,255,255,0.8)]"
+                        role="menu">
+                        <a href="{{ route('superadmin.profile') }}"
+                            class="block px-4 py-2.5 text-sm text-slate-700 hover:bg-white/80 rounded-xl mx-1"
+                            role="menuitem">
+                            <div class="flex items-center gap-2">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24"
+                                    stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                </svg>
+                                Profile
+                            </div>
+                        </a>
                         <form method="POST" action="{{ route('logout') }}">
                             @csrf
                             <button type="submit"
@@ -117,7 +134,7 @@
                 <a href="{{ route('superadmin.packages.index') }}"
                     class="px-3 py-1.5 rounded-xl text-slate-600 hover:text-[#232f3e] hover:bg-white/70 transition-all shrink-0 {{ request()->routeIs('superadmin.packages.*') ? 'bg-white/80 text-[#232f3e] font-semibold' : '' }}">Packages</a>
                 <a href="{{ route('superadmin.subscription-profits.index') }}"
-                    class="px-3 py-1.5 rounded-xl text-slate-600 hover:text-[#232f3e] hover:bg-white/70 transition-all shrink-0 {{ request()->routeIs('superadmin.subscription-profits.*') ? 'bg-white/80 text-[#232f3e] font-semibold' : '' }}">Subscription profit</a>
+                    class="px-3 py-1.5 rounded-xl text-slate-600 hover:text-[#232f3e] hover:bg-white/70 transition-all shrink-0 {{ request()->routeIs('superadmin.subscription-profits.*') ? 'bg-white/80 text-[#232f3e] font-semibold' : '' }}">Subscription</a>
                 <a href="{{ route('superadmin.settings.index') }}"
                     class="px-3 py-1.5 rounded-xl text-slate-600 hover:text-[#232f3e] hover:bg-white/70 transition-all shrink-0 {{ request()->routeIs('superadmin.settings.*') ? 'bg-white/80 text-[#232f3e] font-semibold' : '' }}">Settings</a>
                 <a href="{{ route('superadmin.command.center') }}"
@@ -198,7 +215,7 @@
                                 <path stroke-linecap="round" stroke-linejoin="round"
                                     d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                             </svg>
-                            Subscription profit
+                            Subscription
                         </a>
                         <a href="{{ route('superadmin.settings.index') }}"
                             @if (request()->routeIs('superadmin.settings.*')) aria-current="page" @endif
@@ -280,8 +297,21 @@
                         </svg>
                     </button>
 
-                    <div x-show="open" @click.away="open = false" x-cloak
-                        class="absolute bottom-full left-0 w-full mb-2 rounded-2xl border border-white/90 bg-gradient-to-br from-white/98 to-slate-50/95 py-1 z-50 shadow-[12px_16px_32px_rgba(163,177,198,0.35),-4px_-4px_12px_rgba(255,255,255,0.9),inset_1px_1px_2px_rgba(255,255,255,0.8)]">
+                    <div x-show="open" @click.outside="open = false" x-cloak
+                        class="absolute bottom-full left-0 w-full mb-2 rounded-2xl border border-white/90 bg-gradient-to-br from-white/98 to-slate-50/95 py-1 z-50 shadow-[12px_16px_32px_rgba(163,177,198,0.35),-4px_-4px_12px_rgba(255,255,255,0.9),inset_1px_1px_2px_rgba(255,255,255,0.8)]"
+                        role="menu">
+                        <a href="{{ route('superadmin.profile') }}"
+                            class="block px-4 py-2.5 text-sm text-slate-700 hover:bg-white/80 rounded-xl mx-1"
+                            role="menuitem">
+                            <div class="flex items-center gap-2">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24"
+                                    stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                </svg>
+                                Profile
+                            </div>
+                        </a>
                         <form method="POST" action="{{ route('logout') }}">
                             @csrf
                             <button type="submit"
@@ -307,6 +337,7 @@
         </div>
     </div>
 
+    @livewireScripts
     @stack('scripts')
 </body>
 

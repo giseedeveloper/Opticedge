@@ -5,7 +5,7 @@
         <div class="admin-prod-toolbar">
             <div>
                 <p class="admin-prod-eyebrow">Platform</p>
-                <h1 class="admin-prod-title">Subscription profit</h1>
+                <h1 class="admin-prod-title">Subscription</h1>
                 <p class="admin-prod-subtitle">View platform revenue and profit from active vendor subscriptions. To change profit amounts, edit the package under Packages.</p>
             </div>
             <a href="{{ route('superadmin.packages.index') }}" class="admin-prod-btn-primary shrink-0">Manage packages</a>

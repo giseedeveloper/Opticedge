@@ -55,7 +55,7 @@
                     @else
                         <a href="{{ route('login') }}"
                             class="cursor-pointer px-4 py-2 rounded-xl text-sm font-semibold text-slate-200 hover:text-white transition-colors duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#fa8900]">Sign in</a>
-                        <a href="{{ route('dealer.register') }}"
+                        <a href="{{ route('welcome') }}#packages"
                             class="cursor-pointer px-4 py-2 rounded-xl text-sm font-semibold bg-[#fa8900] hover:bg-[#e07800] text-white transition-colors duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white">Get started</a>
                     @endauth
                 </div>
@@ -92,7 +92,7 @@
                     @else
                         <a href="{{ route('login') }}"
                             class="cursor-pointer text-center px-4 py-2.5 rounded-xl font-semibold text-slate-200 hover:bg-white/10 transition-colors duration-200">Sign in</a>
-                        <a href="{{ route('dealer.register') }}"
+                        <a href="{{ route('welcome') }}#packages" @click="mobileNavOpen = false"
                             class="cursor-pointer text-center px-4 py-2.5 rounded-xl font-semibold bg-[#fa8900] hover:bg-[#e07800] text-white transition-colors duration-200">Get started</a>
                     @endauth
                 </div>

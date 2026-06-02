@@ -84,11 +84,26 @@ Route::get('profile', function () {
     if (auth()->user()?->role === 'regional_manager') {
         return redirect()->route('regional-manager.profile');
     }
+    if (in_array(auth()->user()?->role, ['admin', 'subadmin'], true)) {
+        return redirect()->route('admin.profile');
+    }
+    if (auth()->user()?->isSuperadmin() || auth()->user()?->role === 'superadmin') {
+        return redirect()->route('superadmin.profile');
+    }
 
     return view('profile');
 })->middleware(['auth'])->name('profile');
 
+Route::middleware(['auth', 'redirect.superadmin.from.admin', 'admin'])
+    ->prefix('admin')
+    ->name('admin.')
+    ->group(function () {
+        Route::view('profile', 'admin.profile.index')->name('profile');
+    });
+
 Route::middleware(['auth', 'superadmin'])->prefix('superadmin')->name('superadmin.')->group(function () {
+    Route::view('profile', 'superadmin.profile.index')->name('profile');
+
     Route::get('dashboard', App\Http\Controllers\Superadmin\DashboardController::class)->name('dashboard');
 
     Route::resource('tenants', App\Http\Controllers\Superadmin\TenantController::class)->except(['show', 'destroy']);
@@ -116,6 +131,7 @@ Route::middleware(['auth', 'superadmin'])->prefix('superadmin')->name('superadmi
 
     Route::get('settings', [App\Http\Controllers\Superadmin\PlatformSettingController::class, 'index'])->name('settings.index');
     Route::post('settings', [App\Http\Controllers\Superadmin\PlatformSettingController::class, 'update'])->name('settings.update');
+    Route::post('settings/test-selcom', [App\Http\Controllers\Superadmin\PlatformSettingController::class, 'testSelcom'])->name('settings.test-selcom');
 });
 
 Route::middleware(['auth', 'redirect.superadmin.from.admin', 'admin', 'subadmin.ability'])->prefix('admin')->name('admin.')->group(function () {
