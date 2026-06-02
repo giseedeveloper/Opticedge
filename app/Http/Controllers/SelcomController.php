@@ -44,17 +44,15 @@ class SelcomController extends Controller
             return redirect()->route('checkout.create')->with('error', 'Payment phone number is missing. Please provide a valid phone number.');
         }
 
-        $cleanPhone = preg_replace('/[^0-9]/', '', $paymentPhone);
-        if (!preg_match('/^(255)?[67]\d{8}$/', $cleanPhone)) {
+        try {
+            $cleanPhone = \App\Support\TanzaniaMobileNumber::normalize($paymentPhone);
+        } catch (\InvalidArgumentException $e) {
             Log::warning('Invalid phone number format for Selcom payment', [
                 'order_id' => $order->id,
                 'phone' => $paymentPhone,
             ]);
-            return redirect()->route('checkout.create')->with('error', 'Invalid phone number format. Please use format: 7XXXXXXXX');
-        }
 
-        if (strlen($cleanPhone) === 9) {
-            $cleanPhone = '255' . $cleanPhone;
+            return redirect()->route('checkout.create')->with('error', $e->getMessage());
         }
 
         try {

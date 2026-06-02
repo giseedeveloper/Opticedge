@@ -280,17 +280,10 @@ class SelcomAgentCommissionCheckoutService
 
     protected function normalizeMsisdn(string $raw): ?string
     {
-        $clean = preg_replace('/[^0-9]/', '', $raw);
-        if (! is_string($clean) || $clean === '') {
+        try {
+            return \App\Support\TanzaniaMobileNumber::normalize($raw);
+        } catch (\InvalidArgumentException) {
             return null;
         }
-        if (! preg_match('/^(255)?[67]\d{8}$/', $clean)) {
-            return null;
-        }
-        if (strlen($clean) === 9) {
-            $clean = '255' . $clean;
-        }
-
-        return $clean;
     }
 }

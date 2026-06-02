@@ -43,7 +43,7 @@
         document.addEventListener('alpine:init', () => {
             Alpine.data('vendorPaymentPoller', () => ({
                 status: 'pending',
-                message: 'Waiting for Selcom confirmation…',
+                message: 'Waiting for payment confirmation…',
                 pollCount: 0,
                 maxPolls: 120,
                 statusUrl: @json($statusUrl),

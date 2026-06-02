@@ -4,50 +4,96 @@
     <div class="admin-prod-page">
         <div class="admin-prod-toolbar !mb-0 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div>
-                <p class="admin-prod-eyebrow">Staff</p>
-                <h1 class="admin-prod-title">All staff</h1>
+                <p class="admin-prod-eyebrow">Users</p>
+                <h1 class="admin-prod-title">All users</h1>
             </div>
             @php
-                $addButton = match(request('role')) {
-                    'agent'            => ['label' => 'Add agent',           'route' => route('admin.agents.create')],
-                    'teamleader'       => ['label' => 'Add team leader',     'route' => route('admin.customers.team-leaders.create')],
-                    'regional_manager' => ['label' => 'Add regional manager','route' => route('admin.customers.regional-managers.create')],
-                    'subadmin'         => ['label' => 'Add leader',          'route' => route('admin.subadmins.create')],
-                    default            => null,
-                };
+                $roleFilters = [
+                    [
+                        'role' => null,
+                        'label' => 'All',
+                        'href' => route('admin.customers.index'),
+                        'add' => null,
+                    ],
+                    [
+                        'role' => 'subadmin',
+                        'label' => 'Admins',
+                        'href' => route('admin.customers.index', ['role' => 'subadmin']),
+                        'add' => ['label' => 'Add admin', 'route' => route('admin.subadmins.create')],
+                    ],
+                    [
+                        'role' => 'agent',
+                        'label' => 'Agents',
+                        'href' => route('admin.customers.index', ['role' => 'agent']),
+                        'add' => ['label' => 'Add agent', 'route' => route('admin.agents.create')],
+                    ],
+                    [
+                        'role' => 'teamleader',
+                        'label' => 'Team leaders',
+                        'href' => route('admin.customers.index', ['role' => 'teamleader']),
+                        'add' => ['label' => 'Add team leader', 'route' => route('admin.customers.team-leaders.create')],
+                    ],
+                    [
+                        'role' => 'regional_manager',
+                        'label' => 'Regional managers',
+                        'href' => route('admin.customers.index', ['role' => 'regional_manager']),
+                        'add' => ['label' => 'Add regional manager', 'route' => route('admin.customers.regional-managers.create')],
+                    ],
+                ];
             @endphp
-            @if($addButton)
-                <a href="{{ $addButton['route'] }}"
-                   class="rounded-lg bg-slate-800 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 shrink-0">
-                    {{ $addButton['label'] }}
-                </a>
-            @endif
             <div class="admin-prod-filter-row shrink-0" role="tablist" aria-label="Filter by role">
-                <a href="{{ route('admin.customers.index') }}"
-                    class="admin-prod-filter-tab {{ !request('role') ? 'admin-prod-filter-tab--active' : '' }}"
-                    @if(!request('role')) aria-current="page" @endif>
-                    All
-                </a>
-                <a href="{{ route('admin.customers.index', ['role' => 'agent']) }}"
-                    class="admin-prod-filter-tab {{ request('role') == 'agent' ? 'admin-prod-filter-tab--active' : '' }}"
-                    @if(request('role') == 'agent') aria-current="page" @endif>
-                    Agents
-                </a>
-                <a href="{{ route('admin.customers.index', ['role' => 'teamleader']) }}"
-                    class="admin-prod-filter-tab {{ request('role') == 'teamleader' ? 'admin-prod-filter-tab--active' : '' }}"
-                    @if(request('role') == 'teamleader') aria-current="page" @endif>
-                    Team leaders
-                </a>
-                <a href="{{ route('admin.customers.index', ['role' => 'regional_manager']) }}"
-                    class="admin-prod-filter-tab {{ request('role') == 'regional_manager' ? 'admin-prod-filter-tab--active' : '' }}"
-                    @if(request('role') == 'regional_manager') aria-current="page" @endif>
-                    Regional managers
-                </a>
-                <a href="{{ route('admin.customers.index', ['role' => 'subadmin']) }}"
-                    class="admin-prod-filter-tab {{ request('role') == 'subadmin' ? 'admin-prod-filter-tab--active' : '' }}"
-                    @if(request('role') == 'subadmin') aria-current="page" @endif>
-                    Leaders
-                </a>
+                @foreach ($roleFilters as $filter)
+                    @php
+                        $isActive = request('role') === $filter['role'] || ($filter['role'] === null && ! request('role'));
+                    @endphp
+                    @if ($isActive && $filter['add'])
+                        <div
+                            x-data="{ open: true }"
+                            class="admin-prod-filter-dropdown"
+                            @keydown.escape.window="open = false">
+                            <button
+                                type="button"
+                                class="admin-prod-filter-tab admin-prod-filter-tab--active admin-prod-filter-tab--menu"
+                                :aria-expanded="open"
+                                aria-haspopup="menu"
+                                @click="open = !open">
+                                <span>{{ $filter['label'] }}</span>
+                                <svg class="h-4 w-4 shrink-0 transition-transform duration-200" :class="open ? 'rotate-180' : ''"
+                                    xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"
+                                    stroke-width="2" aria-hidden="true">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+                                </svg>
+                            </button>
+                            <div
+                                x-show="open"
+                                x-cloak
+                                x-transition:enter="transition ease-out duration-150"
+                                x-transition:enter-start="opacity-0 -translate-y-1"
+                                x-transition:enter-end="opacity-100 translate-y-0"
+                                x-transition:leave="transition ease-in duration-100"
+                                x-transition:leave-start="opacity-100 translate-y-0"
+                                x-transition:leave-end="opacity-0 -translate-y-1"
+                                @click.outside="open = false"
+                                class="admin-prod-filter-menu"
+                                role="menu">
+                                <a href="{{ $filter['add']['route'] }}" class="admin-prod-filter-menu-item" role="menuitem"
+                                    @click="open = false">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"
+                                        stroke-width="2" aria-hidden="true">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                                    </svg>
+                                    {{ $filter['add']['label'] }}
+                                </a>
+                            </div>
+                        </div>
+                    @else
+                        <a href="{{ $filter['href'] }}"
+                            class="admin-prod-filter-tab {{ $isActive ? 'admin-prod-filter-tab--active' : '' }}"
+                            @if ($isActive) aria-current="page" @endif>
+                            {{ $filter['label'] }}
+                        </a>
+                    @endif
+                @endforeach
             </div>
         </div>
 

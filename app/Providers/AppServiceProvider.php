@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Models\Setting;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\ServiceProvider;
 
@@ -44,7 +45,13 @@ class AppServiceProvider extends ServiceProvider
 
     private function applyMailSettingsFromStoreSettings(): void
     {
-        if (! Schema::hasTable('settings')) {
+        try {
+            if (! Schema::hasTable('settings')) {
+                return;
+            }
+        } catch (QueryException $e) {
+            return;
+        } catch (\Throwable $e) {
             return;
         }
 

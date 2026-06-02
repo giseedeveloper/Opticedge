@@ -591,6 +591,55 @@
                 color: #fff;
             }
 
+            .admin-prod-filter-dropdown {
+                position: relative;
+            }
+
+            .admin-prod-filter-tab--menu {
+                cursor: pointer;
+                gap: 0.35rem;
+            }
+
+            .admin-prod-filter-menu {
+                position: absolute;
+                top: calc(100% + 0.4rem);
+                left: 0;
+                z-index: 40;
+                min-width: 11.5rem;
+                padding: 0.35rem;
+                border-radius: 0.75rem;
+                background: linear-gradient(165deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.95));
+                border: 1px solid rgba(255, 255, 255, 0.95);
+                box-shadow:
+                    8px 12px 28px rgba(163, 177, 198, 0.22),
+                    inset 2px 2px 5px rgba(255, 255, 255, 0.9);
+            }
+
+            .admin-prod-filter-menu-item {
+                display: flex;
+                align-items: center;
+                gap: 0.5rem;
+                width: 100%;
+                padding: 0.55rem 0.75rem;
+                border-radius: 0.55rem;
+                font-size: 0.8125rem;
+                font-weight: 600;
+                color: #334155;
+                transition: background 0.15s ease, color 0.15s ease;
+            }
+
+            .admin-prod-filter-menu-item:hover {
+                color: #232f3e;
+                background: rgba(250, 137, 0, 0.1);
+            }
+
+            .admin-prod-filter-menu-item svg {
+                width: 1rem;
+                height: 1rem;
+                flex-shrink: 0;
+                color: #fa8900;
+            }
+
             .admin-prod-avatar {
                 width: 2.25rem;
                 height: 2.25rem;

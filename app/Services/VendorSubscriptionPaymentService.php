@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Selcompay;
 use App\Models\VendorRegistrationIntent;
+use App\Support\TanzaniaMobileNumber;
 use App\Services\VendorRegistrationFulfillmentService;
 use Illuminate\Support\Facades\Log;
 
@@ -168,16 +169,6 @@ class VendorSubscriptionPaymentService
 
     public function normalizePhone(string $phone): string
     {
-        $clean = preg_replace('/[^0-9]/', '', $phone) ?? '';
-
-        if (! preg_match('/^(255)?[67]\d{8}$/', $clean)) {
-            throw new \InvalidArgumentException('Invalid phone number. Use format 07XXXXXXXX or 2557XXXXXXXX.');
-        }
-
-        if (strlen($clean) === 9) {
-            $clean = '255'.$clean;
-        }
-
-        return $clean;
+        return TanzaniaMobileNumber::normalize($phone);
     }
 }

@@ -327,7 +327,7 @@
                                         <path stroke-linecap="round" stroke-linejoin="round"
                                             d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
                                     </svg>
-                                    <span class="truncate">Staff</span>
+                                    <span class="truncate">Users</span>
                                 </div>
                                 <svg class="admin-sidebar-chevron transition-transform" :class="{ 'rotate-180': open }"
                                     fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -339,13 +339,10 @@
                                 class="mt-1.5 ml-3 pl-3 space-y-0.5 border-l border-slate-300/50">
                                 <a href="{{ route('admin.customers.index') }}"
                                     @if (request()->routeIs('admin.customers.index')) aria-current="page" @endif
-                                    class="admin-sidebar-sublink {{ request()->routeIs('admin.customers.index') ? 'admin-sidebar-sublink-active' : '' }}">All staff</a>
+                                    class="admin-sidebar-sublink {{ request()->routeIs('admin.customers.index') ? 'admin-sidebar-sublink-active' : '' }}">All users</a>
                                 <a href="{{ route('admin.customers.organization-tree') }}"
                                     @if (request()->routeIs('admin.customers.organization-tree')) aria-current="page" @endif
                                     class="admin-sidebar-sublink {{ request()->routeIs('admin.customers.organization-tree') ? 'admin-sidebar-sublink-active' : '' }}">Organization tree</a>
-                                <a href="{{ route('admin.subadmins.index') }}"
-                                    @if (request()->routeIs('admin.subadmins.*')) aria-current="page" @endif
-                                    class="admin-sidebar-sublink {{ request()->routeIs('admin.subadmins.*') ? 'admin-sidebar-sublink-active' : '' }}">Leaders</a>
                                 <a href="{{ route('admin.dealers.index') }}"
                                     @if (request()->routeIs('admin.dealers.*')) aria-current="page" @endif
                                     class="admin-sidebar-sublink {{ request()->routeIs('admin.dealers.*') ? 'admin-sidebar-sublink-active' : '' }}">Dealers</a>

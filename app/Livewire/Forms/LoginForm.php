@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Forms;
 
+use App\Models\User;
 use Illuminate\Auth\Events\Lockout;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\RateLimiter;
@@ -12,7 +13,7 @@ use Livewire\Form;
 
 class LoginForm extends Form
 {
-    #[Validate('required|string|email')]
+    #[Validate('required|string')]
     public string $email = '';
 
     #[Validate('required|string')]
@@ -30,7 +31,30 @@ class LoginForm extends Form
     {
         $this->ensureIsNotRateLimited();
 
-        if (! Auth::attempt($this->only(['email', 'password']), $this->remember)) {
+        $login = trim($this->email);
+        $isEmail = filter_var($login, FILTER_VALIDATE_EMAIL) !== false;
+        $credentials = $isEmail
+            ? ['email' => $login, 'password' => $this->password]
+            : ['phone' => $login, 'password' => $this->password];
+
+        if (! Auth::attempt($credentials, $this->remember)) {
+            // fallback: allow phone inputs with spaces or separators (e.g. +255 712 345 678)
+            if (! $isEmail) {
+                $normalizedPhone = preg_replace('/\D+/', '', $login) ?? '';
+
+                if ($normalizedPhone !== '') {
+                    $byPhone = User::query()->get(['id', 'phone'])->first(function (User $user) use ($normalizedPhone) {
+                        $storedPhone = preg_replace('/\D+/', '', (string) ($user->phone ?? '')) ?? '';
+                        return $storedPhone !== '' && $storedPhone === $normalizedPhone;
+                    });
+
+                    if ($byPhone && Auth::attempt(['email' => $byPhone->email, 'password' => $this->password], $this->remember)) {
+                        RateLimiter::clear($this->throttleKey());
+                        return;
+                    }
+                }
+            }
+
             RateLimiter::hit($this->throttleKey());
 
             throw ValidationException::withMessages([
