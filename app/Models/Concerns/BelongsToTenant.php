@@ -5,6 +5,7 @@ namespace App\Models\Concerns;
 use App\Models\Scopes\TenantScope;
 use App\Models\Tenant;
 use App\Support\TenantContext;
+use App\Support\TenantSchema;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 trait BelongsToTenant
@@ -19,7 +20,7 @@ trait BelongsToTenant
             }
 
             $tenantId = TenantContext::id();
-            if ($tenantId !== null) {
+            if ($tenantId !== null && TenantSchema::tableHasTenantId($model)) {
                 $model->tenant_id = $tenantId;
             }
         });
