@@ -2,12 +2,16 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToTenantStrict;
 use Illuminate\Database\Eloquent\Model;
 
 class PendingSale extends Model
 {
+    use BelongsToTenantStrict;
+
     protected $fillable = [
         'customer_name',
+        'tenant_id',
         'seller_name',
         'seller_id',
         'product_id',

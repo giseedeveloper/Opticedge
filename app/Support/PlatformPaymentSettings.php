@@ -15,6 +15,8 @@ class PlatformPaymentSettings
     public static function vendorSubscriptionPaymentMode(): string
     {
         $mode = Setting::query()
+            ->withoutGlobalScopes()
+            ->whereNull('tenant_id')
             ->where('key', self::KEY_VENDOR_SUBSCRIPTION_MODE)
             ->value('value');
 

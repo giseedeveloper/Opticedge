@@ -2,16 +2,20 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToTenantStrict;
 use Illuminate\Database\Eloquent\Model;
 
 class Expense extends Model
 {
+    use BelongsToTenantStrict;
+
     protected $fillable = [
         'activity',
         'amount',
         'cash_used',
         'payment_option_id',
         'date',
+        'tenant_id',
     ];
 
     protected $casts = [

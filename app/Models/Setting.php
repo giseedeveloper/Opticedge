@@ -2,10 +2,12 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToTenantStrict;
 use Illuminate\Database\Eloquent\Model;
 
 class Setting extends Model
 {
-    protected $fillable = ['key', 'value'];
-    //
+    use BelongsToTenantStrict;
+
+    protected $fillable = ['key', 'value', 'tenant_id'];
 }

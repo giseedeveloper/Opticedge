@@ -56,8 +56,8 @@ class SettingController extends Controller
         ]);
 
         foreach ($data as $key => $value) {
-            Setting::updateOrCreate(
-                ['key' => $key],
+            Setting::query()->withoutGlobalScopes()->updateOrCreate(
+                ['key' => $key, 'tenant_id' => auth()->user()->tenant_id],
                 ['value' => $value === null ? null : (string) $value]
             );
         }

@@ -16,7 +16,12 @@ class TenantScope implements Scope
         }
 
         $tenantId = TenantContext::id();
+
         if ($tenantId === null) {
+            if (method_exists($model, 'usesStrictTenantScope') && $model->usesStrictTenantScope()) {
+                $builder->whereRaw('1 = 0');
+            }
+
             return;
         }
 

@@ -2,12 +2,16 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToTenantStrict;
 use Illuminate\Database\Eloquent\Model;
 
 class CustomerNeed extends Model
 {
+    use BelongsToTenantStrict;
+
     protected $fillable = [
         'agent_id',
+        'tenant_id',
         'category_id',
         'product_id',
         'customer_name',

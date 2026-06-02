@@ -2,17 +2,21 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToTenantStrict;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Schema;
 
 class ProductListItem extends Model
 {
+    use BelongsToTenantStrict;
+
     protected $table = 'product_list';
 
     protected $fillable = [
         'stock_id',
         'purchase_id',
         'branch_id',
+        'tenant_id',
         'category_id',
         'model',
         'imei_number',

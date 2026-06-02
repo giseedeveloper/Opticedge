@@ -2,16 +2,20 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToTenantStrict;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 
 class AgentAssignment extends Model
 {
+    use BelongsToTenantStrict;
+
     public const TYPE_IMEI = 'imei';
     public const TYPE_TOTAL = 'total';
 
     protected $fillable = [
         'agent_id',
+        'tenant_id',
         'product_id',
         'purchase_id',
         'assignment_type',

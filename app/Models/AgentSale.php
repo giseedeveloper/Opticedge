@@ -2,13 +2,17 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
+use App\Models\Concerns\BelongsToTenantStrict;
 use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Model;
 
 class AgentSale extends Model
 {
+    use BelongsToTenantStrict;
+
     protected $fillable = [
         'agent_id',
+        'tenant_id',
         'customer_name',
         'seller_name',
         'product_id',

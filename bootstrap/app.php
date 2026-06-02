@@ -25,6 +25,9 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->appendToGroup('web', [
             \App\Http\Middleware\SetTenantFromAuthenticatedUser::class,
         ]);
+        $middleware->appendToGroup('api', [
+            \App\Http\Middleware\SetTenantFromAuthenticatedUser::class,
+        ]);
         $middleware->validateCsrfTokens(except: [
             'selcom/checkout-callback',
             'api/*',

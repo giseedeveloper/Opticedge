@@ -2,10 +2,13 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToTenantStrict;
 use Illuminate\Database\Eloquent\Model;
 
 class Order extends Model
 {
+    use BelongsToTenantStrict;
+
     protected $fillable = [
         'user_id',
         'status',
@@ -15,6 +18,7 @@ class Order extends Model
         'address_id',
         'payment_status',
         'payment_option_id',
+        'tenant_id',
     ];
 
     public function user()

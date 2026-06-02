@@ -55,7 +55,13 @@ class AppServiceProvider extends ServiceProvider
             return;
         }
 
-        $settings = Setting::query()
+        $settingsQuery = Setting::query()->withoutGlobalScopes();
+
+        if (Schema::hasColumn('settings', 'tenant_id')) {
+            $settingsQuery->whereNull('tenant_id');
+        }
+
+        $settings = $settingsQuery
             ->whereIn('key', [
                 'mail_mailer',
                 'mail_host',

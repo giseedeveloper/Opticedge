@@ -15,7 +15,10 @@ class SelcomCredentialResolver
      */
     public function resolve(): array
     {
-        $settings = Setting::whereIn('key', [
+        $settings = Setting::query()
+            ->withoutGlobalScopes()
+            ->whereNull('tenant_id')
+            ->whereIn('key', [
             'selcom_vendor_id', 'selcom_api_key', 'selcom_api_secret', 'selcom_is_live',
         ])->pluck('value', 'key');
 

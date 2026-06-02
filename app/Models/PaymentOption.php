@@ -2,16 +2,20 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToTenantStrict;
 use Illuminate\Database\Eloquent\Model;
 
 class PaymentOption extends Model
 {
+    use BelongsToTenantStrict;
+
     protected $fillable = [
         'type',
         'name',
         'balance',
         'opening_balance',
         'is_hidden',
+        'tenant_id',
     ];
 
     protected $casts = [

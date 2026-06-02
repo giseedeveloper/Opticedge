@@ -2,17 +2,21 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToTenantStrict;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Purchase extends Model
 {
+    use BelongsToTenantStrict;
+
     protected $fillable = [
         'name',
         'branch_id',
         'stock_id',
         'product_id',
+        'tenant_id',
         'quantity',
         'unit_price',
         'distributor_name',

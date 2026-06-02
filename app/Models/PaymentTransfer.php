@@ -2,11 +2,14 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToTenantStrict;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class PaymentTransfer extends Model
 {
+    use BelongsToTenantStrict;
+
     protected $table = 'payment_transfers';
 
     protected $fillable = [
@@ -15,6 +18,7 @@ class PaymentTransfer extends Model
         'amount',
         'description',
         'user_id',
+        'tenant_id',
     ];
 
     protected $casts = [

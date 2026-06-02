@@ -38,6 +38,7 @@ class PlatformSettingController extends Controller
     public function index(): View
     {
         $settings = Setting::query()
+            ->whereNull('tenant_id')
             ->whereIn('key', array_merge(self::PAYMENT_KEYS, self::SELCOM_KEYS, self::MAIL_KEYS))
             ->pluck('value', 'key');
 
@@ -63,8 +64,8 @@ class PlatformSettingController extends Controller
         ]);
 
         foreach ($data as $key => $value) {
-            Setting::updateOrCreate(
-                ['key' => $key],
+            Setting::query()->withoutGlobalScopes()->updateOrCreate(
+                ['key' => $key, 'tenant_id' => null],
                 ['value' => $value === null ? null : (string) $value]
             );
         }

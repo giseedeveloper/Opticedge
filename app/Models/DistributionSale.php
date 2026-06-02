@@ -2,12 +2,16 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToTenantStrict;
 use Illuminate\Database\Eloquent\Model;
 
 class DistributionSale extends Model
 {
+    use BelongsToTenantStrict;
+
     protected $fillable = [
         'dealer_id',
+        'tenant_id',
         'order_id',
         'dealer_name',
         'seller_name',

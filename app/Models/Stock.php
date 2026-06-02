@@ -2,11 +2,14 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToTenantStrict;
 use Illuminate\Database\Eloquent\Model;
 
 class Stock extends Model
 {
-    protected $fillable = ['name', 'stock_limit', 'default_category_id', 'default_model', 'default_quantity'];
+    use BelongsToTenantStrict;
+
+    protected $fillable = ['name', 'stock_limit', 'default_category_id', 'default_model', 'default_quantity', 'tenant_id'];
 
     public function defaultCategory()
     {
