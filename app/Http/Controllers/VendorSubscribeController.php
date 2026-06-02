@@ -12,8 +12,12 @@ use Illuminate\View\View;
 
 class VendorSubscribeController extends Controller
 {
-    public function processing(VendorRegistrationIntent $intent): View|RedirectResponse
+    public function processing(VendorRegistrationIntent $intent, VendorSubscriptionPaymentService $payments): View|RedirectResponse
     {
+        if ($intent->isCompleted()) {
+            return redirect()->route('vendor.subscribe.success', $intent);
+        }
+
         if ($intent->status !== VendorRegistrationIntent::STATUS_PAYMENT_PENDING) {
             return redirect()->route('vendor.subscribe', $intent->package);
         }
@@ -21,6 +25,7 @@ class VendorSubscribeController extends Controller
         return view('vendor-subscribe.payment-processing', [
             'intent' => $intent->load('package'),
             'paymentPhone' => $intent->payment_phone,
+            'isDemoPayment' => $payments->isDemoMode(),
         ]);
     }
 

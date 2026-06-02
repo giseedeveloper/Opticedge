@@ -40,4 +40,13 @@ class SelcomCredentialResolver
             'live' => $isLive ?: (bool) Config::get('selcom.live'),
         ];
     }
+
+    public function isConfigured(): bool
+    {
+        $creds = $this->resolve();
+
+        return trim($creds['vendor']) !== ''
+            && trim($creds['api_key']) !== ''
+            && trim($creds['api_secret']) !== '';
+    }
 }

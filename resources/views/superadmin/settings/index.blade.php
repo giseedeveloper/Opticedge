@@ -5,7 +5,7 @@
         <div class="mb-8">
             <p class="admin-prod-eyebrow">Platform</p>
             <h1 class="admin-prod-title">Platform settings</h1>
-            <p class="admin-prod-subtitle">Selcom payment gateway and system email delivery (platform-wide).</p>
+            <p class="admin-prod-subtitle">Vendor signup payments (demo vs live), Selcom gateway, and system email.</p>
         </div>
 
         @include('superadmin.partials.flash')
@@ -28,8 +28,31 @@
 
             <div x-show="tab === 'selcom'" x-cloak class="admin-clay-panel admin-prod-form-shell overflow-hidden">
                 <div class="admin-prod-form-head">
+                    <h2 class="admin-prod-form-title">Vendor subscription payments</h2>
+                    <p class="admin-prod-form-hint">Controls the public package signup flow at <code class="text-xs">/subscribe/{package}</code>.</p>
+                </div>
+                <div class="admin-prod-form-body space-y-6">
+                    @php
+                        $paymentMode = $settings['vendor_subscription_payment_mode'] ?? 'demo';
+                    @endphp
+                    <div>
+                        <label for="vendor_subscription_payment_mode" class="admin-prod-label">Payment mode</label>
+                        <select name="vendor_subscription_payment_mode" id="vendor_subscription_payment_mode" class="admin-prod-select">
+                            <option value="demo" @selected($paymentMode === 'demo')>Demo — instant success (no mobile money push)</option>
+                            <option value="live" @selected($paymentMode === 'live')>Live — Selcom API + USSD approval required</option>
+                        </select>
+                        <p class="text-xs text-slate-500 mt-2">
+                            <strong>Demo:</strong> user picks a package and completes signup without real payment.<br>
+                            <strong>Live:</strong> Selcom credentials below must be set; customer must approve payment on their phone.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <div x-show="tab === 'selcom'" x-cloak class="admin-clay-panel admin-prod-form-shell overflow-hidden mt-6">
+                <div class="admin-prod-form-head">
                     <h2 class="admin-prod-form-title">Selcom configuration</h2>
-                    <p class="admin-prod-form-hint">Used for storefront checkout, commission payouts, and webhooks.</p>
+                    <p class="admin-prod-form-hint">Required for <strong>Live</strong> vendor signup and used for storefront checkout, commission payouts, and webhooks.</p>
                 </div>
                 <div class="admin-prod-form-body space-y-6">
                     <div>
@@ -54,7 +77,19 @@
                             <option value="0" @selected(($settings['selcom_is_live'] ?? '0') == '0')>Test (apigwtest.selcommobile.com)</option>
                             <option value="1" @selected(($settings['selcom_is_live'] ?? '0') == '1')>Live (apigw.selcommobile.com)</option>
                         </select>
-                        <p class="text-xs text-slate-500 mt-2">Use <strong>Live</strong> for real payments; <strong>Test</strong> for sandbox.</p>
+                        <p class="text-xs text-slate-500 mt-2">Use <strong>Live</strong> for production Selcom gateway; <strong>Test</strong> for Selcom sandbox (still requires real USSD when vendor signup is in Live mode).</p>
+                    </div>
+
+                    <div class="pt-2 border-t border-white/60" x-data="selcomApiTest()">
+                        <p class="admin-prod-label mb-2">API connection test</p>
+                        <button type="button" @click="runTest" :disabled="testing"
+                            class="admin-prod-btn-ghost text-sm disabled:opacity-60">
+                            <span x-show="!testing">Test Selcom API</span>
+                            <span x-show="testing" x-cloak>Testing…</span>
+                        </button>
+                        <p x-show="resultMessage" x-cloak class="mt-3 text-sm rounded-xl px-3 py-2"
+                            :class="resultOk ? 'bg-emerald-50 text-emerald-800' : 'bg-red-50 text-red-800'"
+                            x-text="resultMessage"></p>
                     </div>
                 </div>
             </div>
@@ -123,4 +158,37 @@
             </div>
         </form>
     </div>
+
+    @push('scripts')
+        <script>
+            document.addEventListener('alpine:init', () => {
+                Alpine.data('selcomApiTest', () => ({
+                    testing: false,
+                    resultMessage: '',
+                    resultOk: false,
+                    async runTest() {
+                        this.testing = true;
+                        this.resultMessage = '';
+                        try {
+                            const res = await fetch(@json(route('superadmin.settings.test-selcom')), {
+                                method: 'POST',
+                                headers: {
+                                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                                    'Accept': 'application/json',
+                                },
+                            });
+                            const data = await res.json();
+                            this.resultOk = !!data.ok;
+                            this.resultMessage = data.message || (data.ok ? 'OK' : 'Test failed');
+                        } catch {
+                            this.resultOk = false;
+                            this.resultMessage = 'Could not reach the server.';
+                        } finally {
+                            this.testing = false;
+                        }
+                    },
+                }));
+            });
+        </script>
+    @endpush
 </x-superadmin-layout>

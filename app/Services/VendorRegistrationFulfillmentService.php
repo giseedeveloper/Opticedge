@@ -6,6 +6,7 @@ use App\Models\Tenant;
 use App\Models\User;
 use App\Models\VendorRegistrationIntent;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 
 class VendorRegistrationFulfillmentService
@@ -50,16 +51,7 @@ class VendorRegistrationFulfillmentService
                 'subscription_ends_at' => $package->subscriptionEndsAtFrom(),
             ]);
 
-            $user = User::create([
-                'name' => $intent->admin_name,
-                'email' => $intent->email,
-                'password' => $intent->password,
-                'phone' => $intent->phone,
-                'role' => 'admin',
-                'status' => 'active',
-                'tenant_id' => $tenant->id,
-                'email_verified_at' => now(),
-            ]);
+            $user = $this->createAdminUser($intent, $tenant->id);
 
             $intent->update([
                 'status' => VendorRegistrationIntent::STATUS_COMPLETED,
@@ -83,5 +75,27 @@ class VendorRegistrationFulfillmentService
         }
 
         return $candidate;
+    }
+
+    private function createAdminUser(VendorRegistrationIntent $intent, int $tenantId): User
+    {
+        $attributes = [
+            'name' => $intent->admin_name,
+            'email' => $intent->email,
+            'phone' => $intent->phone,
+            'role' => 'admin',
+            'status' => 'active',
+            'tenant_id' => $tenantId,
+            'email_verified_at' => now(),
+        ];
+
+        if (! Hash::isHashed($intent->password)) {
+            return User::create([...$attributes, 'password' => $intent->password]);
+        }
+
+        $user = User::create($attributes);
+        DB::table('users')->where('id', $user->id)->update(['password' => $intent->password]);
+
+        return $user->fresh();
     }
 }

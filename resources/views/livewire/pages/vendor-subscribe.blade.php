@@ -4,8 +4,8 @@ use App\Models\Package;
 use App\Models\User;
 use App\Models\VendorRegistrationIntent;
 use App\Services\VendorSubscriptionPaymentService;
+use App\Support\PlatformPaymentSettings;
 use Illuminate\Support\Facades\Crypt;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rules;
 use Livewire\Attributes\Layout;
@@ -32,6 +32,8 @@ new #[Layout('layouts.marketing')] class extends Component {
     // Step 3 — payment
     public string $payment_phone = '';
 
+    public bool $isDemoPayment = true;
+
     public function mount(Package $package): void
     {
         if (! $package->is_active) {
@@ -40,6 +42,7 @@ new #[Layout('layouts.marketing')] class extends Component {
 
         $this->package = $package;
         $this->payment_phone = $this->phone;
+        $this->isDemoPayment = PlatformPaymentSettings::isVendorSubscriptionDemo();
     }
 
     public function nextStep(): void
@@ -69,7 +72,7 @@ new #[Layout('layouts.marketing')] class extends Component {
                 'admin_name' => $this->admin_name,
                 'email' => $this->email,
                 'phone' => $this->phone,
-                'password' => Hash::make($this->password),
+                'password' => $this->password,
                 'status' => VendorRegistrationIntent::STATUS_DRAFT,
             ];
 
@@ -96,9 +99,13 @@ new #[Layout('layouts.marketing')] class extends Component {
 
     public function startPayment(VendorSubscriptionPaymentService $payments): void
     {
-        $this->validate([
-            'payment_phone' => ['required', 'string', 'max:32'],
-        ]);
+        if ($this->isDemoPayment) {
+            $this->payment_phone = $this->payment_phone ?: $this->phone;
+        } else {
+            $this->validate([
+                'payment_phone' => ['required', 'string', 'max:32'],
+            ]);
+        }
 
         if (! $this->intentId) {
             $this->addError('payment_phone', 'Please complete the previous steps first.');
@@ -120,6 +127,14 @@ new #[Layout('layouts.marketing')] class extends Component {
             $payments->initiatePayment($intent, $this->payment_phone);
         } catch (\Throwable $e) {
             $this->addError('payment_phone', $e->getMessage());
+
+            return;
+        }
+
+        $intent->refresh();
+
+        if ($intent->isCompleted()) {
+            $this->redirect(route('vendor.subscribe.success', $intent), navigate: true);
 
             return;
         }
@@ -199,12 +214,19 @@ new #[Layout('layouts.marketing')] class extends Component {
                     <p><span class="font-semibold text-[#232f3e]">Admin:</span> {{ $admin_name }} ({{ $email }})</p>
                     <p><span class="font-semibold text-[#232f3e]">Amount:</span> {{ $package->formattedPrice() }}</p>
                 </div>
-                <div>
-                    <label for="payment_phone" class="block text-sm font-semibold text-[#232f3e] mb-1">Mobile money number</label>
-                    <input wire:model="payment_phone" id="payment_phone" type="tel" class="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:border-[#fa8900] focus:ring-2 focus:ring-[#fa8900]/30" placeholder="06XXXXXXXX or 07XXXXXXXX">
-                    <p class="text-xs text-slate-500 mt-2">You will receive a USSD prompt on this number to approve payment.</p>
-                    @error('payment_phone') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
-                </div>
+                @if ($isDemoPayment)
+                    <div class="rounded-xl border border-amber-200/80 bg-amber-50/90 px-4 py-3 text-sm text-amber-900">
+                        <p class="font-semibold">Demo payment mode</p>
+                        <p class="mt-1">No real mobile money charge. Click below to complete signup instantly.</p>
+                    </div>
+                @else
+                    <div>
+                        <label for="payment_phone" class="block text-sm font-semibold text-[#232f3e] mb-1">Mobile money number</label>
+                        <input wire:model="payment_phone" id="payment_phone" type="tel" class="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:border-[#fa8900] focus:ring-2 focus:ring-[#fa8900]/30" placeholder="06XXXXXXXX or 07XXXXXXXX">
+                        <p class="text-xs text-slate-500 mt-2">You will receive a USSD prompt on this number to approve payment.</p>
+                        @error('payment_phone') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                    </div>
+                @endif
             </div>
         @endif
 
@@ -229,8 +251,8 @@ new #[Layout('layouts.marketing')] class extends Component {
             @else
                 <button type="submit" wire:loading.attr="disabled"
                     class="cursor-pointer ml-auto px-6 py-2.5 rounded-xl bg-[#232f3e] hover:bg-[#1a2430] text-white text-sm font-bold transition-colors duration-200 disabled:opacity-60">
-                    <span wire:loading.remove wire:target="startPayment">Pay now</span>
-                    <span wire:loading wire:target="startPayment">Starting payment…</span>
+                    <span wire:loading.remove wire:target="startPayment">{{ $isDemoPayment ? 'Complete signup' : 'Pay now' }}</span>
+                    <span wire:loading wire:target="startPayment">{{ $isDemoPayment ? 'Activating…' : 'Starting payment…' }}</span>
                 </button>
             @endif
         </div>

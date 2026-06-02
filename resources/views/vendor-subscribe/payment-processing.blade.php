@@ -20,7 +20,7 @@
         </div>
 
         <div class="admin-clay-panel p-8">
-            <h1 class="text-xl font-bold text-[#232f3e]" x-text="status === 'completed' ? 'Payment successful' : (status === 'pending' ? 'Approve payment on your phone' : 'Payment issue')"></h1>
+            <h1 class="text-xl font-bold text-[#232f3e]" x-text="status === 'completed' ? 'Payment successful' : (status === 'pending' ? pendingTitle : 'Payment issue')"></h1>
             <p class="mt-3 text-slate-600" x-text="message"></p>
             @if ($paymentPhone)
                 <p class="mt-2 text-sm text-slate-500">Number ending <strong>{{ substr($paymentPhone, -4) }}</strong></p>
@@ -38,12 +38,15 @@
     @php
         $statusUrl = route('vendor.subscribe.status', $intent);
         $successUrl = route('vendor.subscribe.success', $intent);
+        $isDemoPayment = $isDemoPayment ?? false;
     @endphp
     <script>
         document.addEventListener('alpine:init', () => {
             Alpine.data('vendorPaymentPoller', () => ({
                 status: 'pending',
-                message: 'Waiting for payment confirmation…',
+                pendingTitle: @json($isDemoPayment ? 'Activating your account' : 'Approve payment on your phone'),
+                message: @json($isDemoPayment ? 'Demo mode — completing signup…' : 'Waiting for payment confirmation…'),
+                pollIntervalMs: @json($isDemoPayment ? 500 : 3000),
                 pollCount: 0,
                 maxPolls: 120,
                 statusUrl: @json($statusUrl),
@@ -59,10 +62,27 @@
                         return;
                     }
                     this.pollCount++;
-                    fetch(this.statusUrl)
-                        .then(res => res.json())
-                        .then(data => {
-                            if (data.message) this.message = data.message;
+                    fetch(this.statusUrl, {
+                        headers: { Accept: 'application/json' },
+                    })
+                        .then(async (res) => {
+                            let data = {};
+                            try {
+                                data = await res.json();
+                            } catch {
+                                throw new Error('Invalid server response');
+                            }
+
+                            if (!res.ok && !data.status) {
+                                this.status = 'error';
+                                this.message = data.message || 'Could not verify payment. Please try again.';
+                                return;
+                            }
+
+                            if (data.message) {
+                                this.message = data.message;
+                            }
+
                             if (data.status === 'completed') {
                                 this.status = 'completed';
                                 setTimeout(() => {
@@ -70,8 +90,11 @@
                                 }, 1500);
                             } else if (data.status === 'failed' || data.status === 'error') {
                                 this.status = data.status;
+                                if (!data.message) {
+                                    this.message = 'Payment could not be completed. Please try again.';
+                                }
                             } else {
-                                setTimeout(() => this.poll(), 3000);
+                                setTimeout(() => this.poll(), this.pollIntervalMs);
                             }
                         })
                         .catch(() => {

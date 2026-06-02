@@ -4,12 +4,19 @@ namespace App\Http\Controllers\Superadmin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Setting;
+use App\Services\VendorSubscriptionPaymentService;
+use App\Support\PlatformPaymentSettings;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 class PlatformSettingController extends Controller
 {
+    public const PAYMENT_KEYS = [
+        PlatformPaymentSettings::KEY_VENDOR_SUBSCRIPTION_MODE,
+    ];
+
     public const SELCOM_KEYS = [
         'selcom_vendor_id',
         'selcom_api_key',
@@ -31,7 +38,7 @@ class PlatformSettingController extends Controller
     public function index(): View
     {
         $settings = Setting::query()
-            ->whereIn('key', array_merge(self::SELCOM_KEYS, self::MAIL_KEYS))
+            ->whereIn('key', array_merge(self::PAYMENT_KEYS, self::SELCOM_KEYS, self::MAIL_KEYS))
             ->pluck('value', 'key');
 
         return view('superadmin.settings.index', compact('settings'));
@@ -40,6 +47,7 @@ class PlatformSettingController extends Controller
     public function update(Request $request): RedirectResponse
     {
         $data = $request->validate([
+            'vendor_subscription_payment_mode' => 'required|in:demo,live',
             'selcom_vendor_id' => 'nullable|string|max:255',
             'selcom_api_key' => 'nullable|string|max:255',
             'selcom_api_secret' => 'nullable|string|max:255',
@@ -64,5 +72,12 @@ class PlatformSettingController extends Controller
         return redirect()
             ->route('superadmin.settings.index')
             ->with('success', 'Platform settings saved successfully.');
+    }
+
+    public function testSelcom(VendorSubscriptionPaymentService $payments): JsonResponse
+    {
+        $result = $payments->testSelcomConnection();
+
+        return response()->json($result, $result['ok'] ? 200 : 422);
     }
 }
