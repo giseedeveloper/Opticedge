@@ -278,31 +278,34 @@ class CustomerController extends Controller
             abort(404);
         }
 
-        $purchase->load(['lines.product.category', 'product.category']);
+        $purchaseId = (int) $purchase->id;
 
-        $productIds = collect();
-        if ($purchase->lines->isNotEmpty()) {
-            $productIds = $purchase->lines->pluck('product_id')->filter()->map(fn ($id) => (int) $id);
-        } elseif ($purchase->product_id) {
-            $productIds = collect([(int) $purchase->product_id]);
-        }
+        $productIds = ProductListItem::assignableFromAdminOnPurchase($purchaseId)
+            ->whereNotNull('product_id')
+            ->distinct()
+            ->pluck('product_id')
+            ->map(fn ($id) => (int) $id)
+            ->filter()
+            ->unique()
+            ->values();
 
         if ($productIds->isEmpty()) {
             return response()->json(['data' => []]);
         }
 
         $products = Product::with('category')
-            ->whereIn('id', $productIds->unique()->values()->all())
+            ->whereIn('id', $productIds->all())
             ->orderBy('name')
-            ->get();
+            ->get()
+            ->keyBy('id');
 
-        $purchaseId = (int) $purchase->id;
+        $data = $productIds->map(function (int $pid) use ($products, $purchaseId) {
+            $product = $products->get($pid);
+            if (! $product) {
+                return null;
+            }
 
-        $data = $products->map(function (Product $product) use ($purchaseId) {
-            $pid = (int) $product->id;
-            $available = ProductListItem::assignableFromAdmin($pid)
-                ->where('purchase_id', $purchaseId)
-                ->count();
+            $available = ProductListItem::assignableFromAdminOnPurchase($purchaseId, $pid)->count();
             $categoryName = $product->category?->name ?? '—';
 
             return [
@@ -311,7 +314,7 @@ class CustomerController extends Controller
                 'available_imeis' => $available,
             ];
         })
-            ->filter(fn (array $row) => $row['available_imeis'] > 0)
+            ->filter(fn (?array $row) => $row !== null && $row['available_imeis'] > 0)
             ->values()
             ->all();
 
@@ -328,8 +331,7 @@ class CustomerController extends Controller
         $productId = (int) $validated['product_id'];
         $purchaseId = (int) $validated['purchase_id'];
 
-        $items = ProductListItem::assignableFromAdmin($productId)
-            ->where('purchase_id', $purchaseId)
+        $items = ProductListItem::assignableFromAdminOnPurchase($purchaseId, $productId)
             ->orderBy('imei_number')
             ->get(['id', 'imei_number', 'model']);
 
@@ -359,8 +361,7 @@ class CustomerController extends Controller
         $productId = (int) $validated['product_id'];
         $imeiIds = array_values(array_unique(array_map('intval', $validated['product_list_ids'])));
 
-        $eligibleIds = ProductListItem::assignableFromAdmin($productId)
-            ->where('purchase_id', $purchaseId)
+        $eligibleIds = ProductListItem::assignableFromAdminOnPurchase($purchaseId, $productId)
             ->whereIn('id', $imeiIds)
             ->pluck('id')
             ->map(fn ($id) => (int) $id)

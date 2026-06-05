@@ -185,8 +185,46 @@ class ProductListItem extends Model
 
         $status = (string) ($purchase->payment_status ?? '');
 
-        return in_array($status, ['paid', 'partial', 'pending'], true)
-            || (int) ($purchase->limit_remaining ?? 0) > 0;
+        if (in_array($status, ['paid', 'partial', 'pending'], true)) {
+            return true;
+        }
+
+        if ((int) ($purchase->limit_remaining ?? 0) > 0) {
+            return true;
+        }
+
+        // Fully registered purchase — IMEIs are in warehouse even when limit_remaining is 0.
+        if (($purchase->limit_status ?? '') === 'complete') {
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * Unsold warehouse devices on a specific purchase, ready for admin hierarchy assignment.
+     */
+    public function scopeAssignableFromAdminOnPurchase($query, int $purchaseId, ?int $productId = null)
+    {
+        $query = $query
+            ->fromPurchase($purchaseId)
+            ->whereNull('sold_at')
+            ->whereNull('agent_sale_id')
+            ->when(
+                Schema::hasColumn('product_list', 'distribution_sale_id'),
+                fn ($q) => $q->whereNull('distribution_sale_id')
+            )
+            ->whereNull('pending_sale_id')
+            ->whereNull('agent_credit_id')
+            ->whereDoesntHave('regionalManagerProductListAssignment')
+            ->whereDoesntHave('teamLeaderProductListAssignment')
+            ->whereDoesntHave('agentProductListAssignment');
+
+        if ($productId !== null) {
+            $query->where('product_id', $productId);
+        }
+
+        return $query;
     }
 
     /**

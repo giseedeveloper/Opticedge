@@ -527,7 +527,7 @@
                             if (hint) {
                                 hint.textContent = rows.length
                                     ? rows.length + ' model(s) with devices ready to assign on this purchase.'
-                                    : 'No unassigned IMEIs on this purchase. Pick another purchase or register IMEIs first.';
+                                    : 'No unassigned IMEIs on this purchase. They may already be assigned, sold, or tied to a pending sale — or register IMEIs on the purchase first.';
                             }
 
                             if (oldProductId && String(oldPurchaseId) === String(purchaseId)) {
