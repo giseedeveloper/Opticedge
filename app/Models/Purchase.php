@@ -69,6 +69,49 @@ class Purchase extends Model
     }
 
     /**
+     * Reconcile limit_remaining from purchase quantity minus registered IMEI rows.
+     * Fixes purchases where quantity shows slots but limit_remaining was never set or drifted.
+     */
+    public function recalculateLimitRemaining(): void
+    {
+        if ($this->isPassthrough()) {
+            return;
+        }
+
+        $this->loadMissing('lines');
+
+        if ($this->lines->isNotEmpty()) {
+            foreach ($this->lines as $line) {
+                $registered = (int) $this->productListItems()
+                    ->where('product_id', $line->product_id)
+                    ->count();
+                $remaining = max(0, (int) $line->quantity - $registered);
+                if ((int) $line->limit_remaining !== $remaining) {
+                    $line->update(['limit_remaining' => $remaining]);
+                }
+            }
+
+            $this->unsetRelation('lines');
+            $this->load('lines');
+            $this->syncAggregatesFromLines();
+
+            return;
+        }
+
+        $registered = (int) $this->productListItems()->count();
+        $maxQty = (int) ($this->quantity ?? 0);
+        $remaining = max(0, $maxQty - $registered);
+        $status = $remaining <= 0 ? 'complete' : 'pending';
+
+        if ((int) ($this->limit_remaining ?? 0) !== $remaining || (string) $this->limit_status !== $status) {
+            $this->update([
+                'limit_remaining' => $remaining,
+                'limit_status' => $status,
+            ]);
+        }
+    }
+
+    /**
      * When this purchase has line items, keep header limit fields in sync with lines.
      */
     public function syncAggregatesFromLines(): void

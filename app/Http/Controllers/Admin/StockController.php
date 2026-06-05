@@ -746,6 +746,8 @@ class StockController extends Controller
             abort(404);
         }
 
+        $purchase->recalculateLimitRemaining();
+
         $purchase->load([
             'lines.product.category:id,name',
             'product:id,name,category_id',
@@ -754,30 +756,7 @@ class StockController extends Controller
         if ($purchase->lines->isNotEmpty()) {
             $rows = $purchase->lines
                 ->map(function ($line) {
-                    $product = $line->product;
-                    if (! $product) {
-                        return null;
-                    }
-                    $model = trim((string) ($product->name ?? ''));
-                    $categoryId = $product->category_id ?? null;
-                    if ($model === '' || empty($categoryId)) {
-                        return null;
-                    }
-                    $catName = $product->category?->name ?? '—';
-                    $unit = (float) $line->unit_price;
-                    $sell = $line->sell_price !== null ? (float) $line->sell_price : null;
-                    $rem = (int) $line->limit_remaining;
-
-                    return [
-                        'product_id' => (int) $product->id,
-                        'model' => $model,
-                        'category_id' => (int) $categoryId,
-                        'category_name' => $catName,
-                        'unit_price' => $unit,
-                        'sell_price' => $sell,
-                        'limit_remaining' => $rem,
-                        'label' => $catName.' — '.$model.' · slots '.$rem.' · cost '.number_format($unit, 2).($sell !== null ? ' · sell '.number_format($sell, 2) : ''),
-                    ];
+                    return $this->purchaseModelRowForRegistration($line->product, (int) $line->limit_remaining, (float) $line->unit_price, $line->sell_price);
                 })
                 ->filter()
                 ->values();
@@ -790,28 +769,45 @@ class StockController extends Controller
             return response()->json(['data' => []]);
         }
 
-        $model = trim((string) ($product->name ?? ''));
-        $categoryId = $product->category_id ?? null;
-        if ($model === '' || empty($categoryId)) {
-            return response()->json(['data' => []]);
+        $row = $this->purchaseModelRowForRegistration(
+            $product,
+            (int) ($purchase->limit_remaining ?? 0),
+            (float) ($purchase->unit_price ?? 0),
+            $purchase->sell_price
+        );
+
+        return response()->json(['data' => $row ? [$row] : []]);
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    private function purchaseModelRowForRegistration(?Product $product, int $limitRemaining, float $unitPrice, mixed $sellPrice): ?array
+    {
+        if (! $product) {
+            return null;
         }
 
-        $unit = (float) ($purchase->unit_price ?? 0);
-        $sell = $purchase->sell_price !== null ? (float) $purchase->sell_price : null;
-        $rem = (int) ($purchase->limit_remaining ?? 0);
+        $model = trim((string) ($product->name ?? ''));
+        if ($model === '') {
+            return null;
+        }
 
-        return response()->json([
-            'data' => [[
-                'product_id' => (int) $product->id,
-                'model' => $model,
-                'category_id' => (int) $categoryId,
-                'category_name' => $product->category?->name ?? '—',
-                'unit_price' => $unit,
-                'sell_price' => $sell,
-                'limit_remaining' => $rem,
-                'label' => ($product->category?->name ?? '—').' — '.$model.' · slots '.$rem.' · cost '.number_format($unit, 2).($sell !== null ? ' · sell '.number_format($sell, 2) : ''),
-            ]],
-        ]);
+        $categoryId = $product->category_id ?? null;
+        $catName = $product->category?->name ?? '—';
+        $sell = $sellPrice !== null ? (float) $sellPrice : null;
+
+        return [
+            'product_id' => (int) $product->id,
+            'model' => $model,
+            'category_id' => $categoryId ? (int) $categoryId : null,
+            'category_name' => $catName,
+            'unit_price' => $unitPrice,
+            'sell_price' => $sell,
+            'limit_remaining' => $limitRemaining,
+            'can_register' => ! empty($categoryId),
+            'label' => $catName.' — '.$model.' · slots '.$limitRemaining.' · cost '.number_format($unitPrice, 2).($sell !== null ? ' · sell '.number_format($sell, 2) : ''),
+        ];
     }
 
     /**
@@ -2077,6 +2073,8 @@ class StockController extends Controller
      */
     private function purchaseModelsForRegistration(Purchase $purchase): array
     {
+        $purchase->recalculateLimitRemaining();
+
         $purchase->loadMissing([
             'lines.product.category:id,name',
             'product.category:id,name',
@@ -2085,25 +2083,21 @@ class StockController extends Controller
         if ($purchase->lines->isNotEmpty()) {
             return $purchase->lines
                 ->map(function ($line) {
-                    $product = $line->product;
-                    if (! $product) {
+                    $row = $this->purchaseModelRowForRegistration(
+                        $line->product,
+                        (int) $line->limit_remaining,
+                        (float) $line->unit_price,
+                        $line->sell_price
+                    );
+                    if (! $row || (int) $row['limit_remaining'] <= 0) {
                         return null;
                     }
-                    $model = trim((string) ($product->name ?? ''));
-                    $categoryId = $product->category_id ?? null;
-                    if ($model === '' || empty($categoryId)) {
-                        return null;
-                    }
-                    $rem = (int) $line->limit_remaining;
-                    if ($rem <= 0) {
-                        return null;
-                    }
-                    $catName = $product->category?->name ?? '—';
 
                     return [
-                        'product_id' => (int) $product->id,
-                        'limit_remaining' => $rem,
-                        'label' => $catName.' — '.$model.' · slots '.$rem,
+                        'product_id' => $row['product_id'],
+                        'limit_remaining' => $row['limit_remaining'],
+                        'can_register' => $row['can_register'],
+                        'label' => ($row['category_name'] ?? '—').' — '.$row['model'].' · slots '.$row['limit_remaining'],
                     ];
                 })
                 ->filter()
@@ -2116,18 +2110,21 @@ class StockController extends Controller
             return [];
         }
 
-        $rem = (int) ($purchase->limit_remaining ?? 0);
-        if ($rem <= 0) {
+        $row = $this->purchaseModelRowForRegistration(
+            $product,
+            (int) ($purchase->limit_remaining ?? 0),
+            (float) ($purchase->unit_price ?? 0),
+            $purchase->sell_price
+        );
+        if (! $row || (int) $row['limit_remaining'] <= 0) {
             return [];
         }
 
-        $catName = $product->category?->name ?? '—';
-        $model = trim((string) ($product->name ?? ''));
-
         return [[
-            'product_id' => (int) $product->id,
-            'limit_remaining' => $rem,
-            'label' => $catName.' — '.$model.' · slots '.$rem,
+            'product_id' => $row['product_id'],
+            'limit_remaining' => $row['limit_remaining'],
+            'can_register' => $row['can_register'],
+            'label' => ($row['category_name'] ?? '—').' — '.$row['model'].' · slots '.$row['limit_remaining'],
         ]];
     }
 

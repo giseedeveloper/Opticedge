@@ -16,6 +16,8 @@ class PurchaseImeiRegistrationService
         $result = new PurchaseImeiRegistrationResult;
 
         $purchase->loadMissing(['product', 'stock', 'lines']);
+        $purchase->recalculateLimitRemaining();
+        $purchase->refresh()->loadMissing(['product', 'stock', 'lines']);
 
         if ($purchase->isPassthrough() || $purchase->limit_status !== 'pending' || (int) $purchase->limit_remaining <= 0) {
             $result->errorField = 'purchase_id';

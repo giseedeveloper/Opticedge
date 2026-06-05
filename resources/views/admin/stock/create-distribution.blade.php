@@ -851,8 +851,11 @@
                     .then(function (r) { return r.json(); })
                     .then(function (json) {
                         const rows = (json && json.data) ? json.data : [];
-                        purchaseRegistrationModels = rows.filter(function (m) {
+                        const openSlotRows = rows.filter(function (m) {
                             return (m.limit_remaining || 0) > 0;
+                        });
+                        purchaseRegistrationModels = openSlotRows.filter(function (m) {
+                            return m.can_register !== false;
                         }).map(function (m) {
                             return {
                                 product_id: m.product_id,
@@ -860,12 +863,24 @@
                                 label: m.label || m.model,
                             };
                         });
-                        const totalSlots = rows.reduce(function (sum, m) {
+                        const totalSlots = openSlotRows.reduce(function (sum, m) {
                             return sum + (parseInt(m.limit_remaining, 10) || 0);
                         }, 0);
+                        const needsBrand = openSlotRows.some(function (m) {
+                            return m.can_register === false;
+                        });
                         if (purchaseRegistrationModels.length) {
                             purchaseSlotsHint.textContent = totalSlots + ' open slot(s) on this purchase — use the Register IMEIs tab to add devices.';
                             setRegisterTabState('ready');
+                        } else if (needsBrand) {
+                            purchaseSlotsHint.textContent = totalSlots + ' open slot(s), but the model needs a brand assigned in Management → Models before IMEIs can be registered.';
+                            setRegisterTabState('no-slots');
+                        } else if (totalSlots > 0) {
+                            purchaseSlotsHint.textContent = totalSlots + ' open slot(s) on this purchase — use the Register IMEIs tab to add devices.';
+                            setRegisterTabState('ready');
+                        } else if (rows.length === 0) {
+                            purchaseSlotsHint.textContent = 'No models found on this purchase.';
+                            setRegisterTabState('no-slots');
                         } else {
                             purchaseSlotsHint.textContent = 'No open slots on this purchase — sell IMEIs already registered from the Add to sale tab.';
                             setRegisterTabState('no-slots');
