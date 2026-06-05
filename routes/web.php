@@ -267,6 +267,7 @@ Route::middleware(['auth', 'redirect.superadmin.from.admin', 'admin', 'subadmin.
         Route::get('customers/regional-managers/assign-devices', [App\Http\Controllers\Admin\CustomerController::class, 'assignRegionalManagerDevicesForm'])->name('customers.regional-managers.assign-devices');
         Route::post('customers/regional-managers/assign-devices', [App\Http\Controllers\Admin\CustomerController::class, 'storeAssignRegionalManagerDevices'])->name('customers.regional-managers.assign-devices.store');
         Route::get('customers/regional-managers/assignable-imeis', [App\Http\Controllers\Admin\CustomerController::class, 'assignableImeisForRegionalManager'])->name('customers.regional-managers.assignable-imeis');
+        Route::get('customers/regional-managers/assignable-models/{purchase}', [App\Http\Controllers\Admin\CustomerController::class, 'assignableModelsForRegionalManagerPurchase'])->name('customers.regional-managers.assignable-models');
         Route::get('customers/team-leaders', [App\Http\Controllers\Admin\CustomerController::class, 'teamLeadersIndex'])->name('customers.team-leaders.index');
         Route::get('customers/organization-tree', [App\Http\Controllers\Admin\OrganizationTreeController::class, 'index'])->name('customers.organization-tree');
         Route::get('customers/team-leaders/create', [App\Http\Controllers\Admin\CustomerController::class, 'createTeamLeader'])->name('customers.team-leaders.create');

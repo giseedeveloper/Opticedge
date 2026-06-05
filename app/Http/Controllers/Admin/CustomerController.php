@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Product;
 use App\Models\ProductListItem;
+use App\Models\Purchase;
 use App\Models\User;
 use App\Services\DeviceHierarchyAssignmentService;
 use Illuminate\Support\Collection;
@@ -253,23 +254,82 @@ class CustomerController extends Controller
             ->orderBy('name')
             ->get(['id', 'name', 'email']);
 
-        $products = Product::whereHas('purchases')->with('category')->orderBy('name')->get();
+        $purchases = Purchase::stockPurchases()
+            ->with(['product.category', 'lines.product.category'])
+            ->where(function ($q) {
+                $q->whereNotNull('product_id')->orWhereHas('lines');
+            })
+            ->whereHas('productListItems')
+            ->orderByDesc('date')
+            ->orderByDesc('id')
+            ->get();
 
         $selectedManager = $request->query('regional_manager_id');
         if ($selectedManager !== null && ! $managers->contains('id', (int) $selectedManager)) {
             $selectedManager = null;
         }
 
-        return view('admin.customers.regional-managers.assign-devices', compact('managers', 'products', 'selectedManager'));
+        return view('admin.customers.regional-managers.assign-devices', compact('managers', 'purchases', 'selectedManager'));
+    }
+
+    public function assignableModelsForRegionalManagerPurchase(Purchase $purchase)
+    {
+        if ($purchase->isPassthrough()) {
+            abort(404);
+        }
+
+        $purchase->load(['lines.product.category', 'product.category']);
+
+        $productIds = collect();
+        if ($purchase->lines->isNotEmpty()) {
+            $productIds = $purchase->lines->pluck('product_id')->filter()->map(fn ($id) => (int) $id);
+        } elseif ($purchase->product_id) {
+            $productIds = collect([(int) $purchase->product_id]);
+        }
+
+        if ($productIds->isEmpty()) {
+            return response()->json(['data' => []]);
+        }
+
+        $products = Product::with('category')
+            ->whereIn('id', $productIds->unique()->values()->all())
+            ->orderBy('name')
+            ->get();
+
+        $purchaseId = (int) $purchase->id;
+
+        $data = $products->map(function (Product $product) use ($purchaseId) {
+            $pid = (int) $product->id;
+            $available = ProductListItem::assignableFromAdmin($pid)
+                ->where('purchase_id', $purchaseId)
+                ->count();
+            $categoryName = $product->category?->name ?? '—';
+
+            return [
+                'product_id' => $pid,
+                'label' => $categoryName.' — '.$product->name,
+                'available_imeis' => $available,
+            ];
+        })
+            ->filter(fn (array $row) => $row['available_imeis'] > 0)
+            ->values()
+            ->all();
+
+        return response()->json(['data' => $data]);
     }
 
     public function assignableImeisForRegionalManager(Request $request)
     {
         $validated = $request->validate([
             'product_id' => 'required|exists:models,id',
+            'purchase_id' => 'required|exists:purchases,id',
         ]);
 
-        $items = ProductListItem::assignableFromAdmin((int) $validated['product_id'])
+        $productId = (int) $validated['product_id'];
+        $purchaseId = (int) $validated['purchase_id'];
+
+        $items = ProductListItem::assignableFromAdmin($productId)
+            ->where('purchase_id', $purchaseId)
             ->orderBy('imei_number')
             ->get(['id', 'imei_number', 'model']);
 
@@ -288,18 +348,33 @@ class CustomerController extends Controller
                 'required',
                 Rule::exists('users', 'id')->where(fn ($q) => $q->where('role', 'regional_manager')),
             ],
+            'purchase_id' => 'required|exists:purchases,id',
             'product_id' => 'required|exists:models,id',
             'product_list_ids' => 'required|array|min:1',
             'product_list_ids.*' => 'distinct|integer|exists:product_list,id',
         ]);
 
         $regionalManager = User::findOrFail($validated['regional_manager_id']);
+        $purchaseId = (int) $validated['purchase_id'];
+        $productId = (int) $validated['product_id'];
+        $imeiIds = array_values(array_unique(array_map('intval', $validated['product_list_ids'])));
+
+        $eligibleIds = ProductListItem::assignableFromAdmin($productId)
+            ->where('purchase_id', $purchaseId)
+            ->whereIn('id', $imeiIds)
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
+        if (count($eligibleIds) !== count($imeiIds)) {
+            return back()->withInput()->with('error', 'One or more selected IMEIs are not available on this purchase.');
+        }
 
         try {
             $count = $hierarchyService->assignToRegionalManager(
                 $regionalManager,
-                (int) $validated['product_id'],
-                $validated['product_list_ids']
+                $productId,
+                $imeiIds
             );
             $message = $count === 1
                 ? '1 device assigned to regional manager.'
