@@ -6,6 +6,9 @@ final class PurchaseImeiRegistrationResult
 {
     public int $created = 0;
 
+    /** @var list<array{id: int, imei_number: string, text: string}> */
+    public array $createdItems = [];
+
     /** @var list<string> */
     public array $failed = [];
 

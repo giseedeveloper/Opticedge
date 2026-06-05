@@ -397,39 +397,102 @@
                 noLinesHint.style.display = rows.length ? 'none' : 'block';
             }
 
+            function getRegisterModelPricing() {
+                if (!registerModelSelect) {
+                    return { sell: 0, buy: 0 };
+                }
+                const opt = registerModelSelect.options[registerModelSelect.selectedIndex];
+                if (!opt || !opt.value) {
+                    return { sell: 0, buy: 0 };
+                }
+                return {
+                    sell: parseFloat(opt.dataset.sellPrice || '0') || 0,
+                    buy: parseFloat(opt.dataset.unitPrice || '0') || 0,
+                };
+            }
+
+            function ensureProductMeta(productId, meta) {
+                const idStr = String(productId);
+                const sell = parseFloat(meta.sell_price || meta.sell || 0) || 0;
+                const buy = parseFloat(meta.unit_price || meta.buy || 0) || 0;
+                PRODUCT_META[idStr] = {
+                    id: parseInt(idStr, 10),
+                    label: meta.label || ('Model #' + idStr),
+                    unit_price: buy,
+                    sell_price: sell,
+                    suggest: sell,
+                    buy_price: buy,
+                };
+            }
+
+            function autoAddRegisteredItemsToSale(productId, items) {
+                const idStr = String(productId);
+                let existingRow = null;
+                tbody.querySelectorAll('tr[data-line-row]').forEach(function (tr) {
+                    if (tr.getAttribute('data-product-id') === idStr) {
+                        existingRow = tr;
+                    }
+                });
+
+                let merged = items.slice();
+                if (existingRow) {
+                    const existing = [...existingRow.querySelectorAll('.line-imei-id')].map(function (inp) {
+                        return { id: inp.value, text: inp.dataset.label || inp.value };
+                    });
+                    const seen = new Set(existing.map(function (i) { return String(i.id); }));
+                    items.forEach(function (item) {
+                        if (!seen.has(String(item.id))) {
+                            existing.push(item);
+                            seen.add(String(item.id));
+                        }
+                    });
+                    merged = existing;
+                }
+
+                addLine(idStr, merged, existingRow);
+            }
+
             function recalcGrandTotal() {
-                let sum = 0;
-                let deviceCount = 0;
+                let saleSum = 0;
+                let saleDeviceCount = 0;
                 tbody.querySelectorAll('tr[data-line-row]').forEach(tr => {
                     const lt = lineTotalRow(tr);
-                    sum += lt;
-                    deviceCount += lineQty(tr);
+                    saleSum += lt;
+                    saleDeviceCount += lineQty(tr);
                     const cell = tr.querySelector('.line-line-total');
                     if (cell) cell.textContent = formatCurrency(lt) + ' TZS';
                 });
-                totalDisplay.textContent = formatCurrency(sum) + ' TZS';
-                totalHidden.value = sum;
+
+                let displaySum = saleSum;
+                const pendingCount = registerImeiTa ? countParsedImeis(registerImeiTa.value) : 0;
+                const registerPricing = getRegisterModelPricing();
+                if (pendingCount > 0 && registerPricing.sell > 0) {
+                    displaySum += pendingCount * registerPricing.sell;
+                }
+
+                totalDisplay.textContent = formatCurrency(displaySum) + ' TZS';
+                totalHidden.value = saleSum;
 
                 const paid = parseMoney(paidInput);
-                if (sum <= 0) {
+                if (displaySum <= 0) {
                     paymentStatus.textContent = 'Optional — partial payments are split across lines by each line’s share of the total.';
                     paymentStatus.style.color = '#64748b';
                 } else if (paid <= 0) {
                     paymentStatus.textContent = 'No upfront payment — record later from Edit sale.';
                     paymentStatus.style.color = '#64748b';
-                } else if (Math.abs(paid - sum) < 0.01) {
+                } else if (Math.abs(paid - saleSum) < 0.01) {
                     paymentStatus.textContent = '✓ Matches grand total (split across ' + tbody.querySelectorAll('tr[data-line-row]').length + ' line(s))';
                     paymentStatus.style.color = '#10b981';
-                } else if (paid > sum * 1.01) {
+                } else if (paid > saleSum * 1.01) {
                     paymentStatus.textContent = '⚠️ Paid exceeds grand total';
                     paymentStatus.style.color = '#ef4444';
                 } else {
-                    paymentStatus.textContent = 'Partial payment • Remaining ' + formatCurrency(sum - paid) + ' TZS (allocated proportionally per line)';
+                    paymentStatus.textContent = 'Partial payment • Remaining ' + formatCurrency(saleSum - paid) + ' TZS (allocated proportionally per line)';
                     paymentStatus.style.color = '#f59e0b';
                 }
 
                 const purchaseOk = document.getElementById('purchase_id').value !== '';
-                submitBtn.disabled = sum <= 0 || deviceCount === 0 || document.getElementById('dealer_id').value === '' || !purchaseOk;
+                submitBtn.disabled = saleSum <= 0 || saleDeviceCount === 0 || document.getElementById('dealer_id').value === '' || !purchaseOk;
                 submitBtn.classList.toggle('opacity-50', submitBtn.disabled);
                 submitBtn.classList.toggle('cursor-not-allowed', submitBtn.disabled);
             }
@@ -770,6 +833,7 @@
                     : '';
                 registerImeiCount.classList.toggle('text-red-600', over);
                 updateRegisterSubmitState();
+                recalcGrandTotal();
             }
 
             function updateRegisterSubmitState() {
@@ -816,6 +880,8 @@
                         opt.value = String(m.product_id);
                         opt.textContent = m.label || ('Model #' + m.product_id);
                         opt.dataset.limitRemaining = String(m.limit_remaining || 0);
+                        opt.dataset.unitPrice = String(m.unit_price || 0);
+                        opt.dataset.sellPrice = String(m.sell_price || 0);
                         registerModelSelect.appendChild(opt);
                     });
                     if (autoSelectSingle && models.length === 1) {
@@ -842,6 +908,8 @@
                         limit_remaining: m.limit_remaining,
                         label: m.label || m.model,
                         can_register: m.can_register !== false,
+                        unit_price: m.unit_price || 0,
+                        sell_price: m.sell_price || 0,
                     };
                 });
                 const totalSlots = openSlotRows.reduce(function (sum, m) {
@@ -879,6 +947,7 @@
                     ? selectedModelLimitRemaining + ' slot(s) left for this model'
                     : (purchaseRegistrationModels.length ? 'No slots for selected model' : '');
                 updateRegisterImeiCount();
+                recalcGrandTotal();
             }
 
             function loadPurchaseRegistrationMeta() {
@@ -927,7 +996,10 @@
                     });
             }
 
-            registerModelSelect.addEventListener('change', updateRegisterModelSlotsLabel);
+            registerModelSelect.addEventListener('change', function () {
+                updateRegisterModelSlotsLabel();
+                recalcGrandTotal();
+            });
             registerImeiTa.addEventListener('input', updateRegisterImeiCount);
 
             registerSubmitBtn.addEventListener('click', function () {
@@ -963,6 +1035,21 @@
                         showRegisterFeedback(res.json.message || ('Added ' + res.json.created + ' device(s).'), false);
                         registerImeiTa.value = '';
                         updateRegisterImeiCount();
+
+                        const productId = String(res.json.catalog_product_id || catalogProductId);
+                        const selectedLabel = registerModelSelect.options[registerModelSelect.selectedIndex]
+                            ? registerModelSelect.options[registerModelSelect.selectedIndex].text
+                            : '';
+                        ensureProductMeta(productId, {
+                            label: selectedLabel,
+                            unit_price: res.json.unit_price,
+                            sell_price: res.json.sell_price,
+                        });
+
+                        if (res.json.items && res.json.items.length) {
+                            autoAddRegisteredItemsToSale(productId, res.json.items);
+                        }
+
                         switchDistTab('sale');
                         if (res.json.models) {
                             applyPurchaseRegistrationRows(res.json.models);
@@ -970,6 +1057,7 @@
                             loadPurchaseRegistrationMeta();
                         }
                         syncProductPickerForPurchase();
+                        recalcGrandTotal();
                     })
                     .catch(function () {
                         showRegisterFeedback('Request failed. Try again.', true);

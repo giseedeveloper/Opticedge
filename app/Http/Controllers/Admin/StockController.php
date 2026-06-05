@@ -2034,15 +2034,22 @@ class StockController extends Controller
 
         $models = $this->purchaseModelsForRegistration($purchase);
 
+        $pricing = app(DistributionSaleService::class)
+            ->getPricesForProductOnPurchase((int) $validated['catalog_product_id'], $purchase);
+
         return response()->json([
             'ok' => true,
             'created' => $result->created,
             'parsed' => $result->parsedCount,
             'failed' => $result->failed,
+            'items' => $result->createdItems,
+            'catalog_product_id' => (int) $validated['catalog_product_id'],
+            'unit_price' => $pricing['buy'],
+            'sell_price' => $pricing['sell'],
             'purchase_limit_remaining' => (int) $purchase->limit_remaining,
             'model_limit_remaining' => $result->modelLimitRemaining,
             'models' => $models,
-            'message' => 'Added '.$result->created.' device(s). Use Add model above and the IMEI modal to include them in this sale.',
+            'message' => 'Added '.$result->created.' device(s) to the purchase and this sale.',
         ]);
     }
 
@@ -2057,6 +2064,8 @@ class StockController extends Controller
                 'product_id' => $row['product_id'],
                 'limit_remaining' => $row['limit_remaining'],
                 'can_register' => $row['can_register'],
+                'unit_price' => $row['unit_price'],
+                'sell_price' => $row['sell_price'],
                 'label' => ($row['category_name'] ?? '—').' — '.$row['model'].' · slots '.$row['limit_remaining'],
             ])
             ->values()

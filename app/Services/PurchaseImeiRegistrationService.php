@@ -143,7 +143,7 @@ class PurchaseImeiRegistrationService
                     break;
                 }
 
-                ProductListItem::create([
+                $item = ProductListItem::create([
                     'stock_id' => $stockIdForRow,
                     'purchase_id' => $purchase->id,
                     'category_id' => $categoryId,
@@ -151,6 +151,12 @@ class PurchaseImeiRegistrationService
                     'imei_number' => $imei,
                     'product_id' => $product->id,
                 ]);
+
+                $result->createdItems[] = [
+                    'id' => (int) $item->id,
+                    'imei_number' => $imei,
+                    'text' => $imei,
+                ];
 
                 if ($purchaseLine) {
                     $purchaseLine->decrement('limit_remaining');
