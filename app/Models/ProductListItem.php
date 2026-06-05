@@ -202,12 +202,95 @@ class ProductListItem extends Model
     }
 
     /**
-     * Unsold warehouse devices on a specific purchase, ready for admin hierarchy assignment.
+     * IMEI rows linked to a purchase invoice and/or its stock bucket.
+     */
+    public function scopeOnPurchaseStock($query, int $purchaseId)
+    {
+        $purchase = Purchase::query()->find($purchaseId);
+        $stockId = $purchase?->stock_id ? (int) $purchase->stock_id : null;
+
+        return $query->where(function ($q) use ($purchaseId, $stockId) {
+            $q->where('purchase_id', $purchaseId);
+            if ($stockId !== null) {
+                $q->orWhere(function ($q2) use ($stockId, $purchaseId) {
+                    $q2->where('stock_id', $stockId)
+                        ->where(function ($q3) use ($purchaseId) {
+                            $q3->whereNull('purchase_id')->orWhere('purchase_id', $purchaseId);
+                        });
+                });
+            }
+        });
+    }
+
+    /**
+     * Match catalog product on the row or on the linked purchase header.
+     */
+    public function scopeMatchingCatalogProduct($query, int $productId)
+    {
+        return $query->where(function ($q) use ($productId) {
+            $q->where('product_id', $productId)
+                ->orWhereHas('purchase', fn ($p) => $p->where('product_id', $productId));
+        });
+    }
+
+    /**
+     * @return array{code: string, label: string, selectable: bool}
+     */
+    public function custodyStatusForAdminAssign(): array
+    {
+        if (Schema::hasColumn('product_list', 'distribution_sale_id') && $this->distribution_sale_id) {
+            $this->loadMissing('distributionSale');
+            $dealer = $this->distributionSale?->dealer_name ?: 'Dealer';
+
+            return ['code' => 'distribution', 'label' => 'In distribution · '.$dealer, 'selectable' => false];
+        }
+
+        if ($this->sold_at !== null) {
+            return ['code' => 'sold', 'label' => 'Sold', 'selectable' => false];
+        }
+
+        if ($this->agent_sale_id) {
+            return ['code' => 'agent_sale', 'label' => 'Agent sale', 'selectable' => false];
+        }
+
+        if ($this->pending_sale_id) {
+            return ['code' => 'pending_sale', 'label' => 'Pending sale', 'selectable' => false];
+        }
+
+        if ($this->agent_credit_id) {
+            return ['code' => 'agent_credit', 'label' => 'Agent credit', 'selectable' => false];
+        }
+
+        if ($this->regionalManagerProductListAssignment) {
+            $this->loadMissing('regionalManagerProductListAssignment.regionalManager');
+            $name = $this->regionalManagerProductListAssignment?->regionalManager?->name ?? 'Regional manager';
+
+            return ['code' => 'regional_manager', 'label' => 'With '.$name, 'selectable' => false];
+        }
+
+        if ($this->teamLeaderProductListAssignment) {
+            $this->loadMissing('teamLeaderProductListAssignment.teamLeader');
+            $name = $this->teamLeaderProductListAssignment?->teamLeader?->name ?? 'Team leader';
+
+            return ['code' => 'team_leader', 'label' => 'With '.$name, 'selectable' => false];
+        }
+
+        if ($this->agentProductListAssignment) {
+            $this->loadMissing('agentProductListAssignment.agent');
+            $name = $this->agentProductListAssignment?->agent?->name ?? 'Agent';
+
+            return ['code' => 'agent', 'label' => 'With agent · '.$name, 'selectable' => false];
+        }
+
+        return ['code' => 'available', 'label' => 'Available', 'selectable' => true];
+    }
+
+    /**
+     * Unsold warehouse devices on a specific purchase (and its stock), ready for admin hierarchy assignment.
      */
     public function scopeAssignableFromAdminOnPurchase($query, int $purchaseId, ?int $productId = null)
     {
-        $query = $query
-            ->fromPurchase($purchaseId)
+        $query = $query->onPurchaseStock($purchaseId)
             ->whereNull('sold_at')
             ->whereNull('agent_sale_id')
             ->when(
@@ -221,7 +304,7 @@ class ProductListItem extends Model
             ->whereDoesntHave('agentProductListAssignment');
 
         if ($productId !== null) {
-            $query->where('product_id', $productId);
+            $query->matchingCatalogProduct($productId);
         }
 
         return $query;

@@ -259,7 +259,6 @@ class CustomerController extends Controller
             ->where(function ($q) {
                 $q->whereNotNull('product_id')->orWhereHas('lines');
             })
-            ->whereHas('productListItems')
             ->orderByDesc('date')
             ->orderByDesc('id')
             ->get();
@@ -278,16 +277,25 @@ class CustomerController extends Controller
             abort(404);
         }
 
+        $purchase->load(['lines.product.category', 'product.category']);
         $purchaseId = (int) $purchase->id;
 
-        $productIds = ProductListItem::assignableFromAdminOnPurchase($purchaseId)
+        $productIds = collect();
+        if ($purchase->product_id) {
+            $productIds->push((int) $purchase->product_id);
+        }
+        foreach ($purchase->lines as $line) {
+            if ($line->product_id) {
+                $productIds->push((int) $line->product_id);
+            }
+        }
+
+        $fromItems = ProductListItem::assignableFromAdminOnPurchase($purchaseId)
             ->whereNotNull('product_id')
             ->distinct()
-            ->pluck('product_id')
-            ->map(fn ($id) => (int) $id)
-            ->filter()
-            ->unique()
-            ->values();
+            ->pluck('product_id');
+
+        $productIds = $productIds->merge($fromItems)->map(fn ($id) => (int) $id)->filter()->unique()->values();
 
         if ($productIds->isEmpty()) {
             return response()->json(['data' => []]);
@@ -306,15 +314,26 @@ class CustomerController extends Controller
             }
 
             $available = ProductListItem::assignableFromAdminOnPurchase($purchaseId, $pid)->count();
+            $totalRegistered = ProductListItem::onPurchaseStock($purchaseId)->matchingCatalogProduct($pid)->count();
+            $inDistribution = Schema::hasColumn('product_list', 'distribution_sale_id')
+                ? ProductListItem::onPurchaseStock($purchaseId)
+                    ->matchingCatalogProduct($pid)
+                    ->whereNotNull('distribution_sale_id')
+                    ->count()
+                : 0;
             $categoryName = $product->category?->name ?? '—';
 
             return [
                 'product_id' => $pid,
                 'label' => $categoryName.' — '.$product->name,
                 'available_imeis' => $available,
+                'in_distribution' => $inDistribution,
+                'total_registered' => $totalRegistered,
+                'selectable' => $totalRegistered > 0,
+                'assignable' => $available > 0,
             ];
         })
-            ->filter(fn (?array $row) => $row !== null && $row['available_imeis'] > 0)
+            ->filter(fn (?array $row) => $row !== null)
             ->values()
             ->all();
 
@@ -331,15 +350,41 @@ class CustomerController extends Controller
         $productId = (int) $validated['product_id'];
         $purchaseId = (int) $validated['purchase_id'];
 
-        $items = ProductListItem::assignableFromAdminOnPurchase($purchaseId, $productId)
+        $items = ProductListItem::onPurchaseStock($purchaseId)
+            ->matchingCatalogProduct($productId)
+            ->with([
+                'distributionSale:id,dealer_name,date,status',
+                'regionalManagerProductListAssignment.regionalManager:id,name',
+                'teamLeaderProductListAssignment.teamLeader:id,name',
+                'agentProductListAssignment.agent:id,name',
+            ])
             ->orderBy('imei_number')
-            ->get(['id', 'imei_number', 'model']);
+            ->get(['id', 'imei_number', 'model', 'sold_at', 'agent_sale_id', 'distribution_sale_id', 'pending_sale_id', 'agent_credit_id']);
+
+        $rows = $items->map(function (ProductListItem $item) {
+            $status = $item->custodyStatusForAdminAssign();
+
+            return [
+                'id' => $item->id,
+                'imei_number' => $item->imei_number,
+                'model' => $item->model,
+                'text' => $item->imei_number.($item->model ? ' – '.$item->model : ''),
+                'selectable' => $status['selectable'],
+                'status' => $status['code'],
+                'status_label' => $status['label'],
+            ];
+        })->values();
+
+        $summary = [
+            'total' => $rows->count(),
+            'available' => $rows->where('selectable', true)->count(),
+            'in_distribution' => $rows->where('status', 'distribution')->count(),
+            'other' => $rows->where('selectable', false)->where('status', '!=', 'distribution')->count(),
+        ];
 
         return response()->json([
-            'data' => $items->map(fn ($i) => [
-                'id' => $i->id,
-                'text' => $i->imei_number.($i->model ? ' – '.$i->model : ''),
-            ])->values()->all(),
+            'data' => $rows->all(),
+            'summary' => $summary,
         ]);
     }
 

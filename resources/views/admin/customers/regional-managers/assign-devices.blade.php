@@ -148,6 +148,43 @@
                 font-size: 0.75rem;
                 color: #64748b;
             }
+            .rm-imei-row--blocked {
+                opacity: 0.92;
+                cursor: default;
+            }
+            .rm-imei-row--blocked:hover {
+                background: #fff;
+            }
+            .rm-imei-status {
+                margin-left: auto;
+                flex-shrink: 0;
+                font-size: 0.6875rem;
+                font-weight: 700;
+                padding: 0.2rem 0.5rem;
+                border-radius: 9999px;
+                white-space: nowrap;
+            }
+            .rm-imei-status--available {
+                background: #dcfce7;
+                color: #166534;
+            }
+            .rm-imei-status--distribution {
+                background: #ffedd5;
+                color: #c2410c;
+            }
+            .rm-imei-status--other {
+                background: #f1f5f9;
+                color: #475569;
+            }
+            .rm-imei-summary {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 0.5rem 1rem;
+                margin-bottom: 0.75rem;
+                font-size: 0.75rem;
+                color: #64748b;
+            }
+            .rm-imei-summary strong { color: #334155; }
             .rm-imei-empty {
                 padding: 2rem 1rem;
                 text-align: center;
@@ -283,7 +320,7 @@
                         @error('purchase_id')
                             <p class="text-red-600 text-xs mt-1.5 font-semibold">{{ $message }}</p>
                         @enderror
-                        <p class="rm-assign-helper">Only purchases with registered IMEIs are listed.</p>
+                        <p class="rm-assign-helper">Purchases with a model on the invoice. IMEIs must be registered separately in Stock → Add product.</p>
                     </div>
                 </div>
 
@@ -301,7 +338,7 @@
                         @error('product_id')
                             <p class="text-red-600 text-xs mt-1.5 font-semibold">{{ $message }}</p>
                         @enderror
-                        <p class="rm-assign-helper" id="model-hint">Models with at least one unassigned IMEI on this purchase will appear here.</p>
+                        <p class="rm-assign-helper" id="model-hint">Models from this purchase. Register IMEIs under Stock → Add product if none are available yet.</p>
                     </div>
                 </div>
 
@@ -315,9 +352,10 @@
                         <div class="rm-imei-toolbar">
                             <input type="search" id="imei-search" class="admin-prod-input rm-imei-search py-2 text-sm"
                                 placeholder="Search IMEI…" disabled>
-                            <button type="button" id="imei-select-all" class="admin-prod-btn-ghost text-xs py-2" disabled>Select all</button>
+                            <button type="button" id="imei-select-all" class="admin-prod-btn-ghost text-xs py-2" disabled>Select all available</button>
                             <button type="button" id="imei-clear-all" class="admin-prod-btn-ghost text-xs py-2" disabled>Clear</button>
                         </div>
+                        <div class="rm-imei-summary hidden" id="imei-summary"></div>
                         <div class="rm-imei-list" id="imei-list">
                             <p class="rm-imei-empty">Select a model to load IMEIs.</p>
                         </div>
@@ -367,6 +405,27 @@
 
                 let selectedImeiIds = new Set(oldImeiIds);
                 let imeiRows = [];
+                let imeiSummary = null;
+
+                function statusClass(code, selectable) {
+                    if (selectable) return 'rm-imei-status--available';
+                    if (code === 'distribution') return 'rm-imei-status--distribution';
+                    return 'rm-imei-status--other';
+                }
+
+                function renderImeiSummary() {
+                    const el = document.getElementById('imei-summary');
+                    if (!el || !imeiSummary) {
+                        if (el) el.classList.add('hidden');
+                        return;
+                    }
+                    el.classList.remove('hidden');
+                    el.innerHTML =
+                        '<span><strong>' + imeiSummary.available + '</strong> available</span>' +
+                        (imeiSummary.in_distribution ? '<span><strong>' + imeiSummary.in_distribution + '</strong> in distribution</span>' : '') +
+                        (imeiSummary.other ? '<span><strong>' + imeiSummary.other + '</strong> other (assigned / sold / pending)</span>' : '') +
+                        '<span><strong>' + imeiSummary.total + '</strong> total on purchase</span>';
+                }
 
                 function escapeHtml(s) {
                     const d = document.createElement('div');
@@ -460,7 +519,8 @@
                     });
 
                     if (!imeiRows.length) {
-                        $imeiList.innerHTML = '<p class="rm-imei-empty">No assignable IMEIs for this model on the selected purchase.</p>';
+                        $imeiList.innerHTML = '<p class="rm-imei-empty">No IMEIs registered for this model on the selected purchase.</p>';
+                        renderImeiSummary();
                         return;
                     }
                     if (!visible.length) {
@@ -469,25 +529,34 @@
                     }
 
                     visible.forEach(function (row) {
+                        const selectable = row.selectable !== false;
                         const label = document.createElement('label');
-                        label.className = 'rm-imei-row';
-                        const checked = selectedImeiIds.has(String(row.id));
-                        const parts = (row.text || '').split(' – ');
-                        const serial = parts[0] || row.text;
-                        const modelPart = parts.length > 1 ? parts.slice(1).join(' – ') : '';
+                        label.className = 'rm-imei-row' + (selectable ? '' : ' rm-imei-row--blocked');
+                        const checked = selectable && selectedImeiIds.has(String(row.id));
+                        const serial = row.imei_number || row.text || '';
+                        const modelPart = row.model || '';
+                        const statusLabel = row.status_label || (selectable ? 'Available' : 'Unavailable');
+                        const statusCode = row.status || (selectable ? 'available' : 'other');
                         label.innerHTML =
-                            '<input type="checkbox" value="' + escapeHtml(String(row.id)) + '"' + (checked ? ' checked' : '') + '>' +
-                            '<div><div class="rm-imei-row__serial">' + escapeHtml(serial) + '</div>' +
+                            '<input type="checkbox" value="' + escapeHtml(String(row.id)) + '"' +
+                            (selectable ? '' : ' disabled') +
+                            (checked ? ' checked' : '') + '>' +
+                            '<div class="min-w-0 flex-1"><div class="rm-imei-row__serial">' + escapeHtml(serial) + '</div>' +
                             (modelPart ? '<div class="rm-imei-row__model">' + escapeHtml(modelPart) + '</div>' : '') +
-                            '</div>';
-                        label.querySelector('input').addEventListener('change', function (e) {
-                            if (e.target.checked) selectedImeiIds.add(String(row.id));
-                            else selectedImeiIds.delete(String(row.id));
-                            syncHiddenInputs();
-                            updateStepper();
-                        });
+                            '</div>' +
+                            '<span class="rm-imei-status ' + statusClass(statusCode, selectable) + '">' + escapeHtml(statusLabel) + '</span>';
+                        const input = label.querySelector('input');
+                        if (input) {
+                            input.addEventListener('change', function (e) {
+                                if (e.target.checked) selectedImeiIds.add(String(row.id));
+                                else selectedImeiIds.delete(String(row.id));
+                                syncHiddenInputs();
+                                updateStepper();
+                            });
+                        }
                         $imeiList.appendChild(label);
                     });
+                    renderImeiSummary();
                 }
 
                 function loadModels(purchaseId) {
@@ -517,17 +586,46 @@
                             if ($model.data('select2')) $model.select2('destroy');
                             $model.empty().append(new Option('Choose model…', '', true, false));
                             rows.forEach(function (row) {
-                                const label = row.label + ' (' + row.available_imeis + ' available)';
-                                $model.append(new Option(label, row.product_id, false, false));
+                                const avail = row.available_imeis || 0;
+                                const inDist = row.in_distribution || 0;
+                                const total = row.total_registered || 0;
+                                let suffix = ' (' + avail + ' available';
+                                if (inDist > 0) suffix += ', ' + inDist + ' in distribution';
+                                if (total > 0) suffix += ', ' + total + ' registered';
+                                suffix += ')';
+                                const label = row.label + (avail > 0
+                                    ? suffix
+                                    : (total > 0
+                                        ? ' (' + (inDist > 0 ? inDist + ' in distribution, ' : '') + total + ' registered — none free to assign)'
+                                        : ' (0 registered — add IMEIs in Stock → Add product)'));
+                                const opt = new Option(label, row.product_id, false, false);
+                                if (!row.selectable) {
+                                    opt.disabled = true;
+                                }
+                                $model.append(opt);
                             });
+                            const selectable = rows.filter(function (r) { return r.selectable; });
+                            const assignable = rows.filter(function (r) { return r.assignable; });
                             $model.prop('disabled', rows.length === 0);
-                            $model.select2({ width: '100%', placeholder: rows.length ? 'Choose model…' : 'No models with available IMEIs' });
+                            $model.select2({
+                                width: '100%',
+                                placeholder: rows.length
+                                    ? (selectable.length ? 'Choose model…' : 'No models on this purchase')
+                                    : 'No models on this purchase',
+                            });
 
                             const hint = document.getElementById('model-hint');
                             if (hint) {
-                                hint.textContent = rows.length
-                                    ? rows.length + ' model(s) with devices ready to assign on this purchase.'
-                                    : 'No unassigned IMEIs on this purchase. They may already be assigned, sold, or tied to a pending sale — or register IMEIs on the purchase first.';
+                                if (!rows.length) {
+                                    hint.textContent = 'This purchase has no model on file. Edit the purchase or pick another invoice.';
+                                } else if (!selectable.length) {
+                                    hint.textContent = 'Model(s) are on the purchase but no IMEIs are registered yet. Open Stock → Add product, select this purchase, and register serial numbers.';
+                                } else if (!assignable.length) {
+                                    hint.textContent = 'IMEIs are registered but none are free to assign — check the list below for devices already in distribution or assigned elsewhere.';
+                                } else {
+                                    hint.textContent = assignable.length + ' model(s) with devices ready to assign.'
+                                        + (assignable.length < selectable.length ? ' Select any model to see distribution / assigned IMEIs too.' : '');
+                                }
                             }
 
                             if (oldProductId && String(oldPurchaseId) === String(purchaseId)) {
@@ -568,9 +666,11 @@
                         .then(function (r) { return r.json(); })
                         .then(function (json) {
                             imeiRows = (json && json.data) ? json.data : [];
+                            imeiSummary = (json && json.summary) ? json.summary : null;
+                            const selectableRows = imeiRows.filter(function (r) { return r.selectable !== false; });
                             if (oldImeiIds.length && String(oldPurchaseId) === String(purchaseId) && String(oldProductId) === String(productId)) {
                                 selectedImeiIds = new Set(oldImeiIds.filter(function (id) {
-                                    return imeiRows.some(function (r) { return String(r.id) === String(id); });
+                                    return selectableRows.some(function (r) { return String(r.id) === String(id); });
                                 }));
                             } else {
                                 selectedImeiIds.clear();
@@ -578,8 +678,8 @@
                             syncHiddenInputs();
                             renderImeiList();
                             $imeiSearch.disabled = imeiRows.length === 0;
-                            document.getElementById('imei-select-all').disabled = imeiRows.length === 0;
-                            document.getElementById('imei-clear-all').disabled = imeiRows.length === 0;
+                            document.getElementById('imei-select-all').disabled = selectableRows.length === 0;
+                            document.getElementById('imei-clear-all').disabled = selectedImeiIds.size === 0;
                             updateStepper();
                         })
                         .catch(function () {
@@ -611,7 +711,9 @@
                 $imeiSearch.addEventListener('input', renderImeiList);
 
                 document.getElementById('imei-select-all').addEventListener('click', function () {
-                    imeiRows.forEach(function (row) { selectedImeiIds.add(String(row.id)); });
+                    imeiRows.filter(function (row) { return row.selectable !== false; }).forEach(function (row) {
+                        selectedImeiIds.add(String(row.id));
+                    });
                     syncHiddenInputs();
                     renderImeiList();
                     updateStepper();
