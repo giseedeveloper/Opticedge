@@ -38,6 +38,7 @@
                         'label' => 'Regional managers',
                         'href' => route('admin.customers.index', ['role' => 'regional_manager']),
                         'add' => ['label' => 'Add regional manager', 'route' => route('admin.customers.regional-managers.create')],
+                        'assign' => ['label' => 'Assign devices', 'route' => route('admin.customers.regional-managers.assign-devices')],
                     ],
                 ];
             @endphp
@@ -84,6 +85,17 @@
                                     </svg>
                                     {{ $filter['add']['label'] }}
                                 </a>
+                                @if (! empty($filter['assign']))
+                                    <a href="{{ $filter['assign']['route'] }}" class="admin-prod-filter-menu-item" role="menuitem"
+                                        @click="open = false">
+                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"
+                                            stroke-width="2" aria-hidden="true">
+                                            <path stroke-linecap="round" stroke-linejoin="round"
+                                                d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                                        </svg>
+                                        {{ $filter['assign']['label'] }}
+                                    </a>
+                                @endif
                             </div>
                         </div>
                     @else
@@ -160,6 +172,10 @@
                                 </td>
                                 <td class="admin-prod-cell-actions">
                                     <div class="flex flex-col items-end gap-2 min-w-[260px]">
+                                        @if(($user->role ?? '') === 'regional_manager' && $isActive)
+                                            <a href="{{ route('admin.customers.regional-managers.assign-devices', ['regional_manager_id' => $user->id]) }}"
+                                                class="admin-prod-link text-sm whitespace-nowrap">Assign devices</a>
+                                        @endif
                                         <details class="w-full">
                                             <summary class="cursor-pointer text-xs font-semibold text-slate-600 hover:text-[#fa8900] list-none text-right">
                                                 Reset password
