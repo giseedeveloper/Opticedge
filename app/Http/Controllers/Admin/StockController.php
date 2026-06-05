@@ -746,37 +746,9 @@ class StockController extends Controller
             abort(404);
         }
 
-        $purchase->recalculateLimitRemaining();
-
-        $purchase->load([
-            'lines.product.category:id,name',
-            'product:id,name,category_id',
+        return response()->json([
+            'data' => $this->resolvePurchaseRegistrationRows($purchase, persistLimits: true),
         ]);
-
-        if ($purchase->lines->isNotEmpty()) {
-            $rows = $purchase->lines
-                ->map(function ($line) {
-                    return $this->purchaseModelRowForRegistration($line->product, (int) $line->limit_remaining, (float) $line->unit_price, $line->sell_price);
-                })
-                ->filter()
-                ->values();
-
-            return response()->json(['data' => $rows->all()]);
-        }
-
-        $product = $purchase->product;
-        if (! $product) {
-            return response()->json(['data' => []]);
-        }
-
-        $row = $this->purchaseModelRowForRegistration(
-            $product,
-            (int) ($purchase->limit_remaining ?? 0),
-            (float) ($purchase->unit_price ?? 0),
-            $purchase->sell_price
-        );
-
-        return response()->json(['data' => $row ? [$row] : []]);
     }
 
     /**
@@ -1932,7 +1904,13 @@ class StockController extends Controller
             ->orderByDesc('id')
             ->get();
 
-        return view('admin.stock.create-distribution', compact('dealers', 'purchases'));
+        $purchaseRegisterMeta = $purchases->mapWithKeys(function (Purchase $purchase) {
+            return [
+                (int) $purchase->id => $this->resolvePurchaseRegistrationRows($purchase, persistLimits: false),
+            ];
+        })->all();
+
+        return view('admin.stock.create-distribution', compact('dealers', 'purchases', 'purchaseRegisterMeta'));
     }
 
     /**
@@ -2073,59 +2051,76 @@ class StockController extends Controller
      */
     private function purchaseModelsForRegistration(Purchase $purchase): array
     {
-        $purchase->recalculateLimitRemaining();
+        return collect($this->resolvePurchaseRegistrationRows($purchase, persistLimits: true))
+            ->filter(fn (array $row) => (int) ($row['limit_remaining'] ?? 0) > 0)
+            ->map(fn (array $row) => [
+                'product_id' => $row['product_id'],
+                'limit_remaining' => $row['limit_remaining'],
+                'can_register' => $row['can_register'],
+                'label' => ($row['category_name'] ?? '—').' — '.$row['model'].' · slots '.$row['limit_remaining'],
+            ])
+            ->values()
+            ->all();
+    }
+
+    /**
+     * Models on a purchase for IMEI registration (line items + header product fallback).
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function resolvePurchaseRegistrationRows(Purchase $purchase, bool $persistLimits = true): array
+    {
+        if ($persistLimits) {
+            $purchase->recalculateLimitRemaining();
+        }
 
         $purchase->loadMissing([
             'lines.product.category:id,name',
             'product.category:id,name',
         ]);
 
-        if ($purchase->lines->isNotEmpty()) {
-            return $purchase->lines
-                ->map(function ($line) {
-                    $row = $this->purchaseModelRowForRegistration(
-                        $line->product,
-                        (int) $line->limit_remaining,
-                        (float) $line->unit_price,
-                        $line->sell_price
-                    );
-                    if (! $row || (int) $row['limit_remaining'] <= 0) {
-                        return null;
-                    }
+        $rows = collect();
+        $seenProductIds = [];
 
-                    return [
-                        'product_id' => $row['product_id'],
-                        'limit_remaining' => $row['limit_remaining'],
-                        'can_register' => $row['can_register'],
-                        'label' => ($row['category_name'] ?? '—').' — '.$row['model'].' · slots '.$row['limit_remaining'],
-                    ];
-                })
-                ->filter()
-                ->values()
-                ->all();
+        foreach ($purchase->lines as $line) {
+            $limitRemaining = $persistLimits
+                ? (int) $line->limit_remaining
+                : $purchase->openSlotsForLine($line);
+
+            $row = $this->purchaseModelRowForRegistration(
+                $line->product,
+                $limitRemaining,
+                (float) $line->unit_price,
+                $line->sell_price
+            );
+            if (! $row) {
+                continue;
+            }
+
+            $rows->push($row);
+            $seenProductIds[(int) $row['product_id']] = true;
         }
 
-        $product = $purchase->product;
-        if (! $product) {
-            return [];
+        if ($purchase->product) {
+            $headerProductId = (int) $purchase->product->id;
+            if (! isset($seenProductIds[$headerProductId])) {
+                $limitRemaining = $persistLimits
+                    ? (int) ($purchase->limit_remaining ?? 0)
+                    : $purchase->openSlotsForHeaderProduct();
+
+                $row = $this->purchaseModelRowForRegistration(
+                    $purchase->product,
+                    $limitRemaining,
+                    (float) ($purchase->unit_price ?? 0),
+                    $purchase->sell_price
+                );
+                if ($row) {
+                    $rows->push($row);
+                }
+            }
         }
 
-        $row = $this->purchaseModelRowForRegistration(
-            $product,
-            (int) ($purchase->limit_remaining ?? 0),
-            (float) ($purchase->unit_price ?? 0),
-            $purchase->sell_price
-        );
-        if (! $row || (int) $row['limit_remaining'] <= 0) {
-            return [];
-        }
-
-        return [[
-            'product_id' => $row['product_id'],
-            'limit_remaining' => $row['limit_remaining'],
-            'can_register' => $row['can_register'],
-            'label' => ($row['category_name'] ?? '—').' — '.$row['model'].' · slots '.$row['limit_remaining'],
-        ]];
+        return $rows->values()->all();
     }
 
     public function storeDistribution(Request $request)

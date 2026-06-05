@@ -68,6 +68,42 @@ class Purchase extends Model
         return $this->belongsTo(Product::class);
     }
 
+    public function registeredCountForProduct(int $productId): int
+    {
+        return (int) $this->productListItems()
+            ->where('product_id', $productId)
+            ->count();
+    }
+
+    public function effectiveLineQuantity(PurchaseLine $line): int
+    {
+        $qty = (int) $line->quantity;
+        if ($qty > 0) {
+            return $qty;
+        }
+
+        if ($this->relationLoaded('lines') ? $this->lines->count() === 1 : $this->lines()->count() === 1) {
+            return (int) ($this->quantity ?? 0);
+        }
+
+        return $qty;
+    }
+
+    public function openSlotsForLine(PurchaseLine $line): int
+    {
+        $productId = (int) $line->product_id;
+
+        return max(0, $this->effectiveLineQuantity($line) - $this->registeredCountForProduct($productId));
+    }
+
+    public function openSlotsForHeaderProduct(): int
+    {
+        $registered = (int) $this->productListItems()->count();
+        $maxQty = (int) ($this->quantity ?? 0);
+
+        return max(0, $maxQty - $registered);
+    }
+
     /**
      * Reconcile limit_remaining from purchase quantity minus registered IMEI rows.
      * Fixes purchases where quantity shows slots but limit_remaining was never set or drifted.
@@ -82,12 +118,18 @@ class Purchase extends Model
 
         if ($this->lines->isNotEmpty()) {
             foreach ($this->lines as $line) {
-                $registered = (int) $this->productListItems()
-                    ->where('product_id', $line->product_id)
-                    ->count();
-                $remaining = max(0, (int) $line->quantity - $registered);
+                $effectiveQty = $this->effectiveLineQuantity($line);
+                $remaining = $this->openSlotsForLine($line);
+                $updates = [];
+
+                if ((int) $line->quantity !== $effectiveQty && $effectiveQty > 0) {
+                    $updates['quantity'] = $effectiveQty;
+                }
                 if ((int) $line->limit_remaining !== $remaining) {
-                    $line->update(['limit_remaining' => $remaining]);
+                    $updates['limit_remaining'] = $remaining;
+                }
+                if ($updates !== []) {
+                    $line->update($updates);
                 }
             }
 
@@ -98,9 +140,7 @@ class Purchase extends Model
             return;
         }
 
-        $registered = (int) $this->productListItems()->count();
-        $maxQty = (int) ($this->quantity ?? 0);
-        $remaining = max(0, $maxQty - $registered);
+        $remaining = $this->openSlotsForHeaderProduct();
         $status = $remaining <= 0 ? 'complete' : 'pending';
 
         if ((int) ($this->limit_remaining ?? 0) !== $remaining || (string) $this->limit_status !== $status) {

@@ -231,6 +231,7 @@
                         <div id="dist-register-body" class="space-y-4 hidden">
                             <p class="helper-text">After registering, open the <strong>Add to sale</strong> tab and pick the model to include IMEIs in this distribution.</p>
                             <p id="dist-register-no-slots" class="hidden text-sm text-slate-600 bg-slate-50 border border-slate-200/80 rounded-lg px-3 py-2">No open slots on this purchase — sell already registered IMEIs from the <strong>Add to sale</strong> tab.</p>
+                            <p id="dist-register-brand-warning" class="hidden text-sm text-amber-800 bg-amber-50/80 border border-amber-200/70 rounded-lg px-3 py-2">This model needs a brand assigned in <strong>Management → Models</strong> before IMEIs can be registered.</p>
                             <div id="dist-register-form" class="space-y-4 hidden">
                         <div>
                             <label for="dist_register_model" class="admin-prod-label">Model</label>
@@ -314,6 +315,7 @@
             const PURCHASE_MODELS_URL_TEMPLATE = @json(route('admin.stock.distribution-purchase-models', ['purchase' => '__ID__']));
             const PURCHASE_MODELS_FOR_REGISTER_URL_TEMPLATE = @json(route('admin.stock.add-product.purchase.models', ['purchase' => '__ID__']));
             const REGISTER_IMEIS_URL = @json(route('admin.stock.distribution-register-imeis'));
+            const PURCHASE_REGISTER_META = @json($purchaseRegisterMeta ?? []);
             const CSRF_TOKEN = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
 
             let purchaseRegistrationModels = [];
@@ -720,6 +722,7 @@
             const registerBody = document.getElementById('dist-register-body');
             const registerForm = document.getElementById('dist-register-form');
             const registerNoSlots = document.getElementById('dist-register-no-slots');
+            const registerBrandWarning = document.getElementById('dist-register-brand-warning');
             const purchaseSlotsHint = document.getElementById('purchase-slots-hint');
 
             function switchDistTab(tabId) {
@@ -732,11 +735,14 @@
                 document.getElementById('dist-tab-register').classList.toggle('hidden', tabId !== 'register');
             }
 
-            function setRegisterTabState(state) {
+            function setRegisterTabState(state, options) {
+                options = options || {};
+                const showForm = state === 'ready';
                 registerNoPurchase.classList.toggle('hidden', state !== 'no-purchase');
                 registerBody.classList.toggle('hidden', state === 'no-purchase');
-                registerNoSlots.classList.toggle('hidden', state !== 'no-slots');
-                registerForm.classList.toggle('hidden', state !== 'ready');
+                registerNoSlots.classList.toggle('hidden', showForm || state === 'no-purchase');
+                registerBrandWarning.classList.toggle('hidden', !options.needsBrand || !showForm);
+                registerForm.classList.toggle('hidden', !showForm);
             }
 
             document.querySelectorAll('.dist-tab-btn[data-dist-tab]').forEach(function (btn) {
@@ -785,7 +791,7 @@
                 registerFeedback.textContent = '';
             }
 
-            function populateRegisterModelSelect(models) {
+            function populateRegisterModelSelect(models, autoSelectSingle) {
                 const $sel = window.jQuery ? jQuery('#dist_register_model') : null;
                 if ($sel && $sel.data('select2')) {
                     $sel.select2('destroy');
@@ -798,10 +804,13 @@
                     registerModelSelect.appendChild(opt);
                     selectedModelLimitRemaining = 0;
                 } else {
-                    const empty = document.createElement('option');
-                    empty.value = '';
-                    empty.textContent = 'Select model';
-                    registerModelSelect.appendChild(empty);
+                    const includePlaceholder = models.length > 1;
+                    if (includePlaceholder) {
+                        const empty = document.createElement('option');
+                        empty.value = '';
+                        empty.textContent = 'Select model';
+                        registerModelSelect.appendChild(empty);
+                    }
                     models.forEach(function (m) {
                         const opt = document.createElement('option');
                         opt.value = String(m.product_id);
@@ -809,12 +818,58 @@
                         opt.dataset.limitRemaining = String(m.limit_remaining || 0);
                         registerModelSelect.appendChild(opt);
                     });
+                    if (autoSelectSingle && models.length === 1) {
+                        registerModelSelect.value = String(models[0].product_id);
+                    }
                 }
                 if ($sel && window.jQuery && jQuery.fn.select2) {
                     $sel.select2({ placeholder: 'Select model', width: '100%', allowClear: false });
+                    if (autoSelectSingle && models.length === 1) {
+                        $sel.val(String(models[0].product_id)).trigger('change.select2');
+                    }
                 }
                 updateRegisterModelSlotsLabel();
                 updateRegisterSubmitState();
+            }
+
+            function applyPurchaseRegistrationRows(rows) {
+                const openSlotRows = rows.filter(function (m) {
+                    return (m.limit_remaining || 0) > 0;
+                });
+                purchaseRegistrationModels = openSlotRows.map(function (m) {
+                    return {
+                        product_id: m.product_id,
+                        limit_remaining: m.limit_remaining,
+                        label: m.label || m.model,
+                        can_register: m.can_register !== false,
+                    };
+                });
+                const totalSlots = openSlotRows.reduce(function (sum, m) {
+                    return sum + (parseInt(m.limit_remaining, 10) || 0);
+                }, 0);
+                const needsBrand = openSlotRows.some(function (m) {
+                    return m.can_register === false;
+                });
+                const registerableModels = purchaseRegistrationModels.filter(function (m) {
+                    return m.can_register !== false;
+                });
+
+                if (openSlotRows.length > 0) {
+                    purchaseSlotsHint.textContent = needsBrand
+                        ? (totalSlots + ' open slot(s), but assign a brand to the model in Management → Models before registering IMEIs.')
+                        : (totalSlots + ' open slot(s) on this purchase — use the Register IMEIs tab to add devices.');
+                    setRegisterTabState('ready', { needsBrand: needsBrand });
+                    populateRegisterModelSelect(registerableModels.length ? registerableModels : purchaseRegistrationModels, true);
+                    return;
+                }
+
+                if (rows.length === 0) {
+                    purchaseSlotsHint.textContent = 'No models found on this purchase.';
+                } else {
+                    purchaseSlotsHint.textContent = 'No open slots on this purchase — sell IMEIs already registered from the Add to sale tab.';
+                }
+                setRegisterTabState('no-slots');
+                populateRegisterModelSelect([]);
             }
 
             function updateRegisterModelSlotsLabel() {
@@ -839,9 +894,17 @@
                     return;
                 }
 
-                setRegisterTabState('ready');
+                registerBody.classList.remove('hidden');
+                registerForm.classList.add('hidden');
+                registerNoSlots.classList.add('hidden');
+                registerBrandWarning.classList.add('hidden');
                 purchaseSlotsHint.classList.remove('hidden');
                 purchaseSlotsHint.textContent = 'Loading purchase slots…';
+
+                const embeddedRows = PURCHASE_REGISTER_META[purchaseId] || PURCHASE_REGISTER_META[parseInt(purchaseId, 10)] || [];
+                if (embeddedRows.length) {
+                    applyPurchaseRegistrationRows(embeddedRows);
+                }
 
                 const url = PURCHASE_MODELS_FOR_REGISTER_URL_TEMPLATE.replace('__ID__', encodeURIComponent(purchaseId));
                 fetch(url, {
@@ -850,45 +913,16 @@
                 })
                     .then(function (r) { return r.json(); })
                     .then(function (json) {
-                        const rows = (json && json.data) ? json.data : [];
-                        const openSlotRows = rows.filter(function (m) {
-                            return (m.limit_remaining || 0) > 0;
-                        });
-                        purchaseRegistrationModels = openSlotRows.filter(function (m) {
-                            return m.can_register !== false;
-                        }).map(function (m) {
-                            return {
-                                product_id: m.product_id,
-                                limit_remaining: m.limit_remaining,
-                                label: m.label || m.model,
-                            };
-                        });
-                        const totalSlots = openSlotRows.reduce(function (sum, m) {
-                            return sum + (parseInt(m.limit_remaining, 10) || 0);
-                        }, 0);
-                        const needsBrand = openSlotRows.some(function (m) {
-                            return m.can_register === false;
-                        });
-                        if (purchaseRegistrationModels.length) {
-                            purchaseSlotsHint.textContent = totalSlots + ' open slot(s) on this purchase — use the Register IMEIs tab to add devices.';
-                            setRegisterTabState('ready');
-                        } else if (needsBrand) {
-                            purchaseSlotsHint.textContent = totalSlots + ' open slot(s), but the model needs a brand assigned in Management → Models before IMEIs can be registered.';
-                            setRegisterTabState('no-slots');
-                        } else if (totalSlots > 0) {
-                            purchaseSlotsHint.textContent = totalSlots + ' open slot(s) on this purchase — use the Register IMEIs tab to add devices.';
-                            setRegisterTabState('ready');
-                        } else if (rows.length === 0) {
-                            purchaseSlotsHint.textContent = 'No models found on this purchase.';
-                            setRegisterTabState('no-slots');
-                        } else {
-                            purchaseSlotsHint.textContent = 'No open slots on this purchase — sell IMEIs already registered from the Add to sale tab.';
-                            setRegisterTabState('no-slots');
-                        }
-                        populateRegisterModelSelect(purchaseRegistrationModels);
+                        const rows = (json && json.data) ? json.data : embeddedRows;
+                        applyPurchaseRegistrationRows(rows);
                     })
                     .catch(function () {
+                        if (embeddedRows.length) {
+                            applyPurchaseRegistrationRows(embeddedRows);
+                            return;
+                        }
                         purchaseSlotsHint.textContent = 'Could not load purchase slot info.';
+                        setRegisterTabState('no-slots');
                         populateRegisterModelSelect([]);
                     });
             }
@@ -931,15 +965,7 @@
                         updateRegisterImeiCount();
                         switchDistTab('sale');
                         if (res.json.models) {
-                            purchaseRegistrationModels = res.json.models;
-                            const totalSlots = res.json.models.reduce(function (s, m) {
-                                return s + (m.limit_remaining || 0);
-                            }, 0);
-                            purchaseSlotsHint.textContent = totalSlots > 0
-                                ? totalSlots + ' open slot(s) on this purchase — use the Register IMEIs tab to add devices.'
-                                : 'No open slots on this purchase — sell IMEIs already registered from the Add to sale tab.';
-                            setRegisterTabState(totalSlots > 0 ? 'ready' : 'no-slots');
-                            populateRegisterModelSelect(res.json.models);
+                            applyPurchaseRegistrationRows(res.json.models);
                         } else {
                             loadPurchaseRegistrationMeta();
                         }
