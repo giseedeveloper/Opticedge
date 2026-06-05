@@ -7,7 +7,10 @@
                 <p class="admin-prod-subtitle">Team leaders and agents under your line, quantity assignments, IMEI devices,
                     and active dealers and customers tagged to your region.</p>
             </div>
-            <a href="{{ route('regional-manager.region-inventory') }}" class="admin-prod-btn-primary shrink-0">Full IMEI register</a>
+            <div class="flex flex-wrap items-center gap-2 shrink-0">
+                <a href="{{ route('regional-manager.assign-team-leader') }}" class="admin-prod-btn-primary shrink-0">Assign to team leader</a>
+                <a href="{{ route('regional-manager.region-inventory') }}" class="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-800 hover:bg-slate-50 shrink-0">Full IMEI register</a>
+            </div>
         </div>
 
         @if (session('success'))
@@ -161,6 +164,7 @@
                             <th class="admin-prod-th text-right">IMEIs</th>
                             <th class="admin-prod-th text-right">IMEI unsold</th>
                             <th class="admin-prod-th text-right">IMEI sold</th>
+                            <th class="admin-prod-th">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -178,10 +182,14 @@
                                 <td class="text-right font-variant-numeric text-slate-800">{{ $r->imei_total }}</td>
                                 <td class="text-right font-variant-numeric text-slate-700">{{ $r->imei_unsold }}</td>
                                 <td class="text-right font-variant-numeric text-slate-700">{{ $r->imei_sold }}</td>
+                                <td>
+                                    <a href="{{ route('regional-manager.assign-team-leader', ['team_leader_id' => $tl->id]) }}"
+                                        class="admin-prod-link text-sm whitespace-nowrap">Assign devices</a>
+                                </td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="11" class="py-12 text-center text-slate-500">No team leaders linked to your
+                                <td colspan="12" class="py-12 text-center text-slate-500">No team leaders linked to your
                                     account.</td>
                             </tr>
                         @endforelse

@@ -313,7 +313,7 @@ class RegionalManagerController extends Controller
         ));
     }
 
-    public function assignTeamLeaderForm()
+    public function assignTeamLeaderForm(Request $request)
     {
         $teamLeaders = User::query()
             ->where('role', 'teamleader')
@@ -323,7 +323,12 @@ class RegionalManagerController extends Controller
             ->get();
         $products = Product::whereHas('purchases')->with('category')->orderBy('name')->get();
 
-        return view('regional-manager.assign-team-leader', compact('teamLeaders', 'products'));
+        $selectedTeamLeader = $request->query('team_leader_id');
+        if ($selectedTeamLeader !== null && ! $teamLeaders->contains('id', (int) $selectedTeamLeader)) {
+            $selectedTeamLeader = null;
+        }
+
+        return view('regional-manager.assign-team-leader', compact('teamLeaders', 'products', 'selectedTeamLeader'));
     }
 
     public function assignableImeisForTeamLeader(Request $request)

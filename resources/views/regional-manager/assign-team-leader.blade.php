@@ -8,6 +8,7 @@
         'recipientLabel' => 'Team leader',
         'recipientName' => 'team_leader_id',
         'recipientOptions' => $teamLeaders,
+        'recipientSelected' => old('team_leader_id', $selectedTeamLeader ?? null),
         'productOptions' => $products,
         'assignableUrl' => route('regional-manager.assign-team-leader.assignable-imeis'),
         'submitLabel' => 'Assign to team leader',

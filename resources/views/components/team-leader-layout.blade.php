@@ -126,6 +126,8 @@
                     class="px-3 py-1.5 rounded-xl shrink-0 {{ request()->routeIs('team-leader.dashboard') ? 'bg-white/90 text-[#232f3e] shadow-sm' : 'text-slate-600 hover:text-[#232f3e] hover:bg-white/70' }} transition-all">Overview</a>
                 <a href="{{ route('team-leader.team-inventory') }}"
                     class="px-3 py-1.5 rounded-xl shrink-0 {{ request()->routeIs('team-leader.team-inventory') ? 'bg-white/90 text-[#232f3e] shadow-sm' : 'text-slate-600 hover:text-[#232f3e] hover:bg-white/70' }} transition-all">IMEIs</a>
+                <a href="{{ route('team-leader.assign-agent') }}"
+                    class="px-3 py-1.5 rounded-xl shrink-0 {{ request()->routeIs('team-leader.assign-agent*') ? 'bg-white/90 text-[#232f3e] shadow-sm' : 'text-slate-600 hover:text-[#232f3e] hover:bg-white/70' }} transition-all">Assign devices</a>
                 <a href="{{ route('team-leader.profile') }}"
                     class="px-3 py-1.5 rounded-xl shrink-0 {{ request()->routeIs('team-leader.profile') ? 'bg-white/90 text-[#232f3e] shadow-sm' : 'text-slate-600 hover:text-[#232f3e] hover:bg-white/70' }} transition-all">Profile</a>
                 <a href="{{ route('shop') }}"

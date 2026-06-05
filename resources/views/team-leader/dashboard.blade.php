@@ -7,7 +7,10 @@
                 <p class="admin-prod-subtitle">Your agents, quantity assignments, and every IMEI device assigned to your
                     team.</p>
             </div>
-            <a href="{{ route('team-leader.team-inventory') }}" class="admin-prod-btn-primary shrink-0">Full IMEI register</a>
+            <div class="flex flex-wrap items-center gap-2 shrink-0">
+                <a href="{{ route('team-leader.assign-agent') }}" class="admin-prod-btn-primary shrink-0">Assign to agent</a>
+                <a href="{{ route('team-leader.team-inventory') }}" class="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-800 hover:bg-slate-50 shrink-0">Full IMEI register</a>
+            </div>
         </div>
 
         @if (session('success'))
@@ -139,6 +142,7 @@
                             <th scope="col" class="admin-prod-th text-right">IMEIs</th>
                             <th scope="col" class="admin-prod-th text-right">IMEI unsold</th>
                             <th scope="col" class="admin-prod-th text-right">IMEI sold</th>
+                            <th scope="col" class="admin-prod-th">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -152,6 +156,7 @@
                                 $imTotal = (int) ($im->imei_total ?? 0);
                                 $imUnsold = (int) ($im->imei_unsold ?? 0);
                                 $imSold = (int) ($im->imei_sold ?? 0);
+                                $isActive = ($agent->status ?? 'active') === 'active';
                             @endphp
                             <tr>
                                 <td class="font-semibold text-[#232f3e]">{{ $agent->name }}</td>
@@ -159,7 +164,6 @@
                                 <td class="text-slate-600">{{ $agent->phone ?? '—' }}</td>
                                 <td class="text-slate-600">{{ $agent->branch?->name ?? '—' }}</td>
                                 <td>
-                                    @php $isActive = ($agent->status ?? 'active') === 'active'; @endphp
                                     <span
                                         class="admin-prod-user-status {{ $isActive ? 'admin-prod-user-status--active' : 'admin-prod-user-status--inactive' }}">
                                         {{ ucfirst($agent->status ?? 'active') }}
@@ -171,10 +175,18 @@
                                 <td class="text-right font-variant-numeric text-slate-800">{{ $imTotal }}</td>
                                 <td class="text-right font-variant-numeric text-slate-700">{{ $imUnsold }}</td>
                                 <td class="text-right font-variant-numeric text-slate-700">{{ $imSold }}</td>
+                                <td>
+                                    @if($isActive)
+                                        <a href="{{ route('team-leader.assign-agent', ['agent_id' => $agent->id]) }}"
+                                            class="admin-prod-link text-sm whitespace-nowrap">Assign devices</a>
+                                    @else
+                                        <span class="text-slate-400 text-sm">—</span>
+                                    @endif
+                                </td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="11" class="py-12 text-center text-slate-500">
+                                <td colspan="12" class="py-12 text-center text-slate-500">
                                     No agents are assigned to you yet. When an administrator assigns agents to you as
                                     their team leader, they will appear here.
                                 </td>

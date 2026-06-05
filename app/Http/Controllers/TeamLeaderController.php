@@ -231,7 +231,7 @@ class TeamLeaderController extends Controller
         return view('team-leader.cart', compact('cart'));
     }
 
-    public function assignAgentForm()
+    public function assignAgentForm(Request $request)
     {
         $agents = User::query()
             ->where('role', 'agent')
@@ -241,7 +241,12 @@ class TeamLeaderController extends Controller
             ->get();
         $products = Product::whereHas('purchases')->with('category')->orderBy('name')->get();
 
-        return view('team-leader.assign-agent', compact('agents', 'products'));
+        $selectedAgent = $request->query('agent_id');
+        if ($selectedAgent !== null && ! $agents->contains('id', (int) $selectedAgent)) {
+            $selectedAgent = null;
+        }
+
+        return view('team-leader.assign-agent', compact('agents', 'products', 'selectedAgent'));
     }
 
     public function assignableImeisForAgent(Request $request)

@@ -3,7 +3,10 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Product;
+use App\Models\ProductListItem;
 use App\Models\User;
+use App\Services\DeviceHierarchyAssignmentService;
 use Illuminate\Support\Collection;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
@@ -240,6 +243,76 @@ class CustomerController extends Controller
 
         return redirect()->route('admin.customers.team-leaders.index')
             ->with('success', 'Team leader account created. They can sign in with the email and password you set.');
+    }
+
+    public function assignRegionalManagerDevicesForm(Request $request)
+    {
+        $managers = User::query()
+            ->where('role', 'regional_manager')
+            ->where('status', 'active')
+            ->orderBy('name')
+            ->get(['id', 'name', 'email']);
+
+        $products = Product::whereHas('purchases')->with('category')->orderBy('name')->get();
+
+        $selectedManager = $request->query('regional_manager_id');
+        if ($selectedManager !== null && ! $managers->contains('id', (int) $selectedManager)) {
+            $selectedManager = null;
+        }
+
+        return view('admin.customers.regional-managers.assign-devices', compact('managers', 'products', 'selectedManager'));
+    }
+
+    public function assignableImeisForRegionalManager(Request $request)
+    {
+        $validated = $request->validate([
+            'product_id' => 'required|exists:models,id',
+        ]);
+
+        $items = ProductListItem::assignableFromAdmin((int) $validated['product_id'])
+            ->orderBy('imei_number')
+            ->get(['id', 'imei_number', 'model']);
+
+        return response()->json([
+            'data' => $items->map(fn ($i) => [
+                'id' => $i->id,
+                'text' => $i->imei_number.($i->model ? ' – '.$i->model : ''),
+            ])->values()->all(),
+        ]);
+    }
+
+    public function storeAssignRegionalManagerDevices(Request $request, DeviceHierarchyAssignmentService $hierarchyService)
+    {
+        $validated = $request->validate([
+            'regional_manager_id' => [
+                'required',
+                Rule::exists('users', 'id')->where(fn ($q) => $q->where('role', 'regional_manager')),
+            ],
+            'product_id' => 'required|exists:models,id',
+            'product_list_ids' => 'required|array|min:1',
+            'product_list_ids.*' => 'distinct|integer|exists:product_list,id',
+        ]);
+
+        $regionalManager = User::findOrFail($validated['regional_manager_id']);
+
+        try {
+            $count = $hierarchyService->assignToRegionalManager(
+                $regionalManager,
+                (int) $validated['product_id'],
+                $validated['product_list_ids']
+            );
+            $message = $count === 1
+                ? '1 device assigned to regional manager.'
+                : "{$count} devices assigned to regional manager.";
+        } catch (\InvalidArgumentException $e) {
+            return back()->withInput()->with('error', $e->getMessage());
+        }
+
+        return redirect()
+            ->route('admin.customers.regional-managers.assign-devices', [
+                'regional_manager_id' => $regionalManager->id,
+            ])
+            ->with('success', $message);
     }
 
     public function activate(User $user)

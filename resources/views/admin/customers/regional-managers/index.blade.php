@@ -9,6 +9,8 @@
                 <p class="admin-prod-subtitle">People who oversee a region. They distribute devices to team leaders and agents.</p>
             </div>
             <div class="flex flex-wrap items-center gap-2 shrink-0">
+                <a href="{{ route('admin.customers.regional-managers.assign-devices') }}"
+                    class="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-800 hover:bg-slate-50">Assign devices</a>
                 <a href="{{ route('admin.customers.regional-managers.create') }}"
                     class="rounded-lg bg-slate-800 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700">Add regional manager</a>
                 <a href="{{ route('admin.customers.index', ['role' => 'regional_manager']) }}"
@@ -34,6 +36,7 @@
                             <th scope="col" class="admin-prod-th">Region</th>
                             <th scope="col" class="admin-prod-th">Status</th>
                             <th scope="col" class="admin-prod-th">Joined</th>
+                            <th scope="col" class="admin-prod-th">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -50,10 +53,18 @@
                                     </span>
                                 </td>
                                 <td class="font-variant-numeric text-slate-600 text-sm">{{ $user->created_at->format('M j, Y') }}</td>
+                                <td>
+                                    @if($isActive)
+                                        <a href="{{ route('admin.customers.regional-managers.assign-devices', ['regional_manager_id' => $user->id]) }}"
+                                            class="admin-prod-link text-sm whitespace-nowrap">Assign devices</a>
+                                    @else
+                                        <span class="text-slate-400 text-sm">—</span>
+                                    @endif
+                                </td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="6" class="text-center text-slate-500 py-10">No regional managers yet.</td>
+                                <td colspan="7" class="text-center text-slate-500 py-10">No regional managers yet.</td>
                             </tr>
                         @endforelse
                     </tbody>

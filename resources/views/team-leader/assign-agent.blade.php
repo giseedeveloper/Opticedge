@@ -8,6 +8,7 @@
         'recipientLabel' => 'Agent',
         'recipientName' => 'agent_id',
         'recipientOptions' => $agents,
+        'recipientSelected' => old('agent_id', $selectedAgent ?? null),
         'productOptions' => $products,
         'assignableUrl' => route('team-leader.assign-agent.assignable-imeis'),
         'submitLabel' => 'Assign to agent',

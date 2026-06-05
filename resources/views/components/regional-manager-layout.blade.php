@@ -126,6 +126,8 @@
                     class="px-3 py-1.5 rounded-xl shrink-0 {{ request()->routeIs('regional-manager.dashboard') ? 'bg-white/90 text-[#232f3e] shadow-sm' : 'text-slate-600 hover:text-[#232f3e] hover:bg-white/70' }} transition-all">Overview</a>
                 <a href="{{ route('regional-manager.region-inventory') }}"
                     class="px-3 py-1.5 rounded-xl shrink-0 {{ request()->routeIs('regional-manager.region-inventory') ? 'bg-white/90 text-[#232f3e] shadow-sm' : 'text-slate-600 hover:text-[#232f3e] hover:bg-white/70' }} transition-all">IMEIs</a>
+                <a href="{{ route('regional-manager.assign-team-leader') }}"
+                    class="px-3 py-1.5 rounded-xl shrink-0 {{ request()->routeIs('regional-manager.assign-team-leader*') ? 'bg-white/90 text-[#232f3e] shadow-sm' : 'text-slate-600 hover:text-[#232f3e] hover:bg-white/70' }} transition-all">Assign devices</a>
                 <a href="{{ route('regional-manager.profile') }}"
                     class="px-3 py-1.5 rounded-xl shrink-0 {{ request()->routeIs('regional-manager.profile') ? 'bg-white/90 text-[#232f3e] shadow-sm' : 'text-slate-600 hover:text-[#232f3e] hover:bg-white/70' }} transition-all">Profile</a>
                 <a href="{{ route('shop') }}"
