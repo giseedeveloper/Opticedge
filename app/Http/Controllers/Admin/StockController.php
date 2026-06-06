@@ -2181,11 +2181,17 @@ class StockController extends Controller
             $buyPrice = $prices['buy'];
             $sellUnit = $prices['sell'];
 
+            // Fall back: use buy price as sell when no sell price is set (prevents blocking
+            // legitimate sales where only unit_price was entered without an explicit sell_price).
+            if ($sellUnit <= 0 && $buyPrice > 0) {
+                $sellUnit = $buyPrice;
+            }
+
             if ($sellUnit <= 0) {
                 return redirect()->back()
                     ->withInput()
                     ->withErrors([
-                        'lines' => 'No sell price on the selected purchase for '.$product->name.'. Update the purchase first.',
+                        'lines' => 'No sell price on the selected purchase for '.$product->name.'. Set a sell price on the purchase or its lines before creating this sale.',
                     ]);
             }
 

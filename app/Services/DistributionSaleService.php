@@ -117,11 +117,8 @@ class DistributionSaleService
                 return ['buy' => $buy, 'sell' => $sell];
             }
 
-            return ['buy' => 0.0, 'sell' => 0.0];
-        }
-
-        if ($purchase->product_id && (int) $purchase->product_id !== $productId) {
-            return ['buy' => 0.0, 'sell' => 0.0];
+            // Product not in lines — fall back to header pricing (covers items registered
+            // via IMEI import that match the purchase but aren't on a named line).
         }
 
         $buy = (float) ($purchase->unit_price ?? 0);

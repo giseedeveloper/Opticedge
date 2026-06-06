@@ -668,9 +668,6 @@
                             };
                             const opt = new Option(row.picker_label || row.label, id, false, false);
                             jQuery(opt).attr('data-suggest', row.suggest || 0);
-                            if (available < 1 && registered < 1) {
-                                opt.disabled = true;
-                            }
                             $pick.append(opt);
                         });
                         $pick.prop('disabled', rows.length === 0);
@@ -679,11 +676,11 @@
                                 hint.textContent = 'No models on this purchase. Add models via the purchase or register IMEIs in the Register IMEIs tab.';
                             } else {
                                 const withImeis = rows.filter(function (r) { return (r.available_imeis || 0) > 0; }).length;
-                                const withRegistered = rows.filter(function (r) { return (r.total_registered || 0) > 0; }).length;
-                                hint.textContent = rows.length + ' model(s) on this purchase'
-                                    + (withImeis > 0 ? ' (' + withImeis + ' ready to sell)' : '')
-                                    + (withRegistered > withImeis ? ' — register IMEIs or pick a model with available stock' : '')
-                                    + '. Pick a model to choose its IMEIs on this purchase.';
+                                const noImeis = rows.length - withImeis;
+                                hint.textContent = rows.length + ' model(s) on this purchase — '
+                                    + (withImeis > 0 ? withImeis + ' ready to sell' : 'none ready to sell')
+                                    + (noImeis > 0 ? ', ' + noImeis + ' need IMEIs registered first' : '')
+                                    + '. Pick a model to choose its IMEIs.';
                             }
                         }
                         initProductPickerSelect2(purchaseId);
@@ -733,7 +730,11 @@
                             modalList.innerHTML = '';
                             modalList.classList.add('hidden');
                             modalEmpty.classList.remove('hidden');
-                            modalEmpty.textContent = 'No unsold IMEIs for this model on the selected purchase. Register IMEIs on this purchase first, or choose another model.';
+                            const m = PRODUCT_META[String(productId)];
+                            const total = m && m.available_imeis !== undefined ? m.available_imeis : 0;
+                            modalEmpty.textContent = total === 0
+                                ? 'No IMEIs registered for this model on this purchase yet. Switch to the Register IMEIs tab, select this model, and paste your IMEI numbers.'
+                                : 'No unsold IMEIs for this model on this purchase — all registered IMEIs are already sold or assigned.';
                             return;
                         }
                         modalEmpty.textContent = 'No available IMEIs for this model on the selected purchase. Register them in the Register IMEIs tab or pick another model.';
