@@ -29,6 +29,9 @@
                         </option>
                     @endforeach
                 </select>
+                @if ($products->isEmpty())
+                    <p class="text-xs text-slate-500 mt-2">No models in your custody to return. You can only return devices assigned to you by your team leader.</p>
+                @endif
             </div>
             <div id="imei-wrap" class="hidden">
                 <label for="imei_select" class="block text-sm font-medium text-slate-700">IMEIs to return</label>

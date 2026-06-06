@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Models\AgentAssignment;
-use App\Models\AgentProductListAssignment;
 use App\Models\PendingSale;
 use App\Models\Product;
 use App\Models\ProductListItem;
@@ -84,17 +83,7 @@ class AgentController extends Controller
 
     public function returnDevicesForm()
     {
-        $productIds = AgentProductListAssignment::query()
-            ->where('agent_id', Auth::id())
-            ->whereHas('productListItem', fn ($q) => $q->whereNull('sold_at'))
-            ->with('productListItem')
-            ->get()
-            ->pluck('productListItem.product_id')
-            ->unique()
-            ->filter()
-            ->values();
-
-        $products = Product::whereIn('id', $productIds)->with('category')->orderBy('name')->get();
+        $products = Product::returnableByAgentToTeamLeader((int) Auth::id())->get();
 
         return view('agent.return-devices', compact('products'));
     }

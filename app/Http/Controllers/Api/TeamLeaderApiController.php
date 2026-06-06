@@ -143,7 +143,7 @@ class TeamLeaderApiController extends Controller
             ->orderBy('name')
             ->get(['id', 'name', 'email']);
 
-        $products = Product::whereHas('purchases')->with('category')->orderBy('name')->get();
+        $products = Product::inTeamLeaderCustodyForAgentAssignment((int) Auth::id())->get();
 
         return response()->json([
             'data' => [
@@ -239,7 +239,7 @@ class TeamLeaderApiController extends Controller
 
     public function returnDevicesFormData()
     {
-        $products = Product::whereHas('purchases')->with('category')->orderBy('name')->get();
+        $products = Product::returnableByTeamLeaderToRegionalManager((int) Auth::id())->get();
 
         return response()->json([
             'data' => [

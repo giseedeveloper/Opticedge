@@ -239,7 +239,7 @@ class TeamLeaderController extends Controller
             ->where('status', 'active')
             ->orderBy('name')
             ->get();
-        $products = Product::whereHas('purchases')->with('category')->orderBy('name')->get();
+        $products = Product::inTeamLeaderCustodyForAgentAssignment((int) Auth::id())->get();
 
         $selectedAgent = $request->query('agent_id');
         if ($selectedAgent !== null && ! $agents->contains('id', (int) $selectedAgent)) {
@@ -301,7 +301,7 @@ class TeamLeaderController extends Controller
 
     public function returnDevicesForm()
     {
-        $products = Product::whereHas('purchases')->with('category')->orderBy('name')->get();
+        $products = Product::returnableByTeamLeaderToRegionalManager((int) Auth::id())->get();
 
         return view('team-leader.return-devices', compact('products'));
     }

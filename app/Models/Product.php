@@ -62,4 +62,71 @@ class Product extends Model
     {
         return $this->hasMany(ProductListItem::class, 'product_id');
     }
+
+    /**
+     * Models the regional manager currently holds from admin (unsold, not yet with team leader or agent).
+     */
+    public static function inRegionalManagerCustodyForTeamLeaderAssignment(int $regionalManagerId)
+    {
+        $productIds = ProductListItem::catalogProductIdsInRegionalManagerCustody($regionalManagerId);
+
+        return static::query()
+            ->with('category')
+            ->when(
+                $productIds->isEmpty(),
+                fn ($q) => $q->whereRaw('1 = 0'),
+                fn ($q) => $q->whereIn('id', $productIds->all())
+            )
+            ->orderBy('name');
+    }
+
+    /**
+     * Models the team leader currently holds from regional manager (unsold, not yet with an agent).
+     */
+    public static function inTeamLeaderCustodyForAgentAssignment(int $teamLeaderId)
+    {
+        $productIds = ProductListItem::catalogProductIdsInTeamLeaderCustody($teamLeaderId);
+
+        return static::query()
+            ->with('category')
+            ->when(
+                $productIds->isEmpty(),
+                fn ($q) => $q->whereRaw('1 = 0'),
+                fn ($q) => $q->whereIn('id', $productIds->all())
+            )
+            ->orderBy('name');
+    }
+
+    /**
+     * Models the agent currently holds (unsold, returnable to team leader).
+     */
+    public static function returnableByAgentToTeamLeader(int $agentId)
+    {
+        $productIds = ProductListItem::catalogProductIdsReturnableByAgent($agentId);
+
+        return static::query()
+            ->with('category')
+            ->when(
+                $productIds->isEmpty(),
+                fn ($q) => $q->whereRaw('1 = 0'),
+                fn ($q) => $q->whereIn('id', $productIds->all())
+            )
+            ->orderBy('name');
+    }
+
+    /**
+     * Models the team leader can return to regional manager (in TL custody, not with an agent).
+     */
+    public static function returnableByTeamLeaderToRegionalManager(int $teamLeaderId)
+    {
+        return static::inTeamLeaderCustodyForAgentAssignment($teamLeaderId);
+    }
+
+    /**
+     * Models the regional manager can return to admin (in RM custody, not with TL or agent).
+     */
+    public static function returnableByRegionalManagerToAdmin(int $regionalManagerId)
+    {
+        return static::inRegionalManagerCustodyForTeamLeaderAssignment($regionalManagerId);
+    }
 }

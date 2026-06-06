@@ -193,6 +193,9 @@
                             </option>
                         @endforeach
                     </select>
+                    @if ($productOptions->isEmpty())
+                        <p class="hier-helper">No models in your custody yet. Devices must be assigned to you by admin before you can pass them to a team leader.</p>
+                    @endif
                     @error('product_id')
                         <p class="text-red-600 text-xs mt-1.5 font-semibold">{{ $message }}</p>
                     @enderror

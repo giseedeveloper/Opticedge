@@ -179,7 +179,7 @@ class RegionalManagerApiController extends Controller
             ->orderBy('name')
             ->get(['id', 'name', 'email']);
 
-        $products = Product::whereHas('purchases')->with('category')->orderBy('name')->get();
+        $products = Product::inRegionalManagerCustodyForTeamLeaderAssignment((int) Auth::id())->get();
 
         return response()->json([
             'data' => [
@@ -275,7 +275,7 @@ class RegionalManagerApiController extends Controller
 
     public function returnDevicesFormData()
     {
-        $products = Product::whereHas('purchases')->with('category')->orderBy('name')->get();
+        $products = Product::returnableByRegionalManagerToAdmin((int) Auth::id())->get();
 
         return response()->json([
             'data' => [

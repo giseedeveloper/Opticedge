@@ -43,6 +43,9 @@
                         </option>
                     @endforeach
                 </select>
+                @if ($productOptions->isEmpty())
+                    <p class="text-xs text-slate-500 mt-2">No models in your custody to return.</p>
+                @endif
                 @error('product_id')
                     <p class="text-red-600 text-xs mt-1.5 font-semibold">{{ $message }}</p>
                 @enderror

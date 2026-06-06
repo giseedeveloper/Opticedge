@@ -321,7 +321,7 @@ class RegionalManagerController extends Controller
             ->where('status', 'active')
             ->orderBy('name')
             ->get();
-        $products = Product::whereHas('purchases')->with('category')->orderBy('name')->get();
+        $products = Product::inRegionalManagerCustodyForTeamLeaderAssignment((int) Auth::id())->get();
 
         $selectedTeamLeader = $request->query('team_leader_id');
         if ($selectedTeamLeader !== null && ! $teamLeaders->contains('id', (int) $selectedTeamLeader)) {
@@ -383,7 +383,7 @@ class RegionalManagerController extends Controller
 
     public function returnDevicesForm()
     {
-        $products = Product::whereHas('purchases')->with('category')->orderBy('name')->get();
+        $products = Product::returnableByRegionalManagerToAdmin((int) Auth::id())->get();
 
         return view('regional-manager.return-devices', compact('products'));
     }

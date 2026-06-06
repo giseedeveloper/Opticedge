@@ -345,17 +345,49 @@ class ProductListItem extends Model
     /**
      * Devices held by a regional manager (from admin), not yet with team leader or agent.
      */
-    public function scopeAssignableToTeamLeaderByRegionalManager($query, int $productId, int $regionalManagerId)
+    public function scopeInRegionalManagerCustodyForTeamLeaderAssignment($query, int $regionalManagerId)
     {
         return $query
-            ->where(function ($q) use ($productId) {
-                $q->where('product_id', $productId)
-                    ->orWhereHas('purchase', fn ($p) => $p->where('product_id', $productId));
-            })
             ->whereNull('sold_at')
             ->whereDoesntHave('teamLeaderProductListAssignment')
             ->whereDoesntHave('agentProductListAssignment')
             ->whereHas('regionalManagerProductListAssignment', fn ($q) => $q->where('regional_manager_id', $regionalManagerId));
+    }
+
+    /**
+     * Devices held by a regional manager (from admin), not yet with team leader or agent.
+     */
+    public function scopeAssignableToTeamLeaderByRegionalManager($query, int $productId, int $regionalManagerId)
+    {
+        return $query
+            ->inRegionalManagerCustodyForTeamLeaderAssignment($regionalManagerId)
+            ->matchingCatalogProduct($productId);
+    }
+
+    /**
+     * Catalog product ids for models the regional manager currently holds (admin-assigned, not yet with TL/agent).
+     *
+     * @return \Illuminate\Support\Collection<int, int>
+     */
+    public static function catalogProductIdsInRegionalManagerCustody(int $regionalManagerId): \Illuminate\Support\Collection
+    {
+        $items = static::query()
+            ->inRegionalManagerCustodyForTeamLeaderAssignment($regionalManagerId)
+            ->with(['purchase.lines'])
+            ->get(['id', 'product_id', 'purchase_id']);
+
+        return static::catalogProductIdsFromLoadedItems($items);
+    }
+
+    /**
+     * Devices held by a team leader (from regional manager), not yet with an agent.
+     */
+    public function scopeInTeamLeaderCustodyForAgentAssignment($query, int $teamLeaderId)
+    {
+        return $query
+            ->whereNull('sold_at')
+            ->whereDoesntHave('agentProductListAssignment')
+            ->whereHas('teamLeaderProductListAssignment', fn ($q) => $q->where('team_leader_id', $teamLeaderId));
     }
 
     /**
@@ -364,13 +396,33 @@ class ProductListItem extends Model
     public function scopeAssignableToAgentByTeamLeader($query, int $productId, int $teamLeaderId)
     {
         return $query
-            ->where(function ($q) use ($productId) {
-                $q->where('product_id', $productId)
-                    ->orWhereHas('purchase', fn ($p) => $p->where('product_id', $productId));
-            })
+            ->inTeamLeaderCustodyForAgentAssignment($teamLeaderId)
+            ->matchingCatalogProduct($productId);
+    }
+
+    /**
+     * Catalog product ids for models the team leader currently holds (from RM, not yet with an agent).
+     *
+     * @return \Illuminate\Support\Collection<int, int>
+     */
+    public static function catalogProductIdsInTeamLeaderCustody(int $teamLeaderId): \Illuminate\Support\Collection
+    {
+        $items = static::query()
+            ->inTeamLeaderCustodyForAgentAssignment($teamLeaderId)
+            ->with(['purchase.lines'])
+            ->get(['id', 'product_id', 'purchase_id']);
+
+        return static::catalogProductIdsFromLoadedItems($items);
+    }
+
+    /**
+     * Devices assigned to an agent that can be returned to their team leader.
+     */
+    public function scopeInAgentCustodyForReturnToTeamLeader($query, int $agentId)
+    {
+        return $query
             ->whereNull('sold_at')
-            ->whereDoesntHave('agentProductListAssignment')
-            ->whereHas('teamLeaderProductListAssignment', fn ($q) => $q->where('team_leader_id', $teamLeaderId));
+            ->whereHas('agentProductListAssignment', fn ($q) => $q->where('agent_id', $agentId));
     }
 
     /**
@@ -379,12 +431,23 @@ class ProductListItem extends Model
     public function scopeReturnableByAgent($query, int $productId, int $agentId)
     {
         return $query
-            ->where(function ($q) use ($productId) {
-                $q->where('product_id', $productId)
-                    ->orWhereHas('purchase', fn ($p) => $p->where('product_id', $productId));
-            })
-            ->whereNull('sold_at')
-            ->whereHas('agentProductListAssignment', fn ($q) => $q->where('agent_id', $agentId));
+            ->inAgentCustodyForReturnToTeamLeader($agentId)
+            ->matchingCatalogProduct($productId);
+    }
+
+    /**
+     * Catalog product ids for models the agent currently holds (unsold, returnable to team leader).
+     *
+     * @return \Illuminate\Support\Collection<int, int>
+     */
+    public static function catalogProductIdsReturnableByAgent(int $agentId): \Illuminate\Support\Collection
+    {
+        $items = static::query()
+            ->inAgentCustodyForReturnToTeamLeader($agentId)
+            ->with(['purchase.lines'])
+            ->get(['id', 'product_id', 'purchase_id']);
+
+        return static::catalogProductIdsFromLoadedItems($items);
     }
 
     /**
@@ -405,13 +468,8 @@ class ProductListItem extends Model
     public function scopeReturnableByTeamLeader($query, int $productId, int $teamLeaderId)
     {
         return $query
-            ->where(function ($q) use ($productId) {
-                $q->where('product_id', $productId)
-                    ->orWhereHas('purchase', fn ($p) => $p->where('product_id', $productId));
-            })
-            ->whereNull('sold_at')
-            ->whereDoesntHave('agentProductListAssignment')
-            ->whereHas('teamLeaderProductListAssignment', fn ($q) => $q->where('team_leader_id', $teamLeaderId));
+            ->inTeamLeaderCustodyForAgentAssignment($teamLeaderId)
+            ->matchingCatalogProduct($productId);
     }
 
     /**
@@ -420,14 +478,33 @@ class ProductListItem extends Model
     public function scopeReturnableByRegionalManager($query, int $productId, int $regionalManagerId)
     {
         return $query
-            ->where(function ($q) use ($productId) {
-                $q->where('product_id', $productId)
-                    ->orWhereHas('purchase', fn ($p) => $p->where('product_id', $productId));
-            })
-            ->whereNull('sold_at')
-            ->whereDoesntHave('teamLeaderProductListAssignment')
-            ->whereDoesntHave('agentProductListAssignment')
-            ->whereHas('regionalManagerProductListAssignment', fn ($q) => $q->where('regional_manager_id', $regionalManagerId));
+            ->inRegionalManagerCustodyForTeamLeaderAssignment($regionalManagerId)
+            ->matchingCatalogProduct($productId);
+    }
+
+    /**
+     * @param  \Illuminate\Support\Collection<int, self>  $items
+     * @return \Illuminate\Support\Collection<int, int>
+     */
+    protected static function catalogProductIdsFromLoadedItems(\Illuminate\Support\Collection $items): \Illuminate\Support\Collection
+    {
+        return $items->flatMap(function (self $item) {
+            $ids = collect();
+            if ($item->product_id !== null) {
+                $ids->push((int) $item->product_id);
+            }
+            $purchase = $item->purchase;
+            if ($purchase !== null) {
+                if ($purchase->product_id !== null) {
+                    $ids->push((int) $purchase->product_id);
+                }
+                foreach ($purchase->lines as $line) {
+                    $ids->push((int) $line->product_id);
+                }
+            }
+
+            return $ids;
+        })->filter(fn (int $id) => $id > 0)->unique()->values();
     }
 
     /**
