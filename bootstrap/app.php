@@ -22,11 +22,17 @@ return Application::configure(basePath: dirname(__DIR__))
             'active' => \App\Http\Middleware\EnsureUserIsActive::class,
             'subadmin.ability' => \App\Http\Middleware\SubadminAbilityMiddleware::class,
         ]);
+        // SetTenantFromAuthenticatedUser must run before SubstituteBindings so that
+        // route model binding (e.g. {purchase}) can apply the correct tenant scope.
+        $middleware->removeFromGroup('web', \Illuminate\Routing\Middleware\SubstituteBindings::class);
         $middleware->appendToGroup('web', [
             \App\Http\Middleware\SetTenantFromAuthenticatedUser::class,
+            \Illuminate\Routing\Middleware\SubstituteBindings::class,
         ]);
+        $middleware->removeFromGroup('api', \Illuminate\Routing\Middleware\SubstituteBindings::class);
         $middleware->appendToGroup('api', [
             \App\Http\Middleware\SetTenantFromAuthenticatedUser::class,
+            \Illuminate\Routing\Middleware\SubstituteBindings::class,
         ]);
         $middleware->validateCsrfTokens(except: [
             'selcom/checkout-callback',
