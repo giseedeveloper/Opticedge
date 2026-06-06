@@ -10,8 +10,9 @@ FILENAME="backup_${TIMESTAMP}.sql"
 
 cd "$PROJECT_DIR"
 
-docker compose exec -T mysql mysqldump -u "$DB_USER" -p"$DB_PASS" "$DB_NAME" > "database/sql/$FILENAME"
+docker compose exec -T mysql mysqldump --no-tablespaces -u "$DB_USER" -p"$DB_PASS" "$DB_NAME" > "database/sql/$FILENAME"
 
 git add "database/sql/$FILENAME"
 git commit -m "Auto DB backup $TIMESTAMP"
+git pull --rebase --autostash
 git push
