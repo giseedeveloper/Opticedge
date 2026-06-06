@@ -262,8 +262,12 @@ class TeamLeaderController extends Controller
         return response()->json([
             'data' => $items->map(fn ($i) => [
                 'id' => $i->id,
+                'imei_number' => $i->imei_number,
+                'model' => $i->model,
                 'text' => $i->imei_number.($i->model ? ' – '.$i->model : ''),
+                'selectable' => true,
             ])->values()->all(),
+            'summary' => ['available' => $items->count(), 'total' => $items->count()],
         ]);
     }
 
@@ -272,7 +276,7 @@ class TeamLeaderController extends Controller
         $validated = $request->validate([
             'agent_id' => 'required|exists:users,id',
             'product_id' => 'required|exists:models,id',
-            'product_list_ids' => 'required|array|min:1',
+            'product_list_ids' => 'required|array|min:1|max:500',
             'product_list_ids.*' => 'distinct|integer|exists:product_list,id',
         ]);
 

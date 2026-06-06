@@ -248,7 +248,7 @@ class RegionalManagerApiController extends Controller
         $validated = $request->validate([
             'team_leader_id' => 'required|exists:users,id',
             'product_id' => 'required|exists:models,id',
-            'product_list_ids' => 'required|array|min:1',
+            'product_list_ids' => 'required|array|min:1|max:500',
             'product_list_ids.*' => 'distinct|integer|exists:product_list,id',
         ]);
 
