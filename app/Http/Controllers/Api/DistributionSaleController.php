@@ -2,11 +2,20 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Http\Controllers\Admin\StockController as WebStockController;
+use App\Http\Controllers\Api\Concerns\AdaptsWebAdminResponses;
 use App\Http\Controllers\Controller;
 use App\Models\DistributionSale;
+use App\Models\Purchase;
+use App\Models\User;
+use App\Services\PurchaseImeiRegistrationService;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class DistributionSaleController extends Controller
 {
+    use AdaptsWebAdminResponses;
+
     private function serializeSale(DistributionSale $sale): array
     {
         $totalSelling = (float) ($sale->total_selling_value ?? 0);
@@ -76,5 +85,82 @@ class DistributionSaleController extends Controller
             ->all();
 
         return response()->json(['data' => $data]);
+    }
+
+    public function store(\Illuminate\Http\Request $request)
+    {
+        return $this->adaptWebResponse(
+            app(WebStockController::class)->storeDistribution($request),
+            201
+        );
+    }
+
+    public function update(\Illuminate\Http\Request $request, int $id)
+    {
+        return $this->adaptWebResponse(
+            app(WebStockController::class)->updateDistribution($request, $id)
+        );
+    }
+
+    public function destroy(int $id)
+    {
+        return $this->adaptWebResponse(
+            app(WebStockController::class)->destroyDistribution($id)
+        );
+    }
+
+    public function invoice(int $id)
+    {
+        return app(WebStockController::class)->downloadDistributionInvoice($id);
+    }
+
+    public function formData(): JsonResponse
+    {
+        $dealers = User::query()
+            ->where('role', 'dealer')
+            ->orderBy('name')
+            ->get(['id', 'name', 'business_name'])
+            ->map(fn (User $u) => [
+                'id' => $u->id,
+                'name' => $u->business_name ?? $u->name,
+            ]);
+
+        $purchases = Purchase::stockPurchases()
+            ->where(function ($q) {
+                $q->whereNotNull('product_id')->orWhereHas('lines');
+            })
+            ->orderByDesc('date')
+            ->orderByDesc('id')
+            ->limit(100)
+            ->get(['id', 'name', 'date'])
+            ->map(fn (Purchase $p) => [
+                'id' => $p->id,
+                'name' => $p->name ?? 'Purchase #'.$p->id,
+                'date' => optional($p->date)->format('Y-m-d'),
+            ]);
+
+        return response()->json([
+            'data' => [
+                'dealers' => $dealers,
+                'purchases' => $purchases,
+            ],
+        ]);
+    }
+
+    public function modelsForPurchase(int $purchaseId): JsonResponse
+    {
+        $purchase = Purchase::stockPurchases()->findOrFail($purchaseId);
+
+        return app(WebStockController::class)->distributionModelsForPurchase($purchase);
+    }
+
+    public function assignableImeis(Request $request): JsonResponse
+    {
+        return app(WebStockController::class)->distributionAssignableImeis($request);
+    }
+
+    public function registerImeis(Request $request, PurchaseImeiRegistrationService $registrationService): JsonResponse
+    {
+        return app(WebStockController::class)->distributionRegisterImeis($request, $registrationService);
     }
 }

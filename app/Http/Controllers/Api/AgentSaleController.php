@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Http\Controllers\Admin\StockController as WebStockController;
+use App\Http\Controllers\Api\Concerns\AdaptsWebAdminResponses;
 use App\Http\Controllers\Controller;
 use App\Models\AgentSale;
 use Carbon\Carbon;
@@ -9,6 +11,8 @@ use Illuminate\Http\Request;
 
 class AgentSaleController extends Controller
 {
+    use AdaptsWebAdminResponses;
+
     /**
      * List agent sales for admin (dashboard or full list).
      * Optional query: limit (default 50, max 200).
@@ -69,5 +73,32 @@ class AgentSaleController extends Controller
         $sale->save();
 
         return response()->json(['message' => 'Commission updated.']);
+    }
+
+    public function store(Request $request)
+    {
+        return $this->adaptWebResponse(
+            app(WebStockController::class)->storeAgentSale($request),
+            201
+        );
+    }
+
+    public function convertToCredit(Request $request, int $id)
+    {
+        return $this->adaptWebResponse(
+            app(WebStockController::class)->convertAgentSaleToCredit($request, $id)
+        );
+    }
+
+    public function destroy(int $id)
+    {
+        return $this->adaptWebResponse(
+            app(WebStockController::class)->destroyAgentSale($id)
+        );
+    }
+
+    public function invoice(int $id)
+    {
+        return app(WebStockController::class)->downloadAgentSaleInvoice($id);
     }
 }

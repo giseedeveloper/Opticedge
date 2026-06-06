@@ -130,6 +130,7 @@ class PurchaseController extends Controller
             ->get()
             ->map(function ($item) {
                 return [
+                    'id' => $item->id,
                     'model' => $item->model ?? '–',
                     'category' => $item->category?->name ?? '–',
                     'imei_number' => $item->imei_number ?? '–',

@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Http\Controllers\Admin\AgentCreditController as WebAgentCreditController;
+use App\Http\Controllers\Api\Concerns\AdaptsWebAdminResponses;
 use App\Http\Controllers\Controller;
 use App\Models\AgentCredit;
 use App\Models\AgentCreditPayment;
@@ -14,6 +16,8 @@ use Illuminate\Support\Facades\Schema;
 
 class AdminAgentCreditsAdminApiController extends Controller
 {
+    use AdaptsWebAdminResponses;
+
     public function index(Request $request): JsonResponse
     {
         $base = AgentCredit::query();
@@ -127,6 +131,32 @@ class AdminAgentCreditsAdminApiController extends Controller
         });
 
         return response()->json(['message' => 'Payment recorded.']);
+    }
+
+    public function update(Request $request, int $id): JsonResponse
+    {
+        return $this->adaptWebResponse(
+            app(WebAgentCreditController::class)->update($request, $id)
+        );
+    }
+
+    public function destroy(int $id): JsonResponse
+    {
+        return $this->adaptWebResponse(
+            app(WebAgentCreditController::class)->destroy(request(), $id)
+        );
+    }
+
+    public function payRemaining(int $id): JsonResponse
+    {
+        return $this->adaptWebResponse(
+            app(WebAgentCreditController::class)->payRemaining(request(), $id)
+        );
+    }
+
+    public function invoice(int $id)
+    {
+        return app(WebAgentCreditController::class)->downloadInvoice($id);
     }
 
     private function serializeCredit(AgentCredit $c): array

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Http\Controllers\Admin\ReportController as WebReportController;
 use App\Http\Controllers\Controller;
 use App\Models\Branch;
 use App\Models\Order;
@@ -322,5 +323,10 @@ class ReportController extends Controller
                 });
             })
             ->count();
+    }
+
+    public function exportAgentStock(Request $request)
+    {
+        return app(WebReportController::class)->exportAgentDailyStock($request);
     }
 }

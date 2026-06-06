@@ -35,6 +35,57 @@ class SettingController extends Controller
         return response()->json(['message' => 'Settings updated.', 'data' => Setting::all()->pluck('value', 'key')]);
     }
 
+    public function storageLink()
+    {
+        $user = auth()->user();
+        if (! $user || $user->role !== 'admin') {
+            return response()->json(['message' => 'Only full admins can run storage setup.'], 403);
+        }
+
+        $storageDir = public_path('storage');
+        $legacyDir = storage_path('app/public');
+
+        try {
+            if (is_link($storageDir)) {
+                unlink($storageDir);
+            }
+            if (! is_dir($storageDir)) {
+                \Illuminate\Support\Facades\File::makeDirectory($storageDir, 0755, true);
+                \Illuminate\Support\Facades\File::put($storageDir.'/.gitignore', "*\n!.gitignore\n");
+            }
+            foreach (['products', 'categories', 'receipts'] as $sub) {
+                $path = $storageDir.'/'.$sub;
+                if (! is_dir($path)) {
+                    \Illuminate\Support\Facades\File::makeDirectory($path, 0755, true);
+                }
+            }
+            if (is_dir($legacyDir)) {
+                foreach (['products', 'categories', 'receipts'] as $sub) {
+                    $src = $legacyDir.'/'.$sub;
+                    $dst = $storageDir.'/'.$sub;
+                    if (! is_dir($src)) {
+                        continue;
+                    }
+                    foreach (glob($src.'/*') ?: [] as $file) {
+                        if (is_file($file)) {
+                            $dest = $dst.'/'.basename($file);
+                            if (! file_exists($dest)) {
+                                if (! is_dir($dst)) {
+                                    \Illuminate\Support\Facades\File::makeDirectory($dst, 0755, true);
+                                }
+                                copy($file, $dest);
+                            }
+                        }
+                    }
+                }
+            }
+
+            return response()->json(['message' => 'Storage directory ready. Uploads use public/storage (no symlink).']);
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Storage setup failed: '.$e->getMessage()], 500);
+        }
+    }
+
     public function roles()
     {
         $ready = Schema::hasTable('subadmin_roles')

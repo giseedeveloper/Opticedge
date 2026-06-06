@@ -5,7 +5,9 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\AgentCredit;
 use App\Models\AgentSale;
+use App\Services\SelcomAgentCommissionCheckoutService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class AdminPayoutApiController extends Controller
 {
@@ -38,7 +40,16 @@ class AdminPayoutApiController extends Controller
 
         return response()->json([
             'data' => $rows->sortByDesc('commission_amount')->values(),
-            'note' => 'Bulk Selcom payout is available on the web admin.',
+        ]);
+    }
+
+    public function bulkSelcom(): JsonResponse
+    {
+        $summary = app(SelcomAgentCommissionCheckoutService::class)->bulkInitiateEligibleLines();
+
+        return response()->json([
+            'message' => 'Bulk Selcom payout initiated.',
+            'data' => $summary,
         ]);
     }
 }

@@ -120,4 +120,43 @@ class StockController extends Controller
 
         return response()->json(['data' => $combined]);
     }
+
+    public function show(int $id)
+    {
+        $stock = Stock::withCount(['productListItems as quantity_available' => function ($q) {
+            $q->whereNull('sold_at');
+        }])->findOrFail($id);
+
+        $purchases = Purchase::stockPurchases()
+            ->where('stock_id', $stock->id)
+            ->with(['product', 'branch'])
+            ->latest('date')
+            ->limit(50)
+            ->get()
+            ->map(fn ($p) => app(PurchaseController::class)->serializePurchase($p));
+
+        $receipts = Purchase::stockPurchases()
+            ->where('stock_id', $stock->id)
+            ->whereNotNull('payment_receipt_image')
+            ->latest('date')
+            ->get()
+            ->map(fn ($p) => [
+                'purchase_id' => $p->id,
+                'name' => $p->name ?? 'Purchase #'.$p->id,
+                'date' => $p->date,
+                'payment_receipt_url' => asset('storage/'.$p->payment_receipt_image),
+            ]);
+
+        return response()->json([
+            'data' => [
+                'id' => $stock->id,
+                'name' => $stock->name,
+                'stock_limit' => $stock->stock_limit,
+                'quantity' => $stock->quantity_available ?? $stock->quantity,
+                'under_limit' => ($stock->quantity_available ?? $stock->quantity) < $stock->stock_limit,
+                'purchases' => $purchases,
+                'receipts' => $receipts,
+            ],
+        ]);
+    }
 }

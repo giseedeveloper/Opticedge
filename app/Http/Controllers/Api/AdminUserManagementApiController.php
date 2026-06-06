@@ -286,6 +286,131 @@ class AdminUserManagementApiController extends Controller
         return response()->json(['message' => 'User deleted.']);
     }
 
+    public function transferBranch(Request $request, User $user): JsonResponse
+    {
+        if ($user->role !== 'agent') {
+            return response()->json(['message' => 'Only agents can be branch-transferred.'], 422);
+        }
+
+        $validated = $request->validate([
+            'branch_id' => 'nullable|exists:branches,id',
+        ]);
+
+        $branchId = $validated['branch_id'] ?? null;
+        if ($branchId === '') {
+            $branchId = null;
+        }
+
+        $user->update(['branch_id' => $branchId]);
+
+        if (Schema::hasColumn('users', 'team_leader_id') && $user->team_leader_id) {
+            $tl = User::query()->whereKey($user->team_leader_id)->where('role', 'teamleader')->first();
+            if ($tl && $tl->branch_id && $branchId && (int) $tl->branch_id !== (int) $branchId) {
+                $user->update(['team_leader_id' => null]);
+
+                return response()->json([
+                    'message' => 'Branch changed; team leader was cleared because branches no longer match.',
+                ]);
+            }
+        }
+
+        return response()->json(['message' => 'Agent branch updated.']);
+    }
+
+    public function updateTeamLeader(Request $request, User $user): JsonResponse
+    {
+        if ($user->role !== 'agent') {
+            return response()->json(['message' => 'Only agents have team leaders.'], 422);
+        }
+
+        if (! Schema::hasColumn('users', 'team_leader_id')) {
+            return response()->json(['message' => 'Run migrations to enable team leader assignment.'], 422);
+        }
+
+        $validated = $request->validate([
+            'team_leader_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('users', 'id')->where(function ($q) {
+                    $q->where('role', 'teamleader')->where('status', 'active');
+                }),
+            ],
+        ]);
+
+        $tlId = $validated['team_leader_id'] ?? null;
+        if ($tlId === '' || $tlId === null) {
+            $tlId = null;
+        } else {
+            $tlId = (int) $tlId;
+            $tl = User::query()->whereKey($tlId)->where('role', 'teamleader')->first();
+            if ($user->branch_id && $tl && $tl->branch_id && (int) $user->branch_id !== (int) $tl->branch_id) {
+                return response()->json([
+                    'message' => 'Team leader must belong to the same branch as this agent.',
+                ], 422);
+            }
+        }
+
+        $user->update(['team_leader_id' => $tlId]);
+
+        return response()->json(['message' => 'Team leader updated.']);
+    }
+
+    public function myPermissions(): JsonResponse
+    {
+        $user = auth()->user();
+        if (! $user) {
+            return response()->json(['message' => 'Unauthenticated.'], 401);
+        }
+
+        if ($user->role === 'admin') {
+            return response()->json([
+                'data' => [
+                    'role' => 'admin',
+                    'full_access' => true,
+                    'permissions' => [],
+                ],
+            ]);
+        }
+
+        if ($user->role !== 'subadmin') {
+            return response()->json(['data' => ['role' => $user->role, 'full_access' => false, 'permissions' => []]]);
+        }
+
+        if (! Schema::hasColumn('users', 'subadmin_role_id') || ! Schema::hasTable('subadmin_roles')) {
+            $full = ($user->ability ?? 'fullaccess') === 'fullaccess';
+
+            return response()->json([
+                'data' => [
+                    'role' => 'subadmin',
+                    'full_access' => $full,
+                    'permissions' => $full ? [] : [['module' => '*', 'action' => 'view']],
+                ],
+            ]);
+        }
+
+        $role = $user->subadminRole()->with('permissions')->first();
+        if (! $role) {
+            return response()->json(['data' => ['role' => 'subadmin', 'full_access' => false, 'permissions' => []]]);
+        }
+
+        $fullAccess = in_array($role->system_key ?? '', ['fullaccess', 'view'], true)
+            && ($role->system_key ?? '') === 'fullaccess';
+
+        $permissions = $role->permissions->map(fn ($p) => [
+            'module' => $p->module,
+            'action' => $p->action,
+        ])->values()->all();
+
+        return response()->json([
+            'data' => [
+                'role' => 'subadmin',
+                'full_access' => $fullAccess || ($role->system_key ?? '') === 'fullaccess',
+                'view_only' => ($role->system_key ?? '') === 'view',
+                'permissions' => $permissions,
+            ],
+        ]);
+    }
+
     private function assertManageable(User $user): void
     {
         if (! in_array($user->role, self::MANAGEABLE_ROLES, true)) {
