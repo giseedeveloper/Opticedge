@@ -1925,25 +1925,40 @@ class StockController extends Controller
         $purchase->load(['lines.product.category', 'product.category']);
         $purchaseId = (int) $purchase->id;
 
-        $productIds = $purchase->catalogProductIds();
+        // Use already-loaded product relations to avoid a secondary whereIn query.
+        $products = collect();
+        if ($purchase->product) {
+            $products->put((int) $purchase->product->id, $purchase->product);
+        }
+        foreach ($purchase->lines as $line) {
+            if ($line->product && ! $products->has((int) $line->product->id)) {
+                $products->put((int) $line->product->id, $line->product);
+            }
+        }
 
-        if ($productIds->isEmpty()) {
+        $registeredProductIds = ProductListItem::onPurchaseStock($purchaseId)
+            ->whereNotNull('product_id')
+            ->distinct()
+            ->pluck('product_id')
+            ->map(fn ($id) => (int) $id);
+
+        foreach ($registeredProductIds as $rpid) {
+            if (! $products->has($rpid)) {
+                $extra = Product::with('category')->find($rpid);
+                if ($extra) {
+                    $products->put($rpid, $extra);
+                }
+            }
+        }
+
+        if ($products->isEmpty()) {
             return response()->json(['data' => []]);
         }
 
-        $products = Product::with('category')
-            ->whereIn('id', $productIds->all())
-            ->orderBy('name')
-            ->get()
-            ->keyBy('id');
-
         $pricingService = app(DistributionSaleService::class);
 
-        $data = $productIds->map(function (int $pid) use ($products, $purchase, $purchaseId, $pricingService) {
-            $product = $products->get($pid);
-            if (! $product) {
-                return null;
-            }
+        $data = $products->map(function ($product) use ($purchase, $purchaseId, $pricingService) {
+            $pid = (int) $product->id;
 
             $available = ProductListItem::availableForDistribution($pid)
                 ->onPurchaseStock($purchaseId)
@@ -1972,7 +1987,7 @@ class StockController extends Controller
                 'picker_label' => $label.' ('.$pickerSuffix.')',
             ];
         })
-            ->filter(fn (?array $row) => $row !== null)
+            ->sortBy('label')
             ->values()
             ->all();
 

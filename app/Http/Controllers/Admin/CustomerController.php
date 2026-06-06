@@ -280,23 +280,40 @@ class CustomerController extends Controller
         $purchase->load(['lines.product.category', 'product.category']);
         $purchaseId = (int) $purchase->id;
 
-        $productIds = $purchase->catalogProductIds();
+        // Build catalog products from already-loaded relations (avoids a secondary
+        // Product::whereIn query that can fail when product_id references differ).
+        $products = collect();
+        if ($purchase->product) {
+            $products->put((int) $purchase->product->id, $purchase->product);
+        }
+        foreach ($purchase->lines as $line) {
+            if ($line->product && ! $products->has((int) $line->product->id)) {
+                $products->put((int) $line->product->id, $line->product);
+            }
+        }
 
-        if ($productIds->isEmpty()) {
+        // Also include products found only via registered IMEIs (not on purchase header/lines).
+        $registeredProductIds = ProductListItem::onPurchaseStock($purchaseId)
+            ->whereNotNull('product_id')
+            ->distinct()
+            ->pluck('product_id')
+            ->map(fn ($id) => (int) $id);
+
+        foreach ($registeredProductIds as $rpid) {
+            if (! $products->has($rpid)) {
+                $extra = Product::with('category')->find($rpid);
+                if ($extra) {
+                    $products->put($rpid, $extra);
+                }
+            }
+        }
+
+        if ($products->isEmpty()) {
             return response()->json(['data' => []]);
         }
 
-        $products = Product::with('category')
-            ->whereIn('id', $productIds->all())
-            ->orderBy('name')
-            ->get()
-            ->keyBy('id');
-
-        $data = $productIds->map(function (int $pid) use ($products, $purchaseId) {
-            $product = $products->get($pid);
-            if (! $product) {
-                return null;
-            }
+        $data = $products->map(function ($product) use ($purchaseId) {
+            $pid = (int) $product->id;
 
             $available = ProductListItem::assignableFromAdminOnPurchase($purchaseId, $pid)->count();
             $totalRegistered = ProductListItem::onPurchaseStock($purchaseId)->matchingCatalogProduct($pid)->count();
@@ -318,7 +335,7 @@ class CustomerController extends Controller
                 'assignable' => $available > 0,
             ];
         })
-            ->filter(fn (?array $row) => $row !== null)
+            ->sortBy('label')
             ->values()
             ->all();
 
