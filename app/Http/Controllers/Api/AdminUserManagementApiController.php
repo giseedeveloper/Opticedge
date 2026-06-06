@@ -5,8 +5,10 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\SubadminRole;
 use App\Models\User;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
@@ -55,6 +57,24 @@ class AdminUserManagementApiController extends Controller
         if ($role === 'subadmin') {
             $rules['subadmin_role_id'] = 'required|exists:subadmin_roles,id';
         }
+        if ($role === 'regional_manager' && Schema::hasColumn('users', 'region_id')) {
+            $rules['region_id'] = 'required|exists:regions,id';
+            $rules['business_name'] = 'nullable|string|max:255';
+            $rules['notes'] = 'nullable|string|max:10000';
+        }
+        if ($role === 'teamleader') {
+            if (Schema::hasColumn('users', 'region_id')) {
+                $rules['region_id'] = 'required|exists:regions,id';
+            }
+            if (Schema::hasColumn('users', 'branch_id')) {
+                $rules['branch_id'] = 'required|exists:branches,id';
+            }
+            if (Schema::hasColumn('users', 'regional_manager_id')) {
+                $rules['regional_manager_id'] = 'required|integer';
+            }
+            $rules['business_name'] = 'nullable|string|max:255';
+            $rules['notes'] = 'nullable|string|max:10000';
+        }
 
         $validated = $request->validate($rules);
         $payload = [
@@ -81,6 +101,28 @@ class AdminUserManagementApiController extends Controller
         }
         if ($role === 'teamleader' && Schema::hasColumn('users', 'regional_manager_id')) {
             $payload['regional_manager_id'] = $validated['regional_manager_id'] ?? null;
+        }
+        if ($role === 'regional_manager' && Schema::hasColumn('users', 'region_id')) {
+            $payload['region_id'] = (int) $validated['region_id'];
+            $payload['branch_id'] = null;
+            $payload['regional_manager_id'] = null;
+            if (isset($validated['business_name'])) {
+                $payload['business_name'] = $validated['business_name'];
+            }
+            if (Schema::hasColumn('users', 'notes') && array_key_exists('notes', $validated)) {
+                $payload['notes'] = $validated['notes'];
+            }
+        }
+        if ($role === 'teamleader') {
+            if (Schema::hasColumn('users', 'region_id') && isset($validated['region_id'])) {
+                $payload['region_id'] = (int) $validated['region_id'];
+            }
+            if (isset($validated['business_name'])) {
+                $payload['business_name'] = $validated['business_name'];
+            }
+            if (Schema::hasColumn('users', 'notes') && array_key_exists('notes', $validated)) {
+                $payload['notes'] = $validated['notes'];
+            }
         }
         if (Schema::hasColumn('users', 'ability')) {
             $payload['ability'] = 'fullaccess';
@@ -172,6 +214,76 @@ class AdminUserManagementApiController extends Controller
         $roles = SubadminRole::orderBy('name')->get(['id', 'name']);
 
         return response()->json(['data' => $roles]);
+    }
+
+    public function createFormData(Request $request): JsonResponse
+    {
+        $role = $request->query('role', 'agent');
+        $data = [
+            'branches' => Schema::hasTable('branches')
+                ? DB::table('branches')->orderBy('name')->get(['id', 'name'])
+                : [],
+            'regions' => Schema::hasTable('regions')
+                ? DB::table('regions')->orderBy('name')->get(['id', 'name'])
+                : [],
+            'team_leaders' => User::where('role', 'teamleader')->orderBy('name')->get(['id', 'name', 'branch_id']),
+            'regional_managers' => User::where('role', 'regional_manager')
+                ->where('status', 'active')
+                ->when(Schema::hasColumn('users', 'region_id'), fn ($q) => $q->whereNotNull('region_id'))
+                ->orderBy('name')
+                ->get(['id', 'name', 'region_id']),
+            'subadmin_roles' => SubadminRole::orderBy('name')->get(['id', 'name']),
+        ];
+
+        if (Schema::hasTable('regions') && $data['regional_managers']->isNotEmpty()) {
+            $regionNames = DB::table('regions')->pluck('name', 'id');
+            $data['regional_managers'] = $data['regional_managers']->map(function ($row) use ($regionNames) {
+                return [
+                    'id' => $row->id,
+                    'name' => $row->name,
+                    'region_id' => $row->region_id,
+                    'region_name' => $regionNames[$row->region_id] ?? null,
+                ];
+            })->values();
+        }
+
+        return response()->json(['data' => $data, 'role' => $role]);
+    }
+
+    public function resetPassword(Request $request, User $user): JsonResponse
+    {
+        $this->assertManageable($user);
+
+        $validated = $request->validate([
+            'password' => 'required|string|min:8|confirmed',
+        ]);
+
+        $user->update([
+            'password' => Hash::make($validated['password']),
+        ]);
+
+        return response()->json(['message' => 'Password updated.']);
+    }
+
+    public function destroy(User $user): JsonResponse
+    {
+        $this->assertManageable($user);
+
+        if (($user->role ?? '') === 'admin') {
+            return response()->json(['message' => 'Admin account cannot be deleted here.'], 422);
+        }
+
+        if ((int) $user->id === (int) auth()->id()) {
+            return response()->json(['message' => 'You cannot delete your own account.'], 422);
+        }
+
+        try {
+            $user->delete();
+        } catch (QueryException $e) {
+            return response()->json(['message' => 'Cannot delete this user because it is linked to existing records.'], 422);
+        }
+
+        return response()->json(['message' => 'User deleted.']);
     }
 
     private function assertManageable(User $user): void

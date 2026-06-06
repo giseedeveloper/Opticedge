@@ -105,10 +105,7 @@ class ProductListItem extends Model
     public function scopeAvailableForDistribution($query, int $productId)
     {
         return $query
-            ->where(function ($q) use ($productId) {
-                $q->where('product_id', $productId)
-                    ->orWhereHas('purchase', fn ($p) => $p->where('product_id', $productId));
-            })
+            ->matchingCatalogProduct($productId)
             ->whereNull('sold_at')
             ->whereNull('agent_sale_id')
             ->when(
@@ -168,9 +165,17 @@ class ProductListItem extends Model
         if ((int) $this->product_id === $productId) {
             return true;
         }
-        $this->loadMissing('purchase');
+        $this->loadMissing('purchase.lines');
 
-        return $this->purchase !== null && (int) $this->purchase->product_id === $productId;
+        if ($this->purchase === null) {
+            return false;
+        }
+
+        if ((int) $this->purchase->product_id === $productId) {
+            return true;
+        }
+
+        return $this->purchase->lines->contains(fn ($line) => (int) $line->product_id === $productId);
     }
 
     /**
@@ -223,13 +228,16 @@ class ProductListItem extends Model
     }
 
     /**
-     * Match catalog product on the row or on the linked purchase header.
+     * Match catalog product on the row or on the linked purchase (header or line items).
      */
     public function scopeMatchingCatalogProduct($query, int $productId)
     {
         return $query->where(function ($q) use ($productId) {
             $q->where('product_id', $productId)
-                ->orWhereHas('purchase', fn ($p) => $p->where('product_id', $productId));
+                ->orWhereHas('purchase', function ($p) use ($productId) {
+                    $p->where('product_id', $productId)
+                        ->orWhereHas('lines', fn ($l) => $l->where('product_id', $productId));
+                });
         });
     }
 

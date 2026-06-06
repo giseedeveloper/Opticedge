@@ -1923,45 +1923,58 @@ class StockController extends Controller
         }
 
         $purchase->load(['lines.product.category', 'product.category']);
+        $purchaseId = (int) $purchase->id;
 
-        $productIds = collect();
-        if ($purchase->lines->isNotEmpty()) {
-            $productIds = $purchase->lines->pluck('product_id')->filter()->map(fn ($id) => (int) $id);
-        } elseif ($purchase->product_id) {
-            $productIds = collect([(int) $purchase->product_id]);
-        }
+        $productIds = $purchase->catalogProductIds();
 
         if ($productIds->isEmpty()) {
             return response()->json(['data' => []]);
         }
 
         $products = Product::with('category')
-            ->whereIn('id', $productIds->unique()->values()->all())
+            ->whereIn('id', $productIds->all())
             ->orderBy('name')
-            ->get();
+            ->get()
+            ->keyBy('id');
 
         $pricingService = app(DistributionSaleService::class);
 
-        $data = $products->map(function (Product $product) use ($purchase, $pricingService) {
-            $pid = (int) $product->id;
-            $purchaseId = (int) $purchase->id;
+        $data = $productIds->map(function (int $pid) use ($products, $purchase, $purchaseId, $pricingService) {
+            $product = $products->get($pid);
+            if (! $product) {
+                return null;
+            }
+
             $available = ProductListItem::availableForDistribution($pid)
-                ->fromPurchase($purchaseId)
+                ->onPurchaseStock($purchaseId)
+                ->count();
+            $totalRegistered = ProductListItem::onPurchaseStock($purchaseId)
+                ->matchingCatalogProduct($pid)
                 ->count();
             $categoryName = $product->category?->name ?? '—';
             $label = $categoryName.' — '.$product->name;
             $prices = $pricingService->getPricesForProductOnPurchase($pid, $purchase);
 
+            $pickerSuffix = $available > 0
+                ? $available.' IMEI'.($available === 1 ? '' : 's').' on this purchase'
+                : ($totalRegistered > 0
+                    ? $totalRegistered.' registered — none free to sell'
+                    : '0 registered — add IMEIs in Register IMEIs tab');
+
             return [
                 'product_id' => $pid,
                 'label' => $label,
                 'available_imeis' => $available,
+                'total_registered' => $totalRegistered,
                 'unit_price' => $prices['buy'],
                 'sell_price' => $prices['sell'],
                 'suggest' => $prices['sell'],
-                'picker_label' => $label.' ('.$available.' IMEI'.($available === 1 ? '' : 's').' on this purchase)',
+                'picker_label' => $label.' ('.$pickerSuffix.')',
             ];
-        })->values()->all();
+        })
+            ->filter(fn (?array $row) => $row !== null)
+            ->values()
+            ->all();
 
         return response()->json(['data' => $data]);
     }
@@ -1979,7 +1992,7 @@ class StockController extends Controller
         $productId = (int) $validated['product_id'];
         $purchaseId = (int) $validated['purchase_id'];
         $items = ProductListItem::availableForDistribution($productId)
-            ->fromPurchase($purchaseId)
+            ->onPurchaseStock($purchaseId)
             ->orderBy('imei_number')
             ->get(['id', 'imei_number', 'model']);
 
@@ -2188,7 +2201,7 @@ class StockController extends Controller
             }
 
             $items = ProductListItem::availableForDistribution($pid)
-                ->fromPurchase($purchaseId)
+                ->onPurchaseStock($purchaseId)
                 ->whereIn('id', $imeiIds)
                 ->get();
 

@@ -599,32 +599,26 @@
                                         ? ' (' + (inDist > 0 ? inDist + ' in distribution, ' : '') + total + ' registered — none free to assign)'
                                         : ' (0 registered — add IMEIs in Stock → Add product)'));
                                 const opt = new Option(label, row.product_id, false, false);
-                                if (!row.selectable) {
-                                    opt.disabled = true;
-                                }
                                 $model.append(opt);
                             });
-                            const selectable = rows.filter(function (r) { return r.selectable; });
                             const assignable = rows.filter(function (r) { return r.assignable; });
                             $model.prop('disabled', rows.length === 0);
                             $model.select2({
                                 width: '100%',
-                                placeholder: rows.length
-                                    ? (selectable.length ? 'Choose model…' : 'No models on this purchase')
-                                    : 'No models on this purchase',
+                                placeholder: rows.length ? 'Choose model…' : 'No models on this purchase',
                             });
 
                             const hint = document.getElementById('model-hint');
                             if (hint) {
                                 if (!rows.length) {
                                     hint.textContent = 'This purchase has no model on file. Edit the purchase or pick another invoice.';
-                                } else if (!selectable.length) {
+                                } else if (!assignable.length && rows.every(function (r) { return (r.total_registered || 0) === 0; })) {
                                     hint.textContent = 'Model(s) are on the purchase but no IMEIs are registered yet. Open Stock → Add product, select this purchase, and register serial numbers.';
                                 } else if (!assignable.length) {
                                     hint.textContent = 'IMEIs are registered but none are free to assign — check the list below for devices already in distribution or assigned elsewhere.';
                                 } else {
                                     hint.textContent = assignable.length + ' model(s) with devices ready to assign.'
-                                        + (assignable.length < selectable.length ? ' Select any model to see distribution / assigned IMEIs too.' : '');
+                                        + (assignable.length < rows.length ? ' Select any model to see distribution / assigned IMEIs too.' : '');
                                 }
                             }
 

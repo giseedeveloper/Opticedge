@@ -656,29 +656,33 @@
                         const rows = (json && json.data) ? json.data : [];
                         rows.forEach(function (row) {
                             const id = String(row.product_id);
+                            const available = row.available_imeis || 0;
+                            const registered = row.total_registered || 0;
                             PRODUCT_META[id] = {
                                 id: row.product_id,
                                 label: row.label,
                                 unit_price: row.unit_price || 0,
                                 sell_price: row.sell_price || row.suggest || 0,
                                 suggest: row.sell_price || row.suggest || 0,
-                                available_imeis: row.available_imeis || 0,
+                                available_imeis: available,
                             };
                             const opt = new Option(row.picker_label || row.label, id, false, false);
                             jQuery(opt).attr('data-suggest', row.suggest || 0);
-                            if ((row.available_imeis || 0) < 1) {
+                            if (available < 1 && registered < 1) {
                                 opt.disabled = true;
                             }
                             $pick.append(opt);
                         });
-                        $pick.prop('disabled', false);
+                        $pick.prop('disabled', rows.length === 0);
                         if (hint) {
                             if (!rows.length) {
                                 hint.textContent = 'No models on this purchase. Add models via the purchase or register IMEIs in the Register IMEIs tab.';
                             } else {
                                 const withImeis = rows.filter(function (r) { return (r.available_imeis || 0) > 0; }).length;
+                                const withRegistered = rows.filter(function (r) { return (r.total_registered || 0) > 0; }).length;
                                 hint.textContent = rows.length + ' model(s) on this purchase'
-                                    + (withImeis < rows.length ? ' (' + withImeis + ' with IMEIs ready to sell)' : '')
+                                    + (withImeis > 0 ? ' (' + withImeis + ' ready to sell)' : '')
+                                    + (withRegistered > withImeis ? ' — register IMEIs or pick a model with available stock' : '')
                                     + '. Pick a model to choose its IMEIs on this purchase.';
                             }
                         }

@@ -10,14 +10,22 @@ class UserController extends Controller
 {
     public function index(Request $request)
     {
-        $role = $request->query('role', 'customer');
-        $allowed = array_merge(User::customerDirectoryRoleFilters(), ['subadmin']);
-        if (! in_array($role, $allowed, true)) {
-            $role = 'customer';
+        $role = $request->query('role');
+        $allowed = User::customerDirectoryRoleFilters();
+
+        $query = User::query();
+
+        if ($role !== null && $role !== '' && $role !== 'all') {
+            if (! in_array($role, $allowed, true)) {
+                $role = 'customer';
+            }
+            $query->where('role', $role);
         }
 
-        $users = User::where('role', $role)
-            ->orderBy(in_array($role, ['agent', 'teamleader', 'regional_manager'], true) ? 'name' : 'created_at')
+        $effectiveRole = ($role !== null && $role !== '' && $role !== 'all') ? $role : null;
+
+        $users = $query
+            ->orderBy(in_array($effectiveRole, ['agent', 'teamleader', 'regional_manager'], true) ? 'name' : 'created_at', 'asc')
             ->orderByDesc('created_at')
             ->take(200)
             ->get(['id', 'name', 'email', 'role', 'status', 'phone', 'business_name', 'created_at'])

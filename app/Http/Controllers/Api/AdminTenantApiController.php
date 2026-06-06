@@ -12,7 +12,9 @@ class AdminTenantApiController extends Controller
     public function show(Request $request): JsonResponse
     {
         $tenant = $this->resolveTenant($request);
-        $tenant->load('package:id,name');
+        $tenant->load('package:id,name,price,interval');
+
+        $package = $tenant->package;
 
         return response()->json([
             'data' => [
@@ -20,7 +22,13 @@ class AdminTenantApiController extends Controller
                 'name' => $tenant->name,
                 'slug' => $tenant->slug,
                 'brand_name' => $tenant->brand_name,
-                'package_name' => $tenant->package?->name,
+                'package_name' => $package?->name,
+                'billing' => $package
+                    ? $package->formattedPrice().' / '.$package->intervalLabel()
+                    : null,
+                'status' => $tenant->status,
+                'subscription_ends_at' => $tenant->subscription_ends_at?->toIso8601String(),
+                'subscription_ends_at_formatted' => $tenant->subscription_ends_at?->format('M j, Y'),
             ],
         ]);
     }

@@ -280,22 +280,7 @@ class CustomerController extends Controller
         $purchase->load(['lines.product.category', 'product.category']);
         $purchaseId = (int) $purchase->id;
 
-        $productIds = collect();
-        if ($purchase->product_id) {
-            $productIds->push((int) $purchase->product_id);
-        }
-        foreach ($purchase->lines as $line) {
-            if ($line->product_id) {
-                $productIds->push((int) $line->product_id);
-            }
-        }
-
-        $fromItems = ProductListItem::assignableFromAdminOnPurchase($purchaseId)
-            ->whereNotNull('product_id')
-            ->distinct()
-            ->pluck('product_id');
-
-        $productIds = $productIds->merge($fromItems)->map(fn ($id) => (int) $id)->filter()->unique()->values();
+        $productIds = $purchase->catalogProductIds();
 
         if ($productIds->isEmpty()) {
             return response()->json(['data' => []]);
@@ -329,7 +314,7 @@ class CustomerController extends Controller
                 'available_imeis' => $available,
                 'in_distribution' => $inDistribution,
                 'total_registered' => $totalRegistered,
-                'selectable' => $totalRegistered > 0,
+                'selectable' => true,
                 'assignable' => $available > 0,
             ];
         })

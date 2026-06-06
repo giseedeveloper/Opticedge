@@ -41,6 +41,7 @@ use App\Http\Controllers\Api\AdminShopRecordsApiController;
 use App\Http\Controllers\Api\AdminPayoutApiController;
 use App\Http\Controllers\Api\AdminProductApiController;
 use App\Http\Controllers\Api\AdminUserManagementApiController;
+use App\Http\Controllers\Api\AdminRegionalManagerAssignApiController;
 use App\Http\Controllers\Api\AdminVendorApiController;
 
 Route::post('/login', [AuthController::class, 'login']);
@@ -99,7 +100,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('payables', [AdminPayablesApiController::class, 'index']);
         Route::get('shop-records', [AdminShopRecordsApiController::class, 'index']);
         Route::get('payout', [AdminPayoutApiController::class, 'index']);
-        Route::get('users', [ApiUserController::class, 'index']); // ?role=customer|dealer|agent|subadmin
+        Route::get('users', [ApiUserController::class, 'index']); // ?role=customer|dealer|agent|subadmin|all
+        Route::get('users/create-form-data', [AdminUserManagementApiController::class, 'createFormData']);
         Route::get('users/{user}', [AdminUserManagementApiController::class, 'show']);
         Route::post('users', [AdminUserManagementApiController::class, 'store']);
         Route::put('users/{user}', [AdminUserManagementApiController::class, 'update']);
@@ -107,7 +109,13 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('users/{user}/deactivate', [AdminUserManagementApiController::class, 'deactivate']);
         Route::post('users/{user}/approve-dealer', [AdminUserManagementApiController::class, 'approveDealer']);
         Route::post('users/{user}/reject-dealer', [AdminUserManagementApiController::class, 'rejectDealer']);
+        Route::post('users/{user}/reset-password', [AdminUserManagementApiController::class, 'resetPassword']);
+        Route::delete('users/{user}', [AdminUserManagementApiController::class, 'destroy']);
         Route::get('subadmin-roles', [AdminUserManagementApiController::class, 'subadminRoles']);
+        Route::get('regional-managers/assign-devices/form-data', [AdminRegionalManagerAssignApiController::class, 'formData']);
+        Route::get('regional-managers/assign-devices/purchases/{purchase}/models', [AdminRegionalManagerAssignApiController::class, 'assignableModels']);
+        Route::get('regional-managers/assign-devices/assignable-imeis', [AdminRegionalManagerAssignApiController::class, 'assignableImeis']);
+        Route::post('regional-managers/assign-devices', [AdminRegionalManagerAssignApiController::class, 'store']);
         Route::get('profile', [UserProfileApiController::class, 'show']);
         Route::put('profile', [UserProfileApiController::class, 'update']);
         Route::put('profile/password', [UserProfileApiController::class, 'updatePassword']);

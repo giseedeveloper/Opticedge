@@ -68,6 +68,35 @@ class Purchase extends Model
         return $this->belongsTo(Product::class);
     }
 
+    /**
+     * Catalog model IDs on this purchase (header, lines, and registered IMEIs).
+     */
+    public function catalogProductIds(): \Illuminate\Support\Collection
+    {
+        $this->loadMissing(['lines']);
+
+        $ids = collect();
+        if ($this->product_id) {
+            $ids->push((int) $this->product_id);
+        }
+        foreach ($this->lines as $line) {
+            if ($line->product_id) {
+                $ids->push((int) $line->product_id);
+            }
+        }
+
+        $fromRegistered = ProductListItem::onPurchaseStock((int) $this->id)
+            ->whereNotNull('product_id')
+            ->distinct()
+            ->pluck('product_id');
+
+        return $ids->merge($fromRegistered)
+            ->map(fn ($id) => (int) $id)
+            ->filter()
+            ->unique()
+            ->values();
+    }
+
     public function registeredCountForProduct(int $productId): int
     {
         return (int) $this->productListItems()
