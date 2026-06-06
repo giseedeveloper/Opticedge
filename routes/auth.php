@@ -33,6 +33,6 @@ Route::middleware('auth')->group(function () {
         auth()->guard('web')->logout();
         session()->invalidate();
         session()->regenerateToken();
-        return redirect('/');
+        return redirect()->route('login');
     })->name('logout');
 });

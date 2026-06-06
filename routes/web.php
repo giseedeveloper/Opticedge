@@ -15,7 +15,15 @@ Route::prefix('api')->middleware('api')->group(base_path('routes/api.php'));
 Route::bind('brand', fn (string $value) => Category::query()->findOrFail($value));
 Route::bind('model', fn (string $value) => Product::query()->findOrFail($value));
 
-Route::get('/', WelcomeController::class)->name('welcome');
+Route::get('/', function () {
+    if (auth()->check()) {
+        return redirect()->route('dashboard');
+    }
+
+    return redirect()->route('login');
+});
+
+Route::get('/welcome', WelcomeController::class)->name('welcome');
 Route::view('/shop', 'shop')->name('shop');
 
 // Selcom Checkout webhook (no auth; CSRF excluded in bootstrap/app.php)
