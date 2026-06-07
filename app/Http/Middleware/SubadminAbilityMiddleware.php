@@ -47,6 +47,11 @@ class SubadminAbilityMiddleware
             return $next($request);
         }
 
+        $uri = trim((string) optional($request->route())->uri(), '/');
+        if (in_array($uri, ['api/admin/users/my-permissions'], true)) {
+            return $next($request);
+        }
+
         [$module, $action] = $this->resolveModuleAndAction($request);
         $allowed = $this->hasPermission($role, $module, $action);
 
@@ -59,8 +64,13 @@ class SubadminAbilityMiddleware
 
     private function hasPermission(SubadminRole $role, string $module, string $action): bool
     {
-        return $role->permissions->contains(function ($perm) use ($module, $action) {
-            if ($perm->module === $module && ($perm->action === $action || $perm->action === 'all')) {
+        $modules = [$module];
+        if ($module === 'customers') {
+            $modules[] = 'users';
+        }
+
+        return $role->permissions->contains(function ($perm) use ($modules, $action) {
+            if (in_array($perm->module, $modules, true) && ($perm->action === $action || $perm->action === 'all')) {
                 return true;
             }
 
@@ -92,15 +102,58 @@ class SubadminAbilityMiddleware
         if ($module === '') {
             $module = 'dashboard';
         }
-        $action = $this->inferAction($segments, $request->method(), $routeName);
+
+        $module = $this->normalizeApiModule($request, $module);
+        $action = $this->inferAction($segments, $request->method(), $routeName, $request);
 
         return [$module, $action];
     }
 
-    private function inferAction(array $segments, string $method, string $routeName): string
+    /**
+     * Map unnamed mobile API routes to the same permission modules as the web admin sidebar.
+     */
+    private function normalizeApiModule(Request $request, string $module): string
+    {
+        $uri = trim((string) optional($request->route())->uri(), '/');
+        if (! str_starts_with($uri, 'api/admin/')) {
+            return $module;
+        }
+
+        if ($module === 'organization-tree' || $module === 'regional-managers') {
+            return 'customers';
+        }
+
+        if ($module !== 'users') {
+            return $module;
+        }
+
+        if (str_contains($uri, 'approve-dealer') || str_contains($uri, 'reject-dealer')) {
+            return 'dealers';
+        }
+
+        $role = strtolower((string) $request->query('role', ''));
+        if ($role === 'dealer') {
+            return 'dealers';
+        }
+        if ($role === 'agent') {
+            return 'agents';
+        }
+        if ($role === 'subadmin') {
+            return 'subadmins';
+        }
+
+        return 'customers';
+    }
+
+    private function inferAction(array $segments, string $method, string $routeName, Request $request): string
     {
         $joined = implode('.', $segments);
         $method = strtoupper($method);
+        $uri = trim((string) optional($request->route())->uri(), '/');
+
+        if (str_contains($uri, 'approve-dealer') || str_contains($uri, 'reject-dealer')) {
+            return 'approve';
+        }
 
         if (str_contains($joined, '.create') || str_contains($joined, '.store')) {
             return 'create';
