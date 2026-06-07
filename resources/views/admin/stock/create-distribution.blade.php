@@ -30,36 +30,50 @@
                 letter-spacing: 0.04em;
                 color: #64748b;
             }
-            .dist-imei-modal-backdrop {
-                position: fixed;
-                inset: 0;
-                z-index: 50;
-                display: none;
-                align-items: center;
-                justify-content: center;
-                padding: 1rem;
-                background: rgba(15, 23, 42, 0.45);
-            }
-            .dist-imei-modal-backdrop.is-open {
+            .dist-imei-tabs {
                 display: flex;
+                gap: 0.375rem;
+                margin-bottom: 0.875rem;
+                padding: 0.25rem;
+                border-radius: 0.625rem;
+                background: #f1f5f9;
+                width: fit-content;
             }
-            .dist-imei-modal {
-                width: 100%;
-                max-width: 32rem;
-                max-height: min(85vh, 560px);
-                display: flex;
-                flex-direction: column;
+            .dist-imei-tab {
+                border: none;
+                border-radius: 0.5rem;
+                padding: 0.4375rem 0.875rem;
+                font-size: 0.75rem;
+                font-weight: 700;
+                color: #64748b;
+                background: transparent;
+                cursor: pointer;
+                transition: background-color 120ms ease, color 120ms ease, box-shadow 120ms ease;
+            }
+            .dist-imei-tab:hover { color: #334155; }
+            .dist-imei-tab--active {
                 background: #fff;
-                border-radius: 0.75rem;
-                box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-                overflow: hidden;
+                color: #ea580c;
+                box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
             }
-            .dist-imei-modal__list {
-                overflow-y: auto;
+            .dist-imei-tab-panel.hidden { display: none; }
+            .dist-imei-toolbar {
+                display: flex;
+                flex-wrap: wrap;
+                align-items: center;
+                gap: 0.5rem;
+                margin-bottom: 0.75rem;
+            }
+            .dist-imei-search {
                 flex: 1;
-                min-height: 0;
-                border-top: 1px solid #e2e8f0;
-                border-bottom: 1px solid #e2e8f0;
+                min-width: 12rem;
+            }
+            .dist-imei-list {
+                max-height: min(28rem, 52vh);
+                overflow-y: auto;
+                border: 1px solid #e2e8f0;
+                border-radius: 0.625rem;
+                background: #fff;
             }
             .dist-imei-row {
                 display: flex;
@@ -68,15 +82,232 @@
                 padding: 0.625rem 1rem;
                 border-bottom: 1px solid #f1f5f9;
                 cursor: pointer;
+                transition: background-color 120ms ease;
             }
-            .dist-imei-row:hover {
-                background: #f8fafc;
-            }
+            .dist-imei-row:last-child { border-bottom: none; }
+            .dist-imei-row:hover { background: #f8fafc; }
             .dist-imei-row input[type="checkbox"] {
                 accent-color: #f97316;
                 width: 1rem;
                 height: 1rem;
+                flex-shrink: 0;
             }
+            .dist-imei-row__serial {
+                font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+                font-size: 0.8125rem;
+                font-weight: 600;
+                color: #232f3e;
+            }
+            .dist-imei-row__model {
+                font-size: 0.75rem;
+                color: #64748b;
+            }
+            .dist-imei-row--blocked {
+                opacity: 0.92;
+                cursor: default;
+            }
+            .dist-imei-row--blocked:hover { background: #fff; }
+            .dist-imei-status {
+                margin-left: auto;
+                flex-shrink: 0;
+                font-size: 0.6875rem;
+                font-weight: 700;
+                padding: 0.2rem 0.5rem;
+                border-radius: 9999px;
+                white-space: nowrap;
+            }
+            .dist-imei-status--available { background: #dcfce7; color: #166534; }
+            .dist-imei-status--distribution { background: #ffedd5; color: #c2410c; }
+            .dist-imei-status--other { background: #f1f5f9; color: #475569; }
+            .dist-imei-summary {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 0.5rem 1rem;
+                margin-bottom: 0.75rem;
+                font-size: 0.75rem;
+                color: #64748b;
+            }
+            .dist-imei-summary strong { color: #334155; }
+            .dist-imei-empty {
+                padding: 2rem 1rem;
+                text-align: center;
+                color: #94a3b8;
+                font-size: 0.875rem;
+            }
+            .dist-scanner-layout {
+                display: grid;
+                grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
+                gap: 1rem;
+                align-items: stretch;
+            }
+            @media (max-width: 900px) {
+                .dist-scanner-layout { grid-template-columns: 1fr; }
+            }
+            .dist-scanner-input-col,
+            .dist-scanner-results-col {
+                display: flex;
+                flex-direction: column;
+                min-height: 0;
+            }
+            .dist-scanner-input-head {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 0.75rem;
+                margin-bottom: 0.5rem;
+            }
+            .dist-scanner-input-head__label {
+                font-size: 0.75rem;
+                font-weight: 700;
+                color: #334155;
+            }
+            .dist-scanner-input-head__count {
+                font-size: 0.6875rem;
+                font-weight: 700;
+                color: #64748b;
+                font-variant-numeric: tabular-nums;
+            }
+            .dist-scanner-input-head__count--warn { color: #dc2626; }
+            .dist-imei-scanner-input {
+                width: 100%;
+                min-height: 11rem;
+                max-height: 22rem;
+                resize: vertical;
+                font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+                font-size: 0.8125rem;
+                line-height: 1.45;
+            }
+            .dist-scanner-results-col {
+                border: 1px solid #e2e8f0;
+                border-radius: 0.75rem;
+                background: #f8fafc;
+                overflow: hidden;
+            }
+            .dist-scanner-stats {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 0.375rem;
+                padding: 0.625rem 0.75rem;
+                border-bottom: 1px solid #e2e8f0;
+                background: #fff;
+            }
+            .dist-scanner-stats.hidden { display: none; }
+            .dist-scanner-stat {
+                display: inline-flex;
+                align-items: center;
+                gap: 0.25rem;
+                padding: 0.2rem 0.55rem;
+                border-radius: 9999px;
+                font-size: 0.6875rem;
+                font-weight: 700;
+                font-variant-numeric: tabular-nums;
+            }
+            .dist-scanner-stat--total { background: #f1f5f9; color: #475569; }
+            .dist-scanner-stat--valid { background: #dcfce7; color: #166534; }
+            .dist-scanner-stat--invalid { background: #fee2e2; color: #b91c1c; }
+            .dist-scanner-stat--selected { background: #ffedd5; color: #c2410c; }
+            .dist-scanner-filters {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 0.375rem;
+                padding: 0.5rem 0.75rem;
+                border-bottom: 1px solid #e2e8f0;
+                background: #fff;
+            }
+            .dist-scanner-filters.hidden { display: none; }
+            .dist-scanner-filter {
+                border: 1px solid #e2e8f0;
+                border-radius: 9999px;
+                padding: 0.2rem 0.625rem;
+                font-size: 0.6875rem;
+                font-weight: 700;
+                color: #64748b;
+                background: #fff;
+                cursor: pointer;
+            }
+            .dist-scanner-filter--active {
+                border-color: #fdba74;
+                background: #fff7ed;
+                color: #c2410c;
+            }
+            .dist-imei-scanner-results {
+                flex: 1;
+                min-height: 16rem;
+                max-height: min(28rem, 52vh);
+                overflow-y: auto;
+                overflow-x: hidden;
+                background: #fff;
+                contain: content;
+            }
+            .dist-imei-scanner-line {
+                display: grid;
+                grid-template-columns: 2.25rem minmax(0, 1fr) auto;
+                align-items: center;
+                gap: 0.5rem 0.75rem;
+                padding: 0.375rem 0.75rem;
+                border-bottom: 1px solid #f1f5f9;
+                font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+                font-size: 0.75rem;
+            }
+            .dist-imei-scanner-line:last-child { border-bottom: none; }
+            .dist-imei-scanner-line__num {
+                font-size: 0.625rem;
+                font-weight: 700;
+                color: #94a3b8;
+                text-align: right;
+                font-variant-numeric: tabular-nums;
+            }
+            .dist-imei-scanner-line__imei {
+                min-width: 0;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }
+            .dist-imei-scanner-line--valid { background: #f0fdf4; color: #166534; }
+            .dist-imei-scanner-line--invalid { background: #fef2f2; color: #b91c1c; }
+            .dist-imei-scanner-line--skipped { background: #fffbeb; color: #b45309; }
+            .dist-imei-scanner-line__status {
+                flex-shrink: 0;
+                max-width: 11rem;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+                font-size: 0.625rem;
+                font-weight: 700;
+                padding: 0.15rem 0.4rem;
+                border-radius: 9999px;
+                text-align: right;
+            }
+            .dist-imei-scanner-line--valid .dist-imei-scanner-line__status { background: #dcfce7; color: #166534; }
+            .dist-imei-scanner-line--invalid .dist-imei-scanner-line__status { background: #fee2e2; color: #b91c1c; }
+            .dist-imei-scanner-line--skipped .dist-imei-scanner-line__status { background: #fef3c7; color: #b45309; }
+            .dist-imei-scanner-empty,
+            .dist-imei-scanner-limit {
+                padding: 1.5rem 1rem;
+                text-align: center;
+                color: #94a3b8;
+                font-size: 0.8125rem;
+            }
+            .dist-imei-scanner-limit {
+                color: #b45309;
+                background: #fffbeb;
+                border-top: 1px solid #fde68a;
+                font-weight: 600;
+            }
+            .dist-sale-summary {
+                display: flex;
+                flex-wrap: wrap;
+                align-items: center;
+                gap: 0.75rem 1.25rem;
+                padding: 0.875rem 1rem;
+                border-radius: 0.625rem;
+                background: #fff7ed;
+                border: 1px solid #fed7aa;
+                font-size: 0.8125rem;
+                color: #9a3412;
+            }
+            .dist-sale-summary strong { color: #c2410c; }
+            .dist-sale-summary.hidden { display: none; }
             .dist-tab-group {
                 display: grid;
                 grid-template-columns: 1fr 1fr;
@@ -122,7 +353,7 @@
             <div>
                 <p class="admin-prod-eyebrow">Dealers</p>
                 <h1 class="admin-prod-title">Create distribution sale</h1>
-                <p class="admin-prod-subtitle">Search a model, pick IMEIs in the modal, then set the unit selling price for each line.</p>
+                <p class="admin-prod-subtitle">Search a model, pick IMEIs from the list or scanner, then record the sale.</p>
             </div>
             <a href="{{ route('admin.stock.distribution') }}" class="admin-prod-back shrink-0">Back to list</a>
         </div>
@@ -207,7 +438,68 @@
                             <select id="product_picker" class="w-full" data-placeholder="Select a purchase first…" disabled>
                                 <option value=""></option>
                             </select>
-                            <p class="helper-text mt-2" id="product_picker_hint">Select a purchase above — only models on that purchase appear here. Choosing a model opens IMEIs registered on this purchase for that model.</p>
+                            <p class="helper-text mt-2" id="product_picker_hint">Select a purchase above — only models on that purchase appear here. Pick a model to choose IMEIs below.</p>
+                        </div>
+
+                        <div id="dist-imei-panel" class="hidden p-4 border-b border-slate-200/60 bg-slate-50/30">
+                            <p class="helper-text mb-3">Unsold devices on this purchase — not already assigned in the hierarchy or on another line in this sale.</p>
+                            <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+                                <div class="dist-imei-tabs !mb-0" role="tablist" aria-label="IMEI selection mode">
+                                    <button type="button" class="dist-imei-tab dist-imei-tab--active" data-dist-imei-tab="list" role="tab" aria-selected="true">List</button>
+                                    <button type="button" class="dist-imei-tab" data-dist-imei-tab="scanner" role="tab" aria-selected="false">Scanner</button>
+                                </div>
+                                <button type="button" id="dist-imei-clear-all" class="admin-prod-btn-ghost text-xs py-2" disabled>Clear</button>
+                            </div>
+
+                            <div id="dist-imei-tab-list" class="dist-imei-tab-panel" role="tabpanel">
+                                <div class="dist-imei-toolbar">
+                                    <input type="search" id="dist-imei-search" class="admin-prod-input dist-imei-search py-2 text-sm"
+                                        placeholder="Search IMEI…" disabled>
+                                    <button type="button" id="dist-imei-select-all" class="admin-prod-btn-ghost text-xs py-2" disabled>Select all available</button>
+                                </div>
+                                <div class="dist-imei-summary hidden" id="dist-imei-summary"></div>
+                                <div class="dist-imei-list" id="dist-imei-list">
+                                    <p class="dist-imei-empty">Select a model to load IMEIs.</p>
+                                </div>
+                            </div>
+
+                            <div id="dist-imei-tab-scanner" class="dist-imei-tab-panel hidden" role="tabpanel">
+                                <div class="dist-scanner-layout">
+                                    <div class="dist-scanner-input-col">
+                                        <div class="dist-scanner-input-head">
+                                            <span class="dist-scanner-input-head__label">Paste or scan IMEIs</span>
+                                            <span class="dist-scanner-input-head__count" id="dist-imei-scanner-line-count">0 / 500 unique lines</span>
+                                        </div>
+                                        <textarea id="dist-imei-scanner-input" class="admin-prod-input dist-imei-scanner-input py-2 px-3"
+                                            placeholder="One IMEI per line — paste up to 500 at once…" disabled spellcheck="false"></textarea>
+                                        <p class="helper-text">Each line is one IMEI. Green = available on this purchase and model. Red = not found or not available. Only the first 500 unique lines are processed.</p>
+                                    </div>
+                                    <div class="dist-scanner-results-col">
+                                        <div class="dist-scanner-stats hidden" id="dist-imei-scanner-stats">
+                                            <span class="dist-scanner-stat dist-scanner-stat--total" id="dist-scanner-stat-total">0 scanned</span>
+                                            <span class="dist-scanner-stat dist-scanner-stat--valid" id="dist-scanner-stat-valid">0 valid</span>
+                                            <span class="dist-scanner-stat dist-scanner-stat--invalid" id="dist-scanner-stat-invalid">0 invalid</span>
+                                            <span class="dist-scanner-stat dist-scanner-stat--selected" id="dist-scanner-stat-selected">0 selected</span>
+                                        </div>
+                                        <div class="dist-scanner-filters hidden" id="dist-imei-scanner-filters">
+                                            <button type="button" class="dist-scanner-filter dist-scanner-filter--active" data-scanner-filter="all">All</button>
+                                            <button type="button" class="dist-scanner-filter" data-scanner-filter="valid">Valid</button>
+                                            <button type="button" class="dist-scanner-filter" data-scanner-filter="invalid">Invalid</button>
+                                        </div>
+                                        <div class="dist-imei-scanner-results" id="dist-imei-scanner-results">
+                                            <p class="dist-imei-scanner-empty">Scan or paste IMEIs to validate in bulk.</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="dist-sale-summary hidden mt-4" id="dist-sale-summary">
+                                Adding <strong id="dist-summary-count">0</strong> device(s) for model <strong id="dist-summary-model">—</strong> to this sale.
+                            </div>
+                            <div class="mt-4 flex flex-wrap gap-2">
+                                <button type="button" id="dist-add-line-btn" class="admin-prod-btn-primary text-sm py-2 px-5" disabled>Add to sale</button>
+                                <button type="button" id="dist-cancel-imei-btn" class="admin-prod-btn-ghost text-sm py-2">Cancel</button>
+                            </div>
                         </div>
 
                         <div class="overflow-x-auto">
@@ -285,26 +577,6 @@
         </div>
     </div>
 
-    <div id="dist-imei-modal-backdrop" class="dist-imei-modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="dist-imei-modal-title" hidden>
-        <div class="dist-imei-modal">
-            <div class="px-4 py-3 border-b border-slate-200">
-                <h3 id="dist-imei-modal-title" class="font-semibold text-[#232f3e]">Select IMEIs</h3>
-                <p id="dist-imei-modal-subtitle" class="text-xs text-slate-500 mt-0.5"></p>
-            </div>
-            <div class="px-4 py-2 flex flex-wrap gap-2 items-center border-b border-slate-100">
-                <input type="search" id="dist-imei-filter" placeholder="Filter IMEI…" class="admin-prod-input flex-1 min-w-[10rem] text-sm py-1.5">
-                <button type="button" id="dist-imei-select-all" class="text-xs font-semibold text-[#fa8900] hover:underline">Select all</button>
-                <button type="button" id="dist-imei-clear-all" class="text-xs font-semibold text-slate-600 hover:underline">Clear</button>
-            </div>
-            <div id="dist-imei-list" class="dist-imei-modal__list"></div>
-            <p id="dist-imei-empty" class="hidden px-4 py-6 text-sm text-center text-slate-500">No available IMEIs for this model on the selected purchase. Register them in the <strong>Register IMEIs</strong> tab or pick another model.</p>
-            <div class="px-4 py-3 flex justify-end gap-2 border-t border-slate-200 bg-slate-50/80">
-                <button type="button" id="dist-imei-cancel" class="admin-prod-btn-ghost text-sm py-2">Cancel</button>
-                <button type="button" id="dist-imei-confirm" class="admin-prod-btn-primary text-sm py-2 px-5">Add to sale</button>
-            </div>
-        </div>
-    </div>
-
 
     @push('scripts')
         <script src="https://code.jquery.com/jquery-3.7.1.min.js" crossorigin="anonymous"></script>
@@ -330,16 +602,25 @@
             const form = document.getElementById('dist-form');
             const submitBtn = document.getElementById('submit-btn');
 
-            const modalBackdrop = document.getElementById('dist-imei-modal-backdrop');
-            const modalSubtitle = document.getElementById('dist-imei-modal-subtitle');
-            const modalList = document.getElementById('dist-imei-list');
-            const modalEmpty = document.getElementById('dist-imei-empty');
-            const modalFilter = document.getElementById('dist-imei-filter');
-            const modalConfirm = document.getElementById('dist-imei-confirm');
+            const imeiPanel = document.getElementById('dist-imei-panel');
+            const imeiListEl = document.getElementById('dist-imei-list');
+            const imeiSearchEl = document.getElementById('dist-imei-search');
+            const imeiScannerInput = document.getElementById('dist-imei-scanner-input');
+            const imeiScannerResults = document.getElementById('dist-imei-scanner-results');
+            const addLineBtn = document.getElementById('dist-add-line-btn');
 
-            let modalProductId = null;
-            let modalEditingRow = null;
-            let modalImeis = [];
+            let activeProductId = null;
+            let editingLineRow = null;
+            let selectedImeiIds = new Set();
+            let imeiRows = [];
+            let imeiSummary = null;
+            let activeImeiTab = 'list';
+            let imeiLookup = new Map();
+            const SCANNER_MAX = 500;
+            let scannerFilter = 'all';
+            let scannerParsedCache = [];
+            let scannerDebounceTimer = null;
+            let scannerOverLimit = false;
 
             function parseMoney(el) {
                 if (!el || el.value === undefined || el.value === '') return 0;
@@ -556,12 +837,16 @@
                     tbody.appendChild(tr);
 
                     tr.querySelector('.remove-line').addEventListener('click', function () {
+                        if (tr === editingLineRow) {
+                            resetImeiPanel();
+                            if (window.jQuery) jQuery('#product_picker').val(null).trigger('change');
+                        }
                         tr.remove();
                         renumberLines();
                         recalcGrandTotal();
                     });
                     tr.querySelector('.change-imeis').addEventListener('click', function () {
-                        openImeiModal(idStr, tr);
+                        onModelPicked(idStr, tr);
                     });
                 } else {
                     const oldWrap = tr.querySelector('.line-imei-inputs');
@@ -573,28 +858,449 @@
                 recalcGrandTotal();
             }
 
-            function renderModalList() {
-                const filter = (modalFilter.value || '').trim().toLowerCase();
-                const used = usedImeiIds(modalEditingRow);
-                const visible = modalImeis.filter(row => {
-                    if (used.has(String(row.id))) return false;
-                    if (!filter) return true;
-                    const t = (row.text || row.imei_number || '').toLowerCase();
-                    return t.includes(filter);
+            function normalizeImei(value) {
+                return String(value || '').trim().replace(/\s+/g, '');
+            }
+
+            function buildImeiLookup() {
+                imeiLookup = new Map();
+                imeiRows.forEach(function (row) {
+                    const key = normalizeImei(row.imei_number || row.text || '');
+                    if (key && !imeiLookup.has(key)) {
+                        imeiLookup.set(key, row);
+                    }
+                });
+            }
+
+            function isRowSelectable(row) {
+                if (row.selectable === false) return false;
+                const used = usedImeiIds(editingLineRow);
+                return !used.has(String(row.id));
+            }
+
+            function listableImeiRows() {
+                return imeiRows.filter(function (row) { return isRowSelectable(row); });
+            }
+
+            function renderImeiSummary() {
+                const el = document.getElementById('dist-imei-summary');
+                const listableCount = listableImeiRows().length;
+                if (!el) return;
+                if (!imeiSummary && listableCount === 0) {
+                    el.classList.add('hidden');
+                    return;
+                }
+                el.classList.remove('hidden');
+                el.innerHTML = '<span><strong>' + listableCount + '</strong> available to add</span>' +
+                    (imeiSummary && imeiSummary.total > listableCount
+                        ? '<span><strong>' + (imeiSummary.total - listableCount) + '</strong> hidden (assigned / sold / on another line)</span>'
+                        : '');
+            }
+
+            function renderImeiList() {
+                const q = (imeiSearchEl.value || '').trim().toLowerCase();
+                imeiListEl.innerHTML = '';
+
+                const listable = listableImeiRows();
+                const visible = listable.filter(function (row) {
+                    if (!q) return true;
+                    return (row.text || row.imei_number || '').toLowerCase().includes(q);
                 });
 
-                modalList.innerHTML = '';
-                modalEmpty.classList.toggle('hidden', visible.length > 0);
-                modalList.classList.toggle('hidden', visible.length === 0);
+                if (!imeiRows.length) {
+                    imeiListEl.innerHTML = '<p class="dist-imei-empty">No IMEIs registered for this model on the selected purchase.</p>';
+                    renderImeiSummary();
+                    return;
+                }
+                if (!listable.length) {
+                    imeiListEl.innerHTML = '<p class="dist-imei-empty">No available IMEIs for this model — all registered devices are assigned, sold, or already on this sale.</p>';
+                    renderImeiSummary();
+                    return;
+                }
+                if (!visible.length) {
+                    imeiListEl.innerHTML = '<p class="dist-imei-empty">No IMEIs match your search.</p>';
+                    return;
+                }
 
-                visible.forEach(row => {
+                visible.forEach(function (row) {
                     const label = document.createElement('label');
                     label.className = 'dist-imei-row';
+                    const checked = selectedImeiIds.has(String(row.id));
+                    const serial = row.imei_number || row.text || '';
+                    const modelPart = row.model || '';
                     label.innerHTML =
-                        '<input type="checkbox" class="dist-imei-cb" value="' + escapeHtml(String(row.id)) + '">' +
-                        '<span class="text-sm text-[#232f3e] font-mono">' + escapeHtml(row.text || row.imei_number) + '</span>';
-                    modalList.appendChild(label);
+                        '<input type="checkbox" value="' + escapeHtml(String(row.id)) + '"' +
+                        (checked ? ' checked' : '') + '>' +
+                        '<div class="min-w-0 flex-1"><div class="dist-imei-row__serial">' + escapeHtml(serial) + '</div>' +
+                        (modelPart ? '<div class="dist-imei-row__model">' + escapeHtml(modelPart) + '</div>' : '') +
+                        '</div>' +
+                        '<span class="dist-imei-status dist-imei-status--available">Available</span>';
+                    const input = label.querySelector('input');
+                    if (input) {
+                        input.addEventListener('change', function (e) {
+                            if (e.target.checked) {
+                                if (selectedImeiIds.size >= SCANNER_MAX) return;
+                                selectedImeiIds.add(String(row.id));
+                            } else {
+                                selectedImeiIds.delete(String(row.id));
+                            }
+                            updateImeiPanelSummary();
+                            if (activeImeiTab === 'scanner') {
+                                updateScannerStatsFromCache();
+                            }
+                        });
+                    }
+                    imeiListEl.appendChild(label);
                 });
+                renderImeiSummary();
+            }
+
+            function updateImeiPanelSummary() {
+                const summary = document.getElementById('dist-sale-summary');
+                const count = selectedImeiIds.size;
+                const meta = activeProductId ? PRODUCT_META[String(activeProductId)] : null;
+                if (!summary) return;
+                if (count > 0 && meta) {
+                    summary.classList.remove('hidden');
+                    document.getElementById('dist-summary-count').textContent = String(count);
+                    document.getElementById('dist-summary-model').textContent = meta.label || '—';
+                } else {
+                    summary.classList.add('hidden');
+                }
+                addLineBtn.disabled = count === 0;
+            }
+
+            function setImeiInputsEnabled(enabled) {
+                imeiSearchEl.disabled = !enabled;
+                imeiScannerInput.disabled = !enabled;
+                document.getElementById('dist-imei-select-all').disabled = !enabled || listableImeiRows().length === 0;
+                const clearBtn = document.getElementById('dist-imei-clear-all');
+                if (clearBtn) {
+                    clearBtn.disabled = !enabled || (selectedImeiIds.size === 0 && !(imeiScannerInput.value || '').trim());
+                }
+            }
+
+            function evaluateScannerLine(rawLine) {
+                const imei = normalizeImei(rawLine);
+                if (!imei) return null;
+
+                const row = imeiLookup.get(imei);
+                if (!row) {
+                    return { imei: imei, valid: false, status: 'Not on this purchase / model' };
+                }
+
+                if (!isRowSelectable(row)) {
+                    const status = row.selectable === false
+                        ? (row.status_label || 'Not available')
+                        : 'On another line in this sale';
+                    return { imei: imei, valid: false, row: row, status: status };
+                }
+
+                return { imei: imei, valid: true, row: row, status: 'Available' };
+            }
+
+            function parseScannerLines() {
+                const lines = (imeiScannerInput.value || '').split(/\r?\n/);
+                const parsed = [];
+                const seen = new Set();
+                let uniqueCount = 0;
+                let overLimit = false;
+
+                lines.forEach(function (line, lineIndex) {
+                    const result = evaluateScannerLine(line);
+                    if (!result) return;
+
+                    const key = normalizeImei(result.imei);
+                    if (seen.has(key)) {
+                        parsed.push({ imei: result.imei, valid: false, kind: 'invalid', status: 'Duplicate in list', lineIndex: lineIndex + 1 });
+                        return;
+                    }
+
+                    seen.add(key);
+                    uniqueCount += 1;
+
+                    if (uniqueCount > SCANNER_MAX) {
+                        overLimit = true;
+                        parsed.push({ imei: result.imei, valid: false, kind: 'skipped', status: 'Over 500 limit', lineIndex: lineIndex + 1 });
+                        return;
+                    }
+
+                    parsed.push(Object.assign({}, result, {
+                        kind: result.valid ? 'valid' : 'invalid',
+                        lineIndex: lineIndex + 1,
+                    }));
+                });
+
+                return {
+                    parsed: parsed,
+                    overLimit: overLimit,
+                    uniqueCount: uniqueCount,
+                    stats: {
+                        total: parsed.length,
+                        valid: parsed.filter(function (item) { return item.kind === 'valid'; }).length,
+                        invalid: parsed.filter(function (item) { return item.kind === 'invalid' || item.kind === 'skipped'; }).length,
+                    },
+                };
+            }
+
+            function updateScannerLineCount(uniqueCount, overLimit) {
+                const el = document.getElementById('dist-imei-scanner-line-count');
+                if (!el) return;
+                el.textContent = uniqueCount + ' / ' + SCANNER_MAX + ' unique lines';
+                el.classList.toggle('dist-scanner-input-head__count--warn', overLimit || uniqueCount > SCANNER_MAX);
+            }
+
+            function updateScannerStats(stats, selectedCount) {
+                const wrap = document.getElementById('dist-imei-scanner-stats');
+                const filters = document.getElementById('dist-imei-scanner-filters');
+                if (!wrap || !filters) return;
+
+                if (!stats.total) {
+                    wrap.classList.add('hidden');
+                    filters.classList.add('hidden');
+                    return;
+                }
+
+                wrap.classList.remove('hidden');
+                filters.classList.remove('hidden');
+                document.getElementById('dist-scanner-stat-total').textContent = stats.total + ' scanned';
+                document.getElementById('dist-scanner-stat-valid').textContent = stats.valid + ' valid';
+                document.getElementById('dist-scanner-stat-invalid').textContent = stats.invalid + ' invalid';
+                document.getElementById('dist-scanner-stat-selected').textContent = selectedCount + ' / ' + SCANNER_MAX + ' selected';
+            }
+
+            function updateScannerStatsFromCache() {
+                if (!scannerParsedCache.length) {
+                    const bundle = parseScannerLines();
+                    updateScannerStats(bundle.stats, selectedImeiIds.size);
+                    return;
+                }
+                const stats = {
+                    total: scannerParsedCache.length,
+                    valid: scannerParsedCache.filter(function (item) { return item.kind === 'valid'; }).length,
+                    invalid: scannerParsedCache.filter(function (item) { return item.kind === 'invalid' || item.kind === 'skipped'; }).length,
+                };
+                updateScannerStats(stats, selectedImeiIds.size);
+            }
+
+            function setScannerFilter(filter) {
+                scannerFilter = filter === 'valid' || filter === 'invalid' ? filter : 'all';
+                document.querySelectorAll('.dist-scanner-filter').forEach(function (btn) {
+                    btn.classList.toggle('dist-scanner-filter--active', btn.getAttribute('data-scanner-filter') === scannerFilter);
+                });
+                renderScannerResults();
+            }
+
+            function setImeiTab(tab) {
+                activeImeiTab = tab === 'scanner' ? 'scanner' : 'list';
+                document.querySelectorAll('.dist-imei-tab').forEach(function (btn) {
+                    const isActive = btn.getAttribute('data-dist-imei-tab') === activeImeiTab;
+                    btn.classList.toggle('dist-imei-tab--active', isActive);
+                    btn.setAttribute('aria-selected', isActive ? 'true' : 'false');
+                });
+                document.getElementById('dist-imei-tab-list').classList.toggle('hidden', activeImeiTab !== 'list');
+                document.getElementById('dist-imei-tab-scanner').classList.toggle('hidden', activeImeiTab !== 'scanner');
+                if (activeImeiTab === 'scanner') {
+                    syncScannerFromSelection();
+                } else {
+                    renderImeiList();
+                }
+            }
+
+            function syncScannerFromSelection() {
+                if (!imeiRows.length || selectedImeiIds.size === 0) return;
+
+                const selectedNumbers = imeiRows
+                    .filter(function (row) { return selectedImeiIds.has(String(row.id)); })
+                    .map(function (row) { return row.imei_number || ''; })
+                    .filter(Boolean);
+
+                if (!selectedNumbers.length) return;
+
+                const currentLines = (imeiScannerInput.value || '')
+                    .split(/\r?\n/)
+                    .map(normalizeImei)
+                    .filter(Boolean);
+
+                if (currentLines.length === 0) {
+                    imeiScannerInput.value = selectedNumbers.slice(0, SCANNER_MAX).join('\n');
+                    scannerParsedCache = [];
+                    applyScannerSelection();
+                    renderScannerResults();
+                }
+            }
+
+            function applyScannerSelection() {
+                const bundle = parseScannerLines();
+                scannerParsedCache = bundle.parsed;
+                scannerOverLimit = bundle.overLimit;
+                const nextSelected = new Set();
+
+                bundle.parsed.forEach(function (item) {
+                    if (item.kind !== 'valid' || !item.row) return;
+                    if (nextSelected.size >= SCANNER_MAX) return;
+                    nextSelected.add(String(item.row.id));
+                });
+
+                selectedImeiIds = nextSelected;
+                updateImeiPanelSummary();
+                updateScannerLineCount(bundle.uniqueCount, bundle.overLimit);
+                updateScannerStats(bundle.stats, selectedImeiIds.size);
+                const clearBtn = document.getElementById('dist-imei-clear-all');
+                if (clearBtn) {
+                    clearBtn.disabled = selectedImeiIds.size === 0 && !(imeiScannerInput.value || '').trim();
+                }
+            }
+
+            function renderScannerResults() {
+                if (!scannerParsedCache.length) {
+                    const bundle = parseScannerLines();
+                    scannerParsedCache = bundle.parsed;
+                    updateScannerLineCount(bundle.uniqueCount, bundle.overLimit);
+                    updateScannerStats(bundle.stats, selectedImeiIds.size);
+                }
+
+                const parsed = scannerParsedCache;
+                if (!parsed.length) {
+                    imeiScannerResults.innerHTML = '<p class="dist-imei-scanner-empty">Scan or paste IMEIs to validate in bulk.</p>';
+                    updateScannerStats({ total: 0, valid: 0, invalid: 0 }, 0);
+                    return;
+                }
+
+                const visible = parsed.filter(function (item) {
+                    if (scannerFilter === 'valid') return item.kind === 'valid';
+                    if (scannerFilter === 'invalid') return item.kind === 'invalid' || item.kind === 'skipped';
+                    return true;
+                });
+
+                if (!visible.length) {
+                    imeiScannerResults.innerHTML = '<p class="dist-imei-scanner-empty">No IMEIs match this filter.</p>';
+                    return;
+                }
+
+                const html = visible.map(function (item) {
+                    const cls = item.kind === 'valid'
+                        ? 'dist-imei-scanner-line--valid'
+                        : (item.kind === 'skipped' ? 'dist-imei-scanner-line--skipped' : 'dist-imei-scanner-line--invalid');
+                    return '<div class="dist-imei-scanner-line ' + cls + '">' +
+                        '<span class="dist-imei-scanner-line__num">' + (item.lineIndex || '') + '</span>' +
+                        '<span class="dist-imei-scanner-line__imei" title="' + escapeHtml(item.imei) + '">' + escapeHtml(item.imei) + '</span>' +
+                        '<span class="dist-imei-scanner-line__status" title="' + escapeHtml(item.status) + '">' + escapeHtml(item.status) + '</span>' +
+                        '</div>';
+                }).join('');
+
+                const limitNote = scannerOverLimit
+                    ? '<p class="dist-imei-scanner-limit">Only the first ' + SCANNER_MAX + ' unique IMEIs are checked and selected. Remove extra lines to continue.</p>'
+                    : '';
+
+                imeiScannerResults.innerHTML = html + limitNote;
+            }
+
+            function queueScannerUpdate() {
+                if (scannerDebounceTimer) clearTimeout(scannerDebounceTimer);
+                scannerDebounceTimer = setTimeout(function () {
+                    scannerParsedCache = [];
+                    applyScannerSelection();
+                    renderScannerResults();
+                }, 120);
+            }
+
+            function resetScannerPanel() {
+                imeiScannerInput.value = '';
+                imeiScannerInput.disabled = true;
+                scannerParsedCache = [];
+                scannerOverLimit = false;
+                scannerFilter = 'all';
+                updateScannerLineCount(0, false);
+                updateScannerStats({ total: 0, valid: 0, invalid: 0 }, 0);
+                document.querySelectorAll('.dist-scanner-filter').forEach(function (btn) {
+                    btn.classList.toggle('dist-scanner-filter--active', btn.getAttribute('data-scanner-filter') === 'all');
+                });
+                imeiScannerResults.innerHTML = '<p class="dist-imei-scanner-empty">Scan or paste IMEIs to validate in bulk.</p>';
+            }
+
+            function resetImeiPanel() {
+                activeProductId = null;
+                editingLineRow = null;
+                selectedImeiIds.clear();
+                imeiRows = [];
+                imeiSummary = null;
+                imeiPanel.classList.add('hidden');
+                imeiListEl.innerHTML = '<p class="dist-imei-empty">Select a model to load IMEIs.</p>';
+                imeiSearchEl.value = '';
+                resetScannerPanel();
+                setImeiInputsEnabled(false);
+                updateImeiPanelSummary();
+            }
+
+            function loadImeisForModel(productId) {
+                const purchaseId = getPurchaseId();
+                if (!purchaseId || !productId) {
+                    resetImeiPanel();
+                    return;
+                }
+
+                imeiListEl.innerHTML = '<p class="dist-imei-empty">Loading IMEIs…</p>';
+                resetScannerPanel();
+
+                fetch(ASSIGNABLE_IMEIS_URL + '?product_id=' + encodeURIComponent(productId) + '&purchase_id=' + encodeURIComponent(purchaseId), {
+                    headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                    credentials: 'same-origin',
+                })
+                    .then(function (r) { return r.json(); })
+                    .then(function (json) {
+                        imeiRows = (json && json.data) ? json.data : [];
+                        imeiSummary = (json && json.summary) ? json.summary : null;
+                        buildImeiLookup();
+
+                        if (editingLineRow) {
+                            selectedImeiIds = new Set(
+                                [...editingLineRow.querySelectorAll('.line-imei-id')].map(function (i) { return i.value; })
+                            );
+                        } else {
+                            selectedImeiIds.clear();
+                        }
+
+                        renderImeiList();
+                        imeiScannerInput.disabled = imeiRows.length === 0;
+                        setImeiInputsEnabled(imeiRows.length > 0);
+                        if (activeImeiTab === 'scanner' && selectedImeiIds.size > 0) {
+                            syncScannerFromSelection();
+                            renderScannerResults();
+                        }
+                        updateImeiPanelSummary();
+                    })
+                    .catch(function () {
+                        imeiListEl.innerHTML = '<p class="dist-imei-empty">Could not load IMEIs.</p>';
+                    });
+            }
+
+            function onModelPicked(productId, editingRow) {
+                const idStr = String(productId);
+                const meta = PRODUCT_META[idStr];
+                if (!meta) return;
+
+                const purchaseId = getPurchaseId();
+                if (!purchaseId) {
+                    alert('Select a purchase first.');
+                    return;
+                }
+
+                if (!editingRow && selectedProductIds(null).includes(idStr)) {
+                    alert('This model is already on the sale. Use “Change IMEIs” on that row, or remove it first.');
+                    if (window.jQuery) jQuery('#product_picker').val(null).trigger('change');
+                    return;
+                }
+
+                activeProductId = idStr;
+                editingLineRow = editingRow || null;
+                imeiPanel.classList.remove('hidden');
+
+                if (window.jQuery && editingRow) {
+                    jQuery('#product_picker').val(idStr).trigger('change.select2');
+                }
+
+                loadImeisForModel(idStr);
             }
 
             function getPurchaseId() {
@@ -616,7 +1322,7 @@
                 $pick.off('select2:select').on('select2:select', function (e) {
                     const id = e.params.data.id;
                     if (id) {
-                        openImeiModal(id, null);
+                        onModelPicked(id, null);
                     }
                 });
             }
@@ -680,7 +1386,7 @@
                                 hint.textContent = rows.length + ' model(s) on this purchase — '
                                     + (withImeis > 0 ? withImeis + ' ready to sell' : 'none ready to sell')
                                     + (noImeis > 0 ? ', ' + noImeis + ' need IMEIs registered first' : '')
-                                    + '. Pick a model to choose its IMEIs.';
+                                    + '. Pick a model to choose IMEIs below.';
                             }
                         }
                         initProductPickerSelect2(purchaseId);
@@ -698,91 +1404,65 @@
                 tbody.querySelectorAll('tr[data-line-row]').forEach(function (tr) { tr.remove(); });
                 renumberLines();
                 recalcGrandTotal();
+                resetImeiPanel();
             }
 
-            function openImeiModal(productId, editingRow) {
-                const meta = PRODUCT_META[String(productId)];
-                if (!meta) return;
-
-                const purchaseId = getPurchaseId();
-                if (!purchaseId) {
-                    alert('Select a purchase first.');
-                    return;
-                }
-
-                modalProductId = String(productId);
-                modalEditingRow = editingRow || null;
-                modalSubtitle.textContent = meta.label;
-                modalFilter.value = '';
-                modalList.innerHTML = '<p class="px-4 py-6 text-sm text-slate-500 text-center">Loading IMEIs…</p>';
-                modalEmpty.classList.add('hidden');
-                modalBackdrop.hidden = false;
-                modalBackdrop.classList.add('is-open');
-
-                fetch(ASSIGNABLE_IMEIS_URL + '?product_id=' + encodeURIComponent(productId) + '&purchase_id=' + encodeURIComponent(purchaseId), {
-                    headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
-                    credentials: 'same-origin',
-                })
-                    .then(r => r.json())
-                    .then(json => {
-                        modalImeis = (json && json.data) ? json.data : [];
-                        if (!modalImeis.length) {
-                            modalList.innerHTML = '';
-                            modalList.classList.add('hidden');
-                            modalEmpty.classList.remove('hidden');
-                            const m = PRODUCT_META[String(productId)];
-                            const total = m && m.available_imeis !== undefined ? m.available_imeis : 0;
-                            modalEmpty.textContent = total === 0
-                                ? 'No IMEIs registered for this model on this purchase yet. Switch to the Register IMEIs tab, select this model, and paste your IMEI numbers.'
-                                : 'No unsold IMEIs for this model on this purchase — all registered IMEIs are already sold or assigned.';
-                            return;
-                        }
-                        modalEmpty.textContent = 'No available IMEIs for this model on the selected purchase. Register them in the Register IMEIs tab or pick another model.';
-                        renderModalList();
-                        if (modalEditingRow) {
-                            const selected = new Set(
-                                [...modalEditingRow.querySelectorAll('.line-imei-id')].map(i => i.value)
-                            );
-                            modalList.querySelectorAll('.dist-imei-cb').forEach(cb => {
-                                if (selected.has(cb.value)) cb.checked = true;
-                            });
-                        }
-                    })
-                    .catch(() => {
-                        modalList.innerHTML = '<p class="px-4 py-6 text-sm text-red-600 text-center">Could not load IMEIs.</p>';
-                    });
-            }
-
-            function closeImeiModal() {
-                modalBackdrop.classList.remove('is-open');
-                modalBackdrop.hidden = true;
-                modalProductId = null;
-                modalEditingRow = null;
-                modalImeis = [];
-            }
-
-            document.getElementById('dist-imei-cancel').addEventListener('click', closeImeiModal);
-            modalBackdrop.addEventListener('click', function (e) {
-                if (e.target === modalBackdrop) closeImeiModal();
-            });
-            modalFilter.addEventListener('input', renderModalList);
-            document.getElementById('dist-imei-select-all').addEventListener('click', function () {
-                modalList.querySelectorAll('.dist-imei-cb').forEach(cb => { cb.checked = true; });
-            });
-            document.getElementById('dist-imei-clear-all').addEventListener('click', function () {
-                modalList.querySelectorAll('.dist-imei-cb').forEach(cb => { cb.checked = false; });
-            });
-            modalConfirm.addEventListener('click', function () {
-                const picked = [...modalList.querySelectorAll('.dist-imei-cb:checked')].map(cb => {
-                    const row = modalImeis.find(r => String(r.id) === cb.value);
-                    return row || { id: cb.value, text: cb.value };
+            document.querySelectorAll('.dist-imei-tab').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    setImeiTab(btn.getAttribute('data-dist-imei-tab'));
                 });
-                if (!picked.length) {
+            });
+
+            imeiSearchEl.addEventListener('input', renderImeiList);
+            imeiScannerInput.addEventListener('input', queueScannerUpdate);
+
+            document.querySelectorAll('.dist-scanner-filter').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    setScannerFilter(btn.getAttribute('data-scanner-filter'));
+                });
+            });
+
+            document.getElementById('dist-imei-select-all').addEventListener('click', function () {
+                selectedImeiIds.clear();
+                let count = 0;
+                imeiRows.filter(function (row) { return isRowSelectable(row); }).forEach(function (row) {
+                    if (count >= SCANNER_MAX) return;
+                    selectedImeiIds.add(String(row.id));
+                    count += 1;
+                });
+                renderImeiList();
+                if (activeImeiTab === 'scanner') {
+                    syncScannerFromSelection();
+                    renderScannerResults();
+                }
+                updateImeiPanelSummary();
+            });
+
+            document.getElementById('dist-imei-clear-all').addEventListener('click', function () {
+                selectedImeiIds.clear();
+                imeiScannerInput.value = '';
+                scannerParsedCache = [];
+                renderImeiList();
+                resetScannerPanel();
+                setImeiInputsEnabled(imeiRows.length > 0);
+                updateImeiPanelSummary();
+            });
+
+            addLineBtn.addEventListener('click', function () {
+                if (!activeProductId || selectedImeiIds.size === 0) {
                     alert('Select at least one IMEI.');
                     return;
                 }
-                addLine(modalProductId, picked, modalEditingRow);
-                closeImeiModal();
+                const picked = imeiRows
+                    .filter(function (r) { return selectedImeiIds.has(String(r.id)); })
+                    .map(function (r) { return { id: r.id, text: r.text || r.imei_number }; });
+                addLine(activeProductId, picked, editingLineRow);
+                resetImeiPanel();
+                if (window.jQuery) jQuery('#product_picker').val(null).trigger('change');
+            });
+
+            document.getElementById('dist-cancel-imei-btn').addEventListener('click', function () {
+                resetImeiPanel();
                 if (window.jQuery) jQuery('#product_picker').val(null).trigger('change');
             });
 

@@ -2006,17 +2006,42 @@ class StockController extends Controller
 
         $productId = (int) $validated['product_id'];
         $purchaseId = (int) $validated['purchase_id'];
-        $items = ProductListItem::availableForDistribution($productId)
-            ->onPurchaseStock($purchaseId)
+
+        $items = ProductListItem::onPurchaseStock($purchaseId)
+            ->matchingCatalogProduct($productId)
+            ->with([
+                'distributionSale:id,dealer_name,date,status',
+                'regionalManagerProductListAssignment.regionalManager:id,name',
+                'teamLeaderProductListAssignment.teamLeader:id,name',
+                'agentProductListAssignment.agent:id,name',
+            ])
             ->orderBy('imei_number')
-            ->get(['id', 'imei_number', 'model']);
+            ->get(['id', 'imei_number', 'model', 'sold_at', 'agent_sale_id', 'distribution_sale_id', 'pending_sale_id', 'agent_credit_id']);
+
+        $rows = $items->map(function (ProductListItem $item) {
+            $status = $item->custodyStatusForAdminAssign();
+
+            return [
+                'id' => $item->id,
+                'imei_number' => $item->imei_number,
+                'model' => $item->model,
+                'text' => $item->imei_number.($item->model ? ' – '.$item->model : ''),
+                'selectable' => $status['selectable'],
+                'status' => $status['code'],
+                'status_label' => $status['label'],
+            ];
+        })->values();
+
+        $summary = [
+            'total' => $rows->count(),
+            'available' => $rows->where('selectable', true)->count(),
+            'in_distribution' => $rows->where('status', 'distribution')->count(),
+            'other' => $rows->where('selectable', false)->where('status', '!=', 'distribution')->count(),
+        ];
 
         return response()->json([
-            'data' => $items->map(fn (ProductListItem $i) => [
-                'id' => $i->id,
-                'imei_number' => $i->imei_number,
-                'text' => $i->imei_number.($i->model ? ' – '.$i->model : ''),
-            ])->values()->all(),
+            'data' => $rows->all(),
+            'summary' => $summary,
         ]);
     }
 
