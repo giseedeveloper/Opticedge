@@ -337,6 +337,7 @@ Route::middleware(['auth', 'redirect.superadmin.from.admin', 'admin', 'subadmin.
             Route::get('stocks/{stock}', [App\Http\Controllers\Admin\StockController::class, 'showStock'])->name('stocks.show');
             Route::get('stocks/{stock}/receipts', [App\Http\Controllers\Admin\StockController::class, 'viewStockReceipts'])->name('stock-receipts');
             Route::get('add-product', [App\Http\Controllers\Admin\StockController::class, 'addProductForm'])->name('add-product');
+            Route::post('add-product/validate-imeis', [App\Http\Controllers\Admin\StockController::class, 'validateAddProductImeis'])->name('add-product.validate-imeis');
             Route::post('add-product', [App\Http\Controllers\Admin\StockController::class, 'storeProductFromForm'])->name('store-add-product');
             Route::post('decode-barcodes', [App\Http\Controllers\Admin\StockController::class, 'decodeBarcodeImages'])->name('decode-barcodes');
             Route::get('purchase/{id}', [App\Http\Controllers\Admin\StockController::class, 'showPurchase'])->name('purchase.show');

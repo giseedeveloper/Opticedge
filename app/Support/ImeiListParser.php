@@ -9,6 +9,20 @@ final class ImeiListParser
 {
     public const MAX_LENGTH = 512;
 
+    public const IMEI_DIGIT_LENGTH = 15;
+
+    public static function normalizeImei(string $raw): string
+    {
+        return preg_replace('/\s+/', '', trim($raw));
+    }
+
+    public static function isFifteenDigitImei(string $raw): bool
+    {
+        $normalized = self::normalizeImei($raw);
+
+        return $normalized !== '' && preg_match('/^\d{'.self::IMEI_DIGIT_LENGTH.'}$/', $normalized) === 1;
+    }
+
     /**
      * @return list<string>
      */
@@ -109,6 +123,31 @@ final class ImeiListParser
         }
 
         return $errors;
+    }
+
+    /**
+     * @param  list<string>  $imeis
+     * @return list<string>
+     */
+    public static function digitLengthErrors(array $imeis, int $requiredLength = self::IMEI_DIGIT_LENGTH): array
+    {
+        $errors = [];
+        foreach ($imeis as $imei) {
+            $normalized = self::normalizeImei($imei);
+            if ($normalized === '') {
+                continue;
+            }
+            if (! preg_match('/^\d+$/', $normalized)) {
+                $errors[] = 'IMEI must contain digits only: '.self::truncateForMessage($imei);
+
+                continue;
+            }
+            if (strlen($normalized) !== $requiredLength) {
+                $errors[] = 'IMEI must be exactly '.$requiredLength.' digits (got '.strlen($normalized).'): '.self::truncateForMessage($normalized);
+            }
+        }
+
+        return array_values(array_unique($errors));
     }
 
     private static function truncateForMessage(string $s): string

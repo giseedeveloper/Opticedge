@@ -738,6 +738,121 @@ class StockController extends Controller
     }
 
     /**
+     * JSON: validate IMEIs before registering on a purchase (duplicate check + slot context).
+     */
+    public function validateAddProductImeis(Request $request)
+    {
+        $validated = $request->validate([
+            'catalog_product_id' => 'required|integer|exists:models,id',
+            'purchase_id' => 'nullable|integer|exists:purchases,id',
+            'stock_id' => 'nullable|integer|exists:stocks,id',
+            'imeis' => 'nullable|array|max:500',
+            'imeis.*' => 'string|max:512',
+        ]);
+
+        $catalogProductId = (int) $validated['catalog_product_id'];
+        $purchase = $this->resolvePurchaseForAddProduct($request);
+
+        if (! $purchase) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'Select a purchase or stock with open slots.',
+            ], 422);
+        }
+
+        $purchase->loadMissing(['product', 'lines']);
+        $purchase->recalculateLimitRemaining();
+        $purchase->refresh()->loadMissing(['product', 'lines']);
+
+        if ($purchase->isPassthrough() || $purchase->limit_status !== 'pending' || (int) $purchase->limit_remaining <= 0) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'This purchase has no remaining device slots.',
+                'slots_remaining' => 0,
+            ], 422);
+        }
+
+        $catalogProduct = Product::with('category')->find($catalogProductId);
+        if (! $catalogProduct) {
+            return response()->json(['ok' => false, 'message' => 'Invalid model.'], 422);
+        }
+
+        $remainingForModel = 0;
+        if ($purchase->lines->isNotEmpty()) {
+            $purchaseLine = $purchase->lines->firstWhere('product_id', $catalogProduct->id);
+            if (! $purchaseLine || (int) $purchaseLine->limit_remaining <= 0) {
+                return response()->json([
+                    'ok' => false,
+                    'message' => 'Selected model has no open slots on this purchase.',
+                    'slots_remaining' => 0,
+                ], 422);
+            }
+            $remainingForModel = (int) $purchaseLine->limit_remaining;
+        } else {
+            if ($purchase->product_id && (int) $purchase->product_id !== $catalogProductId) {
+                return response()->json(['ok' => false, 'message' => 'Selected model does not match this purchase.'], 422);
+            }
+            $remainingForModel = (int) $purchase->limit_remaining;
+        }
+
+        $normalized = [];
+        foreach ($validated['imeis'] ?? [] as $raw) {
+            $imei = ImeiListParser::normalizeImei($raw);
+            if ($imei !== '') {
+                $normalized[] = $imei;
+            }
+        }
+
+        $unique = array_values(array_unique($normalized));
+        $registered = $unique === []
+            ? collect()
+            : ProductListItem::query()
+                ->whereIn('imei_number', $unique)
+                ->pluck('imei_number');
+
+        $catName = $catalogProduct->category?->name ?? '—';
+        $invoiceNo = $purchase->name ?? ('Purchase #'.$purchase->id);
+
+        return response()->json([
+            'ok' => true,
+            'slots_remaining' => $remainingForModel,
+            'purchase_label' => 'Inv no. '.$invoiceNo,
+            'model_label' => $catName.' — '.$catalogProduct->name,
+            'registered' => $registered->values()->all(),
+        ]);
+    }
+
+    /**
+     * Resolve the purchase row used for add-product (direct purchase or pending stock purchase).
+     */
+    private function resolvePurchaseForAddProduct(Request $request): ?Purchase
+    {
+        if ($request->filled('purchase_id')) {
+            return Purchase::stockPurchases()
+                ->with(['product', 'stock', 'lines'])
+                ->find((int) $request->input('purchase_id'));
+        }
+
+        if ($request->filled('stock_id')) {
+            $stock = Stock::find((int) $request->input('stock_id'));
+            if (! $stock) {
+                return null;
+            }
+
+            return Purchase::stockPurchases()
+                ->with(['product', 'lines'])
+                ->where('stock_id', $stock->id)
+                ->where('limit_status', 'pending')
+                ->where('limit_remaining', '>', 0)
+                ->latest('date')
+                ->latest('id')
+                ->first();
+        }
+
+        return null;
+    }
+
+    /**
      * JSON: model + category for one purchase (web Add product when picking a purchase directly).
      */
     public function modelsForPurchaseAddProduct(Purchase $purchase)
@@ -979,7 +1094,8 @@ class StockController extends Controller
         $result = $registrationService->register(
             $purchase,
             (int) $validated['catalog_product_id'],
-            (string) $validated['imei_numbers']
+            (string) $validated['imei_numbers'],
+            oneImeiPerLine: true
         );
 
         if ($result->hasValidationError()) {

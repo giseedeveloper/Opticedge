@@ -71,6 +71,20 @@ class PurchaseImeiRegistrationService
             return $result;
         }
 
+        $imeis = array_values(array_unique(array_map(
+            fn (string $imei) => ImeiListParser::normalizeImei($imei),
+            $imeis
+        )));
+
+        $digitErrors = ImeiListParser::digitLengthErrors($imeis);
+        if ($digitErrors !== []) {
+            $result->errorField = 'imei_numbers';
+            $result->errorMessage = implode(' ', array_slice($digitErrors, 0, 3))
+                .(count($digitErrors) > 3 ? ' (and '.(count($digitErrors) - 3).' more)' : '');
+
+            return $result;
+        }
+
         $lenErrors = ImeiListParser::lengthErrors($imeis);
         if ($lenErrors !== []) {
             $result->errorField = 'imei_numbers';
