@@ -11,6 +11,10 @@ use Illuminate\Support\Str;
 
 class VendorRegistrationFulfillmentService
 {
+    public function __construct(
+        protected TenantSubscriptionService $tenantSubscriptions,
+    ) {}
+
     /**
      * Create tenant + admin user after successful subscription payment.
      *
@@ -18,6 +22,10 @@ class VendorRegistrationFulfillmentService
      */
     public function fulfill(VendorRegistrationIntent $intent): array
     {
+        if ($intent->isRenewal()) {
+            return $this->tenantSubscriptions->fulfillRenewal($intent);
+        }
+
         if ($intent->isCompleted()) {
             return [
                 'tenant' => $intent->tenant,

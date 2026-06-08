@@ -135,8 +135,11 @@ Route::middleware(['auth', 'superadmin'])->prefix('superadmin')->name('superadmi
     Route::post('settings/test-selcom', [App\Http\Controllers\Superadmin\PlatformSettingController::class, 'testSelcom'])->name('settings.test-selcom');
 });
 
-Route::middleware(['auth', 'redirect.superadmin.from.admin', 'admin', 'subadmin.ability'])->prefix('admin')->name('admin.')->group(function () {
+Route::middleware(['auth', 'redirect.superadmin.from.admin', 'admin', 'tenant.subscription', 'subadmin.ability'])->prefix('admin')->name('admin.')->group(function () {
     Route::get('dashboard', function () {
+            if (\App\Support\TenantSuspension::adminHasRestrictedAccess(auth()->user())) {
+                return redirect()->route('admin.tenant.edit');
+            }
             $totalCustomers = \App\Models\User::where('role', 'customer')->count();
             $totalOrders = \App\Models\Order::count();
             $totalProducts = \App\Models\Product::count();
@@ -281,6 +284,10 @@ Route::middleware(['auth', 'redirect.superadmin.from.admin', 'admin', 'subadmin.
 
         // Subscription (current tenant)
         Route::get('tenant/profile', [App\Http\Controllers\Admin\TenantController::class, 'edit'])->name('tenant.edit');
+        Route::post('tenant/subscribe/{package}', [App\Http\Controllers\Admin\TenantSubscriptionController::class, 'subscribe'])->name('tenant.subscribe');
+        Route::get('tenant/subscribe/intent/{intent}/processing', [App\Http\Controllers\Admin\TenantSubscriptionController::class, 'processing'])->name('tenant.subscribe.processing');
+        Route::get('tenant/subscribe/intent/{intent}/status', [App\Http\Controllers\Admin\TenantSubscriptionController::class, 'status'])->name('tenant.subscribe.status');
+        Route::get('tenant/subscribe/intent/{intent}/success', [App\Http\Controllers\Admin\TenantSubscriptionController::class, 'success'])->name('tenant.subscribe.success');
 
         // Settings
         Route::get('settings', [App\Http\Controllers\Admin\SettingController::class , 'index'])->name('settings.index');

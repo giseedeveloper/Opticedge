@@ -3,7 +3,9 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Package;
 use App\Models\Tenant;
+use App\Support\TenantSuspension;
 use Illuminate\Http\Request;
 
 class TenantController extends Controller
@@ -13,7 +15,14 @@ class TenantController extends Controller
         $tenant = $this->resolveTenant($request);
         $tenant->load('package');
 
-        return view('admin.tenant.edit', compact('tenant'));
+        $packages = Package::query()
+            ->where('is_active', true)
+            ->orderBy('price')
+            ->get();
+
+        $tenantSuspended = TenantSuspension::isSuspendedForUser($request->user());
+
+        return view('admin.tenant.edit', compact('tenant', 'packages', 'tenantSuspended'));
     }
 
     private function resolveTenant(Request $request): Tenant

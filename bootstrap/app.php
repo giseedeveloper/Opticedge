@@ -21,6 +21,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'regionalmanager' => \App\Http\Middleware\RegionalManagerMiddleware::class,
             'active' => \App\Http\Middleware\EnsureUserIsActive::class,
             'subadmin.ability' => \App\Http\Middleware\SubadminAbilityMiddleware::class,
+            'tenant.subscription' => \App\Http\Middleware\RestrictSuspendedTenantAdmin::class,
             'customer.dealer' => \App\Http\Middleware\CustomerDealerMiddleware::class,
             'shop.buyer' => \App\Http\Middleware\ShopBuyerMiddleware::class,
         ]);

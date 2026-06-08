@@ -15,7 +15,12 @@ class VendorRegistrationIntent extends Model
 
     public const STATUS_FAILED = 'failed';
 
+    public const TYPE_REGISTRATION = 'registration';
+
+    public const TYPE_RENEWAL = 'renewal';
+
     protected $fillable = [
+        'intent_type',
         'package_id',
         'vendor_name',
         'brand_name',
@@ -56,5 +61,10 @@ class VendorRegistrationIntent extends Model
     public function isCompleted(): bool
     {
         return $this->status === self::STATUS_COMPLETED;
+    }
+
+    public function isRenewal(): bool
+    {
+        return ($this->intent_type ?? self::TYPE_REGISTRATION) === self::TYPE_RENEWAL;
     }
 }

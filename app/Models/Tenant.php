@@ -38,4 +38,9 @@ class Tenant extends Model
     {
         return $this->status === 'active';
     }
+
+    public function isSuspended(): bool
+    {
+        return $this->status === 'suspended';
+    }
 }

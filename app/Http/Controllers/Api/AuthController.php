@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Support\TenantSuspension;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\ValidationException;
@@ -31,6 +32,14 @@ class AuthController extends Controller
             Auth::logout();
             throw ValidationException::withMessages([
                 'email' => ['Your account is not active.'],
+            ]);
+        }
+
+        $blockedReason = TenantSuspension::blocksLoginForUser($user);
+        if ($blockedReason !== null) {
+            Auth::logout();
+            throw ValidationException::withMessages([
+                'email' => [$blockedReason],
             ]);
         }
 

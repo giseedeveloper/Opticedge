@@ -25,6 +25,10 @@
     @stack('styles')
 </head>
 
+@php
+    $tenantSuspended = \App\Support\TenantSuspension::adminHasRestrictedAccess(auth()->user());
+@endphp
+
 <body
     class="font-sans antialiased text-slate-600 min-h-full bg-gradient-to-br from-[#dce3ee] via-[#e8edf5] to-[#d4dce8]"
     x-data="{ sidebarOpen: false }">
@@ -143,7 +147,14 @@
             </div>
         </div>
 
+        @if ($tenantSuspended)
+            <div class="mx-2 mb-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-900">
+                Subscription suspended — only the subscription page is available until you renew.
+            </div>
+        @endif
+
         <!-- Sub Navigation (inset clay strip) -->
+        @unless ($tenantSuspended)
         <div
             class="admin-clay-inset flex items-center gap-1 py-1.5 px-2 sm:px-3 mx-2 mb-2 text-sm font-medium overflow-x-auto whitespace-nowrap custom-scrollbar">
             <a href="{{ route('admin.dashboard') }}"
@@ -161,6 +172,12 @@
             <a href="{{ route('admin.settings.index') }}"
                 class="px-3 py-1.5 rounded-xl text-slate-600 hover:text-[#232f3e] hover:bg-white/70 transition-all shrink-0">Settings</a>
         </div>
+        @else
+        <div class="admin-clay-inset flex items-center gap-1 py-1.5 px-2 sm:px-3 mx-2 mb-2 text-sm font-medium">
+            <a href="{{ route('admin.tenant.edit') }}"
+                class="px-3 py-1.5 rounded-xl bg-white/80 text-[#232f3e] font-semibold shrink-0">Subscription</a>
+        </div>
+        @endunless
         </div>
     </header>
 
@@ -173,6 +190,7 @@
         </div>
 
         <!-- Sidebar -->
+        @unless ($tenantSuspended)
         <aside :class="sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'"
             class="fixed inset-y-0 left-0 z-50 w-64 flex-shrink-0 flex flex-col h-[calc(100vh-124px)] overflow-y-auto transform transition-transform duration-300 ease-in-out custom-scrollbar mt-[124px] sm:mt-[128px] rounded-r-[1.75rem] border border-white/70 border-l-0 bg-gradient-to-b from-white/95 via-slate-50/92 to-slate-100/88 shadow-[8px_12px_28px_rgba(163,177,198,0.22),inset_2px_0_8px_rgba(255,255,255,0.65)]">
 
@@ -549,9 +567,10 @@
                 </div>
             </div>
         </aside>
+        @endunless
 
         <!-- Main Content Area -->
-        <div class="flex-1 lg:pl-64 flex flex-col min-h-[calc(100vh-124px)] sm:min-h-[calc(100vh-128px)] overflow-y-auto">
+        <div class="flex-1 {{ $tenantSuspended ? '' : 'lg:pl-64' }} flex flex-col min-h-[calc(100vh-124px)] sm:min-h-[calc(100vh-128px)] overflow-y-auto">
             <!-- Main Content -->
             <main class="flex-1 bg-transparent p-4 sm:p-6">
                 {{ $slot }}

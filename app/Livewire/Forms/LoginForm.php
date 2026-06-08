@@ -3,6 +3,7 @@
 namespace App\Livewire\Forms;
 
 use App\Models\User;
+use App\Support\TenantSuspension;
 use Illuminate\Auth\Events\Lockout;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\RateLimiter;
@@ -59,6 +60,15 @@ class LoginForm extends Form
 
             throw ValidationException::withMessages([
                 'form.email' => trans('auth.failed'),
+            ]);
+        }
+
+        $blockedReason = TenantSuspension::blocksLoginForUser(Auth::user());
+        if ($blockedReason !== null) {
+            Auth::guard('web')->logout();
+
+            throw ValidationException::withMessages([
+                'form.email' => $blockedReason,
             ]);
         }
 

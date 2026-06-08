@@ -22,9 +22,11 @@ new #[Layout('layouts.guest')] class extends Component {
         $user = auth()->user();
         $url = $user->isSuperadmin()
             ? route('superadmin.dashboard', absolute: false)
-            : (in_array($user->role, ['admin', 'subadmin'], true)
-                ? route('admin.dashboard', absolute: false)
-                : route('dashboard', absolute: false));
+            : ($user->role === 'admin' && \App\Support\TenantSuspension::adminHasRestrictedAccess($user)
+                ? route('admin.tenant.edit', absolute: false)
+                : (in_array($user->role, ['admin', 'subadmin'], true)
+                    ? route('admin.dashboard', absolute: false)
+                    : route('dashboard', absolute: false)));
 
         $this->redirectIntended(default: $url, navigate: true);
     }
@@ -60,7 +62,7 @@ new #[Layout('layouts.guest')] class extends Component {
                     autocomplete="username" placeholder="you@example.com"
                     class="{{ $inputBase }} pl-11 py-3 pr-4" />
             </div>
-            <x-input-error :messages="$errors->get('form.email')" class="mt-2 text-red-600 text-xs font-medium" />
+            <x-input-error :messages="array_merge($errors->get('form.email'), $errors->get('email'))" class="mt-2 text-red-600 text-xs font-medium" />
         </div>
 
         <!-- Password -->
