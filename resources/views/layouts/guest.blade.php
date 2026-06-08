@@ -46,6 +46,7 @@
             box-shadow: inset 0 0 0 1000px #ffffff;
         }
     </style>
+    @livewireStyles
     @vite(['resources/js/app.js'])
 </head>
 
@@ -68,6 +69,7 @@
             <p>&copy; 2026 OpticEdgeAfrica, Inc. All rights reserved.</p>
         </div>
     </div>
+    @livewireScripts
 </body>
 
 </html>
