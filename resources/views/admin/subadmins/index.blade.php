@@ -51,45 +51,41 @@
                                         {{ ucfirst($subadmin->status ?? 'N/A') }}
                                     </span>
                                 </td>
-                                <td class="admin-prod-cell-actions">
-                                    <div class="flex flex-col items-end gap-2 min-w-[260px]">
-                                        <details class="w-full">
-                                            <summary class="cursor-pointer text-xs font-semibold text-slate-600 hover:text-[#fa8900] list-none">
-                                                Reset password
-                                            </summary>
-                                            <form method="POST" action="{{ route('admin.users.reset-password', $subadmin) }}"
-                                                class="mt-2 flex flex-wrap items-center justify-end gap-2">
-                                                @csrf
-                                                <input type="password" name="password" required minlength="8"
-                                                    placeholder="New password" class="admin-prod-input w-36 py-1.5 text-sm">
-                                                <input type="password" name="password_confirmation" required minlength="8"
-                                                    placeholder="Confirm" class="admin-prod-input w-32 py-1.5 text-sm">
-                                                <button type="submit" class="admin-prod-link whitespace-nowrap text-sm">Save</button>
-                                            </form>
-                                        </details>
-                                        @if($active)
-                                            <form method="POST" action="{{ route('admin.subadmins.deactivate', $subadmin) }}" class="w-full flex justify-end"
-                                                onsubmit="return confirm('Deactivate this leader? They will not be able to log in until reactivated.');">
-                                                @csrf
-                                                @method('PATCH')
-                                                <button type="submit" class="admin-prod-link text-sm text-red-600 hover:text-red-700">Deactivate</button>
-                                            </form>
-                                        @else
-                                            <form method="POST" action="{{ route('admin.subadmins.activate', $subadmin) }}" class="w-full flex justify-end"
-                                                onsubmit="return confirm('Activate this leader? They will be able to log in again.');">
-                                                @csrf
-                                                @method('PATCH')
-                                                <button type="submit" class="admin-prod-link text-sm text-emerald-700 hover:text-emerald-800">Activate</button>
-                                            </form>
-                                        @endif
-                                        <form method="POST" action="{{ route('admin.subadmins.destroy', $subadmin) }}" class="w-full flex justify-end"
-                                            onsubmit="return confirm('Delete this leader permanently? This cannot be undone.');">
+                                <x-admin-user-actions>
+                                    <div class="admin-user-actions-collapse__section">
+                                        <p class="admin-user-actions-collapse__label">Reset password</p>
+                                        <form method="POST" action="{{ route('admin.users.reset-password', $subadmin) }}"
+                                            class="mt-1 flex flex-wrap items-center justify-end gap-2">
                                             @csrf
-                                            @method('DELETE')
-                                            <button type="submit" class="admin-prod-link text-sm text-rose-700 hover:text-rose-800">Delete</button>
+                                            <input type="password" name="password" required minlength="8"
+                                                placeholder="New password" class="admin-prod-input w-36 py-1.5 text-sm">
+                                            <input type="password" name="password_confirmation" required minlength="8"
+                                                placeholder="Confirm" class="admin-prod-input w-32 py-1.5 text-sm">
+                                            <button type="submit" class="admin-prod-link whitespace-nowrap text-sm">Save</button>
                                         </form>
                                     </div>
-                                </td>
+                                    @if($active)
+                                        <form method="POST" action="{{ route('admin.subadmins.deactivate', $subadmin) }}" class="w-full flex justify-end"
+                                            onsubmit="return confirm('Deactivate this leader? They will not be able to log in until reactivated.');">
+                                            @csrf
+                                            @method('PATCH')
+                                            <button type="submit" class="admin-prod-link text-sm text-red-600 hover:text-red-700">Deactivate</button>
+                                        </form>
+                                    @else
+                                        <form method="POST" action="{{ route('admin.subadmins.activate', $subadmin) }}" class="w-full flex justify-end"
+                                            onsubmit="return confirm('Activate this leader? They will be able to log in again.');">
+                                            @csrf
+                                            @method('PATCH')
+                                            <button type="submit" class="admin-prod-link text-sm text-emerald-700 hover:text-emerald-800">Activate</button>
+                                        </form>
+                                    @endif
+                                    <form method="POST" action="{{ route('admin.subadmins.destroy', $subadmin) }}" class="w-full flex justify-end"
+                                        onsubmit="return confirm('Delete this leader permanently? This cannot be undone.');">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit" class="admin-prod-link text-sm text-rose-700 hover:text-rose-800">Delete</button>
+                                    </form>
+                                </x-admin-user-actions>
                             </tr>
                         @empty
                             <tr>

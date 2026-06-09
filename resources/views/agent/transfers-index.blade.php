@@ -19,7 +19,7 @@
     @endif
 
     <div class="overflow-x-auto rounded-lg border border-slate-200 bg-white shadow-sm">
-        <table class="min-w-full divide-y divide-slate-200 text-sm">
+        <table class="js-datatable min-w-full divide-y divide-slate-200 text-sm">
             <thead class="bg-slate-50">
                 <tr>
                     <th class="px-4 py-3 text-left font-semibold text-slate-900">Date</th>
@@ -75,5 +75,4 @@
             </tbody>
         </table>
     </div>
-    <div class="mt-4">{{ $transfers->links() }}</div>
 </x-account-layout>

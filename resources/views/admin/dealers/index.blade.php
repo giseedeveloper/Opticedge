@@ -66,74 +66,70 @@
                                 <td class="text-slate-600 text-sm font-variant-numeric">
                                     {{ $dealer->created_at->format('M j, Y') }}
                                 </td>
-                                <td class="admin-prod-cell-actions">
-                                    <div class="flex flex-col items-end gap-2 min-w-[260px]">
-                                        <div class="admin-prod-actions flex-wrap justify-end gap-x-3 gap-y-1">
-                                            <a href="{{ route('admin.dealers.show', $dealer->id) }}" class="admin-prod-link">View</a>
-                                            @if($dealer->status === 'pending')
-                                                <form action="{{ route('admin.dealers.approve', $dealer->id) }}" method="POST"
-                                                    class="inline">
-                                                    @csrf
-                                                    @method('PATCH')
-                                                    <button type="submit" class="admin-prod-btn-inline admin-prod-link--success">
-                                                        Approve
-                                                    </button>
-                                                </form>
+                                <x-admin-user-actions>
+                                    <div class="admin-prod-actions flex-wrap justify-end gap-x-3 gap-y-1">
+                                        <a href="{{ route('admin.dealers.show', $dealer->id) }}" class="admin-prod-link">View</a>
+                                        @if($dealer->status === 'pending')
+                                            <form action="{{ route('admin.dealers.approve', $dealer->id) }}" method="POST"
+                                                class="inline">
+                                                @csrf
+                                                @method('PATCH')
+                                                <button type="submit" class="admin-prod-btn-inline admin-prod-link--success">
+                                                    Approve
+                                                </button>
+                                            </form>
+                                            <form action="{{ route('admin.dealers.reject', $dealer->id) }}" method="POST"
+                                                class="inline">
+                                                @csrf
+                                                @method('PATCH')
+                                                <button type="submit" class="admin-prod-btn-inline admin-prod-link--danger">
+                                                    Reject
+                                                </button>
+                                            </form>
+                                        @else
+                                            @if($dealer->status === 'active')
                                                 <form action="{{ route('admin.dealers.reject', $dealer->id) }}" method="POST"
                                                     class="inline">
                                                     @csrf
                                                     @method('PATCH')
                                                     <button type="submit" class="admin-prod-btn-inline admin-prod-link--danger">
-                                                        Reject
+                                                        Suspend
                                                     </button>
                                                 </form>
-                                            @else
-                                                @if($dealer->status === 'active')
-                                                    <form action="{{ route('admin.dealers.reject', $dealer->id) }}" method="POST"
-                                                        class="inline">
-                                                        @csrf
-                                                        @method('PATCH')
-                                                        <button type="submit" class="admin-prod-btn-inline admin-prod-link--danger">
-                                                            Suspend
-                                                        </button>
-                                                    </form>
-                                                @elseif($dealer->status === 'suspended')
-                                                    <form action="{{ route('admin.dealers.approve', $dealer->id) }}" method="POST"
-                                                        class="inline">
-                                                        @csrf
-                                                        @method('PATCH')
-                                                        <button type="submit" class="admin-prod-btn-inline admin-prod-link--success">
-                                                            Re-activate
-                                                        </button>
-                                                    </form>
-                                                @endif
+                                            @elseif($dealer->status === 'suspended')
+                                                <form action="{{ route('admin.dealers.approve', $dealer->id) }}" method="POST"
+                                                    class="inline">
+                                                    @csrf
+                                                    @method('PATCH')
+                                                    <button type="submit" class="admin-prod-btn-inline admin-prod-link--success">
+                                                        Re-activate
+                                                    </button>
+                                                </form>
                                             @endif
-                                        </div>
-                                        <details class="w-full">
-                                            <summary class="cursor-pointer text-xs font-semibold text-slate-600 hover:text-[#fa8900] list-none text-right">
-                                                Reset password
-                                            </summary>
-                                            <form method="POST" action="{{ route('admin.users.reset-password', $dealer) }}"
-                                                class="mt-2 flex flex-wrap items-center justify-end gap-2">
-                                                @csrf
-                                                <input type="password" name="password" required minlength="8"
-                                                    placeholder="New password" class="admin-prod-input w-36 py-1.5 text-sm">
-                                                <input type="password" name="password_confirmation" required minlength="8"
-                                                    placeholder="Confirm" class="admin-prod-input w-32 py-1.5 text-sm">
-                                                <button type="submit" class="admin-prod-link whitespace-nowrap text-sm">Save</button>
-                                            </form>
-                                        </details>
-                                        <form action="{{ route('admin.dealers.destroy', $dealer->id) }}" method="POST"
-                                            class="w-full flex justify-end"
-                                            onsubmit="return confirm('Delete this dealer permanently? This cannot be undone.');">
+                                        @endif
+                                    </div>
+                                    <div class="admin-user-actions-collapse__section">
+                                        <p class="admin-user-actions-collapse__label">Reset password</p>
+                                        <form method="POST" action="{{ route('admin.users.reset-password', $dealer) }}"
+                                            class="mt-1 flex flex-wrap items-center justify-end gap-2">
                                             @csrf
-                                            @method('DELETE')
-                                            <button type="submit" class="admin-prod-link text-sm text-rose-700 hover:text-rose-800">
-                                                Delete
-                                            </button>
+                                            <input type="password" name="password" required minlength="8"
+                                                placeholder="New password" class="admin-prod-input w-36 py-1.5 text-sm">
+                                            <input type="password" name="password_confirmation" required minlength="8"
+                                                placeholder="Confirm" class="admin-prod-input w-32 py-1.5 text-sm">
+                                            <button type="submit" class="admin-prod-link whitespace-nowrap text-sm">Save</button>
                                         </form>
                                     </div>
-                                </td>
+                                    <form action="{{ route('admin.dealers.destroy', $dealer->id) }}" method="POST"
+                                        class="w-full flex justify-end"
+                                        onsubmit="return confirm('Delete this dealer permanently? This cannot be undone.');">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit" class="admin-prod-link text-sm text-rose-700 hover:text-rose-800">
+                                            Delete
+                                        </button>
+                                    </form>
+                                </x-admin-user-actions>
                             </tr>
                         @empty
                             <tr>

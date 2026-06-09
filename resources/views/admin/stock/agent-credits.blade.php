@@ -152,9 +152,6 @@
                     </tbody>
                 </table>
             </div>
-            @if($credits->hasPages())
-                <div class="admin-prod-pagination">{{ $credits->links() }}</div>
-            @endif
         </div>
 
         <div x-show="paymentHistoryOpen" x-cloak
@@ -176,7 +173,7 @@
                 </div>
                 <div class="admin-prod-form-body">
                     <div class="admin-prod-table-wrap admin-prod-table-wrap--flush min-w-0">
-                        <table class="min-w-[900px]">
+                        <table class="min-w-[900px]" data-no-datatable>
                             <thead>
                                 <tr>
                                     <th scope="col" class="admin-prod-th">Paid date</th>

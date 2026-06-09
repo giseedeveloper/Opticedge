@@ -58,16 +58,13 @@
                                         {{ ucfirst($agent->status ?? 'N/A') }}
                                     </span>
                                 </td>
-                                <td class="admin-prod-cell-actions">
-                                    <div class="flex flex-col items-end gap-2 min-w-[260px]">
-                                        <a href="{{ route('admin.agents.show', $agent) }}" class="admin-prod-link">View &amp; assign</a>
-                                        @if(\Illuminate\Support\Facades\Schema::hasColumn('users', 'team_leader_id'))
-                                        <details class="w-full">
-                                            <summary class="cursor-pointer text-xs font-semibold text-slate-600 hover:text-[#fa8900] list-none">
-                                                Team leader
-                                            </summary>
+                                <x-admin-user-actions>
+                                    <a href="{{ route('admin.agents.show', $agent) }}" class="admin-prod-link">View &amp; assign</a>
+                                    @if(\Illuminate\Support\Facades\Schema::hasColumn('users', 'team_leader_id'))
+                                        <div class="admin-user-actions-collapse__section">
+                                            <p class="admin-user-actions-collapse__label">Team leader</p>
                                             <form method="POST" action="{{ route('admin.agents.update-team-leader', $agent) }}"
-                                                class="mt-2 flex flex-wrap items-center justify-end gap-2">
+                                                class="mt-1 flex flex-wrap items-center justify-end gap-2">
                                                 @csrf
                                                 @method('PATCH')
                                                 <select name="team_leader_id" class="admin-prod-input w-44 py-1.5 text-sm">
@@ -80,62 +77,57 @@
                                                 </select>
                                                 <button type="submit" class="admin-prod-link whitespace-nowrap text-sm">Save</button>
                                             </form>
-                                        </details>
-                                        @endif
-                                        <details class="w-full">
-                                            <summary class="cursor-pointer text-xs font-semibold text-slate-600 hover:text-[#fa8900] list-none">
-                                                Transfer branch
-                                            </summary>
-                                            <form method="POST" action="{{ route('admin.agents.transfer-branch', $agent) }}"
-                                                class="mt-2 flex flex-wrap items-center justify-end gap-2">
-                                                @csrf
-                                                @method('PATCH')
-                                                <select name="branch_id" class="admin-prod-input w-40 py-1.5 text-sm">
-                                                    <option value="">No branch</option>
-                                                    @foreach(\App\Models\Branch::orderBy('name')->get() as $branch)
-                                                        <option value="{{ $branch->id }}" {{ $agent->branch_id == $branch->id ? 'selected' : '' }}>{{ $branch->name }}</option>
-                                                    @endforeach
-                                                </select>
-                                                <button type="submit" class="admin-prod-link whitespace-nowrap text-sm">Transfer</button>
-                                            </form>
-                                        </details>
-                                        <details class="w-full">
-                                            <summary class="cursor-pointer text-xs font-semibold text-slate-600 hover:text-[#fa8900] list-none">
-                                                Reset password
-                                            </summary>
-                                            <form method="POST" action="{{ route('admin.users.reset-password', $agent) }}"
-                                                class="mt-2 flex flex-wrap items-center justify-end gap-2">
-                                                @csrf
-                                                <input type="password" name="password" required minlength="8"
-                                                    placeholder="New password" class="admin-prod-input w-36 py-1.5 text-sm">
-                                                <input type="password" name="password_confirmation" required minlength="8"
-                                                    placeholder="Confirm" class="admin-prod-input w-32 py-1.5 text-sm">
-                                                <button type="submit" class="admin-prod-link whitespace-nowrap text-sm">Save</button>
-                                            </form>
-                                        </details>
-                                        @if($active)
-                                            <form method="POST" action="{{ route('admin.agents.deactivate', $agent) }}" class="w-full flex justify-end"
-                                                onsubmit="return confirm('Deactivate this agent? They will not be able to log in until reactivated.');">
-                                                @csrf
-                                                @method('PATCH')
-                                                <button type="submit" class="admin-prod-link text-sm text-red-600 hover:text-red-700">Deactivate</button>
-                                            </form>
-                                        @else
-                                            <form method="POST" action="{{ route('admin.agents.activate', $agent) }}" class="w-full flex justify-end"
-                                                onsubmit="return confirm('Activate this agent? They will be able to log in again.');">
-                                                @csrf
-                                                @method('PATCH')
-                                                <button type="submit" class="admin-prod-link text-sm text-emerald-700 hover:text-emerald-800">Activate</button>
-                                            </form>
-                                        @endif
-                                        <form method="POST" action="{{ route('admin.agents.destroy', $agent) }}" class="w-full flex justify-end"
-                                            onsubmit="return confirm('Delete this agent permanently? This cannot be undone.');">
+                                        </div>
+                                    @endif
+                                    <div class="admin-user-actions-collapse__section">
+                                        <p class="admin-user-actions-collapse__label">Transfer branch</p>
+                                        <form method="POST" action="{{ route('admin.agents.transfer-branch', $agent) }}"
+                                            class="mt-1 flex flex-wrap items-center justify-end gap-2">
                                             @csrf
-                                            @method('DELETE')
-                                            <button type="submit" class="admin-prod-link text-sm text-rose-700 hover:text-rose-800">Delete</button>
+                                            @method('PATCH')
+                                            <select name="branch_id" class="admin-prod-input w-40 py-1.5 text-sm">
+                                                <option value="">No branch</option>
+                                                @foreach(\App\Models\Branch::orderBy('name')->get() as $branch)
+                                                    <option value="{{ $branch->id }}" {{ $agent->branch_id == $branch->id ? 'selected' : '' }}>{{ $branch->name }}</option>
+                                                @endforeach
+                                            </select>
+                                            <button type="submit" class="admin-prod-link whitespace-nowrap text-sm">Transfer</button>
                                         </form>
                                     </div>
-                                </td>
+                                    <div class="admin-user-actions-collapse__section">
+                                        <p class="admin-user-actions-collapse__label">Reset password</p>
+                                        <form method="POST" action="{{ route('admin.users.reset-password', $agent) }}"
+                                            class="mt-1 flex flex-wrap items-center justify-end gap-2">
+                                            @csrf
+                                            <input type="password" name="password" required minlength="8"
+                                                placeholder="New password" class="admin-prod-input w-36 py-1.5 text-sm">
+                                            <input type="password" name="password_confirmation" required minlength="8"
+                                                placeholder="Confirm" class="admin-prod-input w-32 py-1.5 text-sm">
+                                            <button type="submit" class="admin-prod-link whitespace-nowrap text-sm">Save</button>
+                                        </form>
+                                    </div>
+                                    @if($active)
+                                        <form method="POST" action="{{ route('admin.agents.deactivate', $agent) }}" class="w-full flex justify-end"
+                                            onsubmit="return confirm('Deactivate this agent? They will not be able to log in until reactivated.');">
+                                            @csrf
+                                            @method('PATCH')
+                                            <button type="submit" class="admin-prod-link text-sm text-red-600 hover:text-red-700">Deactivate</button>
+                                        </form>
+                                    @else
+                                        <form method="POST" action="{{ route('admin.agents.activate', $agent) }}" class="w-full flex justify-end"
+                                            onsubmit="return confirm('Activate this agent? They will be able to log in again.');">
+                                            @csrf
+                                            @method('PATCH')
+                                            <button type="submit" class="admin-prod-link text-sm text-emerald-700 hover:text-emerald-800">Activate</button>
+                                        </form>
+                                    @endif
+                                    <form method="POST" action="{{ route('admin.agents.destroy', $agent) }}" class="w-full flex justify-end"
+                                        onsubmit="return confirm('Delete this agent permanently? This cannot be undone.');">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit" class="admin-prod-link text-sm text-rose-700 hover:text-rose-800">Delete</button>
+                                    </form>
+                                </x-admin-user-actions>
                             </tr>
                         @empty
                             <tr>

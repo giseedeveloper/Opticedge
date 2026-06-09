@@ -77,9 +77,6 @@
                     </tbody>
                 </table>
             </div>
-            @if ($models->hasPages())
-                <div class="admin-prod-pagination">{{ $models->links() }}</div>
-            @endif
         </div>
     </div>
 </x-superadmin-layout>

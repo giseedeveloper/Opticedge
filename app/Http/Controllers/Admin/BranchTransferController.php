@@ -87,7 +87,7 @@ class BranchTransferController extends Controller
             'fromBranch',
             'toBranch',
             'admin',
-        ])->latest()->paginate(40);
+        ])->latest()->get();
 
         return view('admin.stock.branch-transfer-logs', compact('logs'));
     }

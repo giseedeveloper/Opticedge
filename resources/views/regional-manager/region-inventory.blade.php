@@ -146,9 +146,6 @@
                     </tbody>
                 </table>
             </div>
-            @if ($rows->hasPages())
-                <div class="admin-prod-pagination border-t border-white/50 px-4 py-3">{{ $rows->links() }}</div>
-            @endif
         </div>
     </div>
 </x-regional-manager-layout>

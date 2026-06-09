@@ -325,6 +325,69 @@
                 text-align: right;
             }
 
+            .admin-user-actions-collapse {
+                width: 100%;
+                min-width: 7rem;
+            }
+
+            .admin-user-actions-collapse__toggle {
+                display: inline-flex;
+                align-items: center;
+                justify-content: flex-end;
+                gap: 0.25rem;
+                width: 100%;
+                cursor: pointer;
+                list-style: none;
+                font-size: 0.8125rem;
+                font-weight: 600;
+                color: #fa8900;
+                user-select: none;
+            }
+
+            .admin-user-actions-collapse__toggle::-webkit-details-marker {
+                display: none;
+            }
+
+            .admin-user-actions-collapse__toggle:hover {
+                color: #c2410c;
+            }
+
+            .admin-user-actions-collapse__chevron {
+                width: 1rem;
+                height: 1rem;
+                flex-shrink: 0;
+                transition: transform 0.15s ease;
+            }
+
+            .admin-user-actions-collapse[open] .admin-user-actions-collapse__chevron {
+                transform: rotate(180deg);
+            }
+
+            .admin-user-actions-collapse__panel {
+                display: flex;
+                flex-direction: column;
+                align-items: flex-end;
+                gap: 0.5rem;
+                min-width: 260px;
+                margin-top: 0.5rem;
+                padding-top: 0.5rem;
+                border-top: 1px solid rgba(203, 213, 225, 0.7);
+            }
+
+            .admin-user-actions-collapse__label {
+                width: 100%;
+                font-size: 0.6875rem;
+                font-weight: 700;
+                letter-spacing: 0.04em;
+                text-transform: uppercase;
+                color: #94a3b8;
+                text-align: right;
+            }
+
+            .admin-user-actions-collapse__section {
+                width: 100%;
+            }
+
             .admin-prod-actions {
                 display: inline-flex;
                 justify-content: flex-end;

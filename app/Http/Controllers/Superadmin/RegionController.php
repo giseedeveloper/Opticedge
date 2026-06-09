@@ -10,7 +10,7 @@ class RegionController extends Controller
 {
     public function index()
     {
-        $regions = Region::orderBy('name')->paginate(40);
+        $regions = Region::orderBy('name')->get();
 
         return view('superadmin.regions.index', compact('regions'));
     }

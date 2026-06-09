@@ -61,9 +61,6 @@
                     </tbody>
                 </table>
             </div>
-            @if ($tenants->hasPages())
-                <div class="admin-prod-pagination">{{ $tenants->links() }}</div>
-            @endif
         </div>
     </div>
 </x-superadmin-layout>

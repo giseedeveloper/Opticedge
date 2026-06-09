@@ -50,6 +50,7 @@
         }
     </style>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
+    @include('layouts.partials.datatables-styles')
     @stack('styles')
 </head>
 
@@ -326,7 +327,9 @@
         </div>
     </div>
 
+    @include('layouts.partials.datatables-lib')
     @stack('scripts')
+    @include('layouts.partials.datatables-init')
 </body>
 
 </html>

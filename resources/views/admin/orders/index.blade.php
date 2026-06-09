@@ -25,7 +25,7 @@
                     <dd class="text-lg font-semibold text-amber-700">{{ number_format($orderDashboard['pending']) }}</dd>
                 </div>
             </dl>
-            <p class="mt-3 text-xs text-slate-500">The table is paginated; figures above cover the full database.</p>
+            <p class="mt-3 text-xs text-slate-500">Use the table search and pagination controls to browse all orders. Summary figures above cover the full database.</p>
         </x-admin-page-dashboard>
 
         <div class="admin-clay-panel overflow-hidden">
@@ -73,9 +73,6 @@
                     </tbody>
                 </table>
             </div>
-            @if($orders->hasPages())
-                <div class="admin-prod-pagination">{{ $orders->links() }}</div>
-            @endif
         </div>
     </div>
 </x-admin-layout>

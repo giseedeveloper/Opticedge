@@ -24,8 +24,7 @@ class ModelController extends Controller
                 });
             })
             ->latest()
-            ->paginate(30)
-            ->withQueryString();
+            ->get();
 
         return view('superadmin.models.index', compact('models', 'search'));
     }

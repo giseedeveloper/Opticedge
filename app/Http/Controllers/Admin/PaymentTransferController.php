@@ -87,7 +87,7 @@ class PaymentTransferController extends Controller
             $query->whereDate('created_at', '<=', $request->to_date);
         }
 
-        $transfers = $query->paginate(20);
+        $transfers = $query->get();
 
         // Calculate statistics
         $totalTransferred = PaymentTransfer::query()

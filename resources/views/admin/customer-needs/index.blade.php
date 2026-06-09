@@ -31,7 +31,7 @@
                 <p class="admin-prod-form-hint">Full list of submitted leads.</p>
             </div>
             <div class="w-full overflow-x-auto p-4 sm:p-6">
-                <table id="customerLeadsTable" class="w-full min-w-[640px] text-sm text-left">
+                <table id="customerLeadsTable" class="js-datatable w-full min-w-[640px] text-sm text-left" data-datatable-order="0,desc">
                     <thead class="text-xs text-slate-500 uppercase border-b border-slate-200">
                         <tr>
                             <th class="py-3 pr-4">Submitted</th>
@@ -62,29 +62,7 @@
         </div>
     </div>
 
-    @push('styles')
-        <link rel="stylesheet" href="https://cdn.datatables.net/1.13.8/css/jquery.dataTables.min.css">
-        <style>
-            #customerLeadsTable_wrapper .dataTables_filter input,
-            #customerLeadsTable_wrapper .dataTables_length select {
-                border: 1px solid rgba(148, 163, 184, 0.6);
-                border-radius: 0.5rem;
-                padding: 0.35rem 0.5rem;
-                background: #fff;
-            }
-
-            #customerLeadsTable_wrapper .dataTables_info,
-            #customerLeadsTable_wrapper .dataTables_paginate {
-                margin-top: 0.75rem;
-                font-size: 0.8125rem;
-                color: #64748b;
-            }
-        </style>
-    @endpush
-
     @push('scripts')
-        <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
-        <script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
         <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
         <script>
             (function() {
@@ -156,25 +134,6 @@
                     });
                 }
             })();
-
-            $(function() {
-                const tableEl = $('#customerLeadsTable');
-                if (!tableEl.length) return;
-
-                tableEl.DataTable({
-                    pageLength: 25,
-                    order: [[0, 'desc']],
-                    lengthMenu: [10, 25, 50, 100],
-                    language: {
-                        search: 'Search leads:',
-                        lengthMenu: 'Show _MENU_',
-                        info: 'Showing _START_ to _END_ of _TOTAL_ leads',
-                        infoEmpty: 'No leads found',
-                        emptyTable: 'No needs submitted yet.',
-                        zeroRecords: 'No matching leads found'
-                    }
-                });
-            });
         </script>
     @endpush
 </x-admin-layout>

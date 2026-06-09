@@ -11,7 +11,7 @@ class OrderController extends Controller
 {
     public function index()
     {
-        $orders = Order::with('user')->latest()->paginate(20);
+        $orders = Order::with('user')->latest()->get();
 
         $orderDashboard = [
             'total_orders' => Order::count(),

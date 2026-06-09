@@ -44,8 +44,7 @@ class AgentCreditController extends Controller
         $credits = $base->with(['agent', 'product.category', 'productListItem', 'paymentOption'])
             ->orderByDesc('date')
             ->orderByDesc('id')
-            ->paginate(25)
-            ->withQueryString();
+            ->get();
 
         $paymentOptions = Schema::hasTable('payment_options')
             ? PaymentOption::visible()->orderBy('name')->get()

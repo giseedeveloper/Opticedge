@@ -12,7 +12,7 @@ class TenantController extends Controller
 {
     public function index()
     {
-        $tenants = Tenant::with('package')->orderBy('name')->paginate(20);
+        $tenants = Tenant::with('package')->orderBy('name')->get();
 
         return view('superadmin.tenants.index', compact('tenants'));
     }

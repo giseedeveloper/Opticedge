@@ -61,12 +61,6 @@
                         @endforeach
                     </tbody>
                 </table>
-
-                @if($transfers->hasPages())
-                    <div class="border-t border-slate-200 px-4 py-3">
-                        {{ $transfers->links() }}
-                    </div>
-                @endif
             @endif
         </div>
 

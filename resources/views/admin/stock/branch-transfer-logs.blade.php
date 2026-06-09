@@ -42,6 +42,5 @@
                 </tbody>
             </table>
         </div>
-        <div class="mt-4">{{ $logs->links() }}</div>
     </div>
 </x-admin-layout>

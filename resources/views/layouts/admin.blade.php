@@ -22,6 +22,7 @@
     @include('layouts.partials.admin-surface-styles')
     @livewireStyles
     @vite(['resources/css/app.css', 'resources/js/app.js'])
+    @include('layouts.partials.datatables-styles')
     @stack('styles')
 </head>
 
@@ -165,8 +166,6 @@
                 class="px-3 py-1.5 rounded-xl text-slate-600 hover:text-[#232f3e] hover:bg-white/70 transition-all shrink-0">Dealers</a>
             <a href="{{ route('admin.vendors.index') }}"
                 class="px-3 py-1.5 rounded-xl text-slate-600 hover:text-[#232f3e] hover:bg-white/70 transition-all shrink-0">Vendors</a>
-            <a href="{{ route('admin.agents.index') }}"
-                class="px-3 py-1.5 rounded-xl text-slate-600 hover:text-[#232f3e] hover:bg-white/70 transition-all shrink-0">Agents</a>
             <a href="{{ route('admin.tenant.edit') }}"
                 class="px-3 py-1.5 rounded-xl text-slate-600 hover:text-[#232f3e] hover:bg-white/70 transition-all shrink-0 {{ request()->routeIs('admin.tenant.*') ? 'bg-white/80 text-[#232f3e] font-semibold' : '' }}">Subscription</a>
             <a href="{{ route('admin.settings.index') }}"
@@ -579,7 +578,9 @@
     </div>
 
     @livewireScripts
+    @include('layouts.partials.datatables-lib')
     @stack('scripts')
+    @include('layouts.partials.datatables-init')
 </body>
 
 </html>

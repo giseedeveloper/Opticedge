@@ -25,7 +25,7 @@ class CustomerController extends Controller
             $query->where('role', $request->role);
         }
 
-        $customers = $query->latest()->paginate(20);
+        $customers = $query->latest()->get();
 
         return view('admin.customers.index', compact('customers'));
     }
@@ -40,7 +40,7 @@ class CustomerController extends Controller
             $query->with('region:id,name');
         }
 
-        $managers = $query->paginate(20);
+        $managers = $query->get();
 
         return view('admin.customers.regional-managers.index', compact('managers'));
     }
@@ -63,7 +63,7 @@ class CustomerController extends Controller
             $query->with('regionalManager:id,name');
         }
 
-        $teamLeaders = $query->paginate(20);
+        $teamLeaders = $query->get();
 
         return view('admin.customers.team-leaders.index', compact('teamLeaders'));
     }

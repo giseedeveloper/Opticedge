@@ -10,7 +10,6 @@
             <ul class="divide-y text-sm">@foreach($regions as $region)
                 <li class="p-3 flex justify-between"><span>{{ $region->name }} @if($region->is_platform)<span class="text-xs text-slate-400">(platform)</span>@endif</span></li>
             @endforeach</ul>
-            <div class="p-3">{{ $regions->links() }}</div>
         </div>
     </div>
 </x-admin-layout>

@@ -12,7 +12,6 @@ use App\Models\ProductListItem;
 use App\Models\User;
 use App\Services\DeviceHierarchyAssignmentService;
 use Illuminate\Http\Request;
-use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
@@ -173,8 +172,8 @@ class TeamLeaderController extends Controller
         }
 
         $rows = $agentIds->isEmpty()
-            ? new LengthAwarePaginator([], 0, 35, 1, ['path' => $request->url(), 'query' => $request->query()])
-            : $query->orderByDesc('id')->paginate(35)->withQueryString();
+            ? collect()
+            : $query->orderByDesc('id')->get();
 
         $summary = [
             'total' => 0,

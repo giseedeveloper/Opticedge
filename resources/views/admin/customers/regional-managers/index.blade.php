@@ -36,7 +36,7 @@
                             <th scope="col" class="admin-prod-th">Region</th>
                             <th scope="col" class="admin-prod-th">Status</th>
                             <th scope="col" class="admin-prod-th">Joined</th>
-                            <th scope="col" class="admin-prod-th">Actions</th>
+                            <th scope="col" class="admin-prod-th admin-prod-th--end">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -53,14 +53,48 @@
                                     </span>
                                 </td>
                                 <td class="font-variant-numeric text-slate-600 text-sm">{{ $user->created_at->format('M j, Y') }}</td>
-                                <td>
+                                <x-admin-user-actions>
                                     @if($isActive)
                                         <a href="{{ route('admin.customers.regional-managers.assign-devices', ['regional_manager_id' => $user->id]) }}"
                                             class="admin-prod-link text-sm whitespace-nowrap">Assign devices</a>
-                                    @else
-                                        <span class="text-slate-400 text-sm">—</span>
                                     @endif
-                                </td>
+                                    <div class="admin-user-actions-collapse__section">
+                                        <p class="admin-user-actions-collapse__label">Reset password</p>
+                                        <form method="POST" action="{{ route('admin.users.reset-password', $user) }}"
+                                            class="mt-1 flex flex-wrap items-center justify-end gap-2">
+                                            @csrf
+                                            <input type="password" name="password" required minlength="8"
+                                                placeholder="New password" class="admin-prod-input w-36 py-1.5 text-sm">
+                                            <input type="password" name="password_confirmation" required minlength="8"
+                                                placeholder="Confirm" class="admin-prod-input w-32 py-1.5 text-sm">
+                                            <button type="submit" class="admin-prod-link whitespace-nowrap text-sm">Save</button>
+                                        </form>
+                                    </div>
+                                    @if($isActive)
+                                        <form method="POST" action="{{ route('admin.customers.deactivate', ['user' => $user->id]) }}"
+                                            class="w-full flex justify-end"
+                                            onsubmit="return confirm('Deactivate this regional manager? They will not be able to log in until reactivated.');">
+                                            @csrf
+                                            @method('PATCH')
+                                            <button type="submit" class="admin-prod-link text-sm text-red-600 hover:text-red-700">Deactivate</button>
+                                        </form>
+                                    @else
+                                        <form method="POST" action="{{ route('admin.customers.activate', ['user' => $user->id]) }}"
+                                            class="w-full flex justify-end"
+                                            onsubmit="return confirm('Activate this regional manager? They will be able to log in again.');">
+                                            @csrf
+                                            @method('PATCH')
+                                            <button type="submit" class="admin-prod-link text-sm text-emerald-700 hover:text-emerald-800">Activate</button>
+                                        </form>
+                                    @endif
+                                    <form method="POST" action="{{ route('admin.customers.destroy', ['user' => $user->id]) }}"
+                                        class="w-full flex justify-end"
+                                        onsubmit="return confirm('Delete this regional manager permanently? This cannot be undone.');">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit" class="admin-prod-link text-sm text-rose-700 hover:text-rose-800">Delete</button>
+                                    </form>
+                                </x-admin-user-actions>
                             </tr>
                         @empty
                             <tr>
@@ -70,9 +104,6 @@
                     </tbody>
                 </table>
             </div>
-            @if($managers->hasPages())
-                <div class="admin-prod-pagination">{{ $managers->links() }}</div>
-            @endif
         </div>
     </div>
 </x-admin-layout>

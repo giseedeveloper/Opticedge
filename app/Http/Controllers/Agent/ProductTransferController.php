@@ -23,7 +23,7 @@ class ProductTransferController extends Controller
                 $q->where('from_agent_id', $agentId)->orWhere('to_agent_id', $agentId);
             })
             ->latest()
-            ->paginate(25);
+            ->get();
 
         return view('agent.transfers-index', compact('transfers'));
     }

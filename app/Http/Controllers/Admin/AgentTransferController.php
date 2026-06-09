@@ -20,7 +20,7 @@ class AgentTransferController extends Controller
             $q->where('status', $status);
         }
 
-        $transfers = $q->paginate(25)->withQueryString();
+        $transfers = $q->get();
 
         return view('admin.stock.agent-transfers-index', compact('transfers', 'status'));
     }

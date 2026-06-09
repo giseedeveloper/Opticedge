@@ -9,7 +9,7 @@ class BrandController extends Controller
 {
     public function index()
     {
-        $brands = Category::query()->orderBy('name')->paginate(30);
+        $brands = Category::query()->orderBy('name')->get();
 
         return view('superadmin.brands.index', compact('brands'));
     }

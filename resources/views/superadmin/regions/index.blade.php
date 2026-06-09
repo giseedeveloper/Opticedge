@@ -54,9 +54,6 @@
                     </tbody>
                 </table>
             </div>
-            @if ($regions->hasPages())
-                <div class="admin-prod-pagination">{{ $regions->links() }}</div>
-            @endif
         </div>
     </div>
 </x-superadmin-layout>
