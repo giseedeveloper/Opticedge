@@ -52,6 +52,7 @@ class PurchaseController extends Controller
                 })->values()->all()
                 : null,
             'quantity' => $qty,
+            'added' => (int) ($p->product_list_items_count ?? 0),
             'unit_price' => $unit,
             'total_amount' => $total,
             'paid_date' => $p->paid_date,
@@ -76,6 +77,7 @@ class PurchaseController extends Controller
     {
         $purchases = Purchase::stockPurchases()
             ->with(['product.category', 'lines.product.category', 'stock', 'branch'])
+            ->withCount('productListItems')
             ->orderBy('date', 'desc')
             ->orderBy('id', 'desc')
             ->get()
