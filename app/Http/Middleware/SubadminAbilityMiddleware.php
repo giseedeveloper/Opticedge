@@ -123,6 +123,32 @@ class SubadminAbilityMiddleware
             return 'customers';
         }
 
+        // Mobile stock routes use different URI segments; web permissions use admin.stock.* → module "stock".
+        $stockApiPrefixes = [
+            'api/admin/stocks',
+            'api/admin/purchases',
+            'api/admin/imei-search',
+            'api/admin/imei-items',
+            'api/admin/passthrough-sales',
+            'api/admin/distribution-sales',
+            'api/admin/agent-sales',
+            'api/admin/agent-credits',
+            'api/admin/branch-transfer',
+            'api/admin/pending-sales',
+            'api/admin/agent-transfers',
+            'api/admin/product-list',
+            'api/admin/barcodes',
+        ];
+        foreach ($stockApiPrefixes as $prefix) {
+            if (str_starts_with($uri, $prefix)) {
+                return 'stock';
+            }
+        }
+
+        if ($module === 'brands') {
+            return 'categories';
+        }
+
         if ($module !== 'users') {
             return $module;
         }

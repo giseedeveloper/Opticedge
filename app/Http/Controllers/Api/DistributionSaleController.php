@@ -52,7 +52,7 @@ class DistributionSaleController extends Controller
     {
         $sales = DistributionSale::with(['product:id,name', 'product.category:id,name', 'dealer:id,name', 'paymentOption:id,name'])
             ->latest('date')
-            ->take(100)
+            ->take(500)
             ->get()
             ->map(fn ($sale) => $this->serializeSale($sale));
 

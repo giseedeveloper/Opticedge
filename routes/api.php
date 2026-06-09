@@ -168,11 +168,14 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('customer-needs', [AdminLeadsReportApiController::class, 'index']);
         Route::get('tenant', [AdminTenantApiController::class, 'show']);
         Route::put('tenant', [AdminTenantApiController::class, 'update']);
+        Route::post('tenant/subscribe/{package}', [AdminTenantApiController::class, 'subscribe']);
+        Route::get('tenant/subscribe/intent/{intent}/status', [AdminTenantApiController::class, 'subscriptionStatus']);
         Route::get('organization-tree', [AdminOrganizationApiController::class, 'index']);
         Route::get('payables', [AdminPayablesApiController::class, 'index']);
         Route::get('shop-records', [AdminShopRecordsApiController::class, 'index']);
         Route::get('payout', [AdminPayoutApiController::class, 'index']);
         Route::post('payout/bulk-selcom', [AdminPayoutApiController::class, 'bulkSelcom']);
+        Route::get('payout/selcom/{selcompay}/status', [AdminPayoutApiController::class, 'selcomStatus']);
         Route::get('users', [ApiUserController::class, 'index']); // ?role=customer|dealer|agent|subadmin|all
         Route::get('users/my-permissions', [AdminUserManagementApiController::class, 'myPermissions']);
         Route::get('users/create-form-data', [AdminUserManagementApiController::class, 'createFormData']);
@@ -390,6 +393,9 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('command-center/migrate-path', [SuperadminCommandCenterApiController::class, 'migratePath']);
         Route::post('command-center/seed-class', [SuperadminCommandCenterApiController::class, 'seedClass']);
         Route::post('command-center/empty-table', [SuperadminCommandCenterApiController::class, 'emptyTable']);
+        Route::post('command-center/extension-track', [SuperadminCommandCenterApiController::class, 'trackExtension']);
+        Route::post('command-center/extension-untrack', [SuperadminCommandCenterApiController::class, 'untrackExtension']);
+        Route::get('command-center/run/{command}', [SuperadminCommandCenterApiController::class, 'runCommand']);
 
         Route::get('regions', [SuperadminRegionApiController::class, 'index']);
         Route::post('regions', [SuperadminRegionApiController::class, 'store']);

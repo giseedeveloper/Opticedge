@@ -74,7 +74,8 @@ class PurchaseController extends Controller
      */
     public function index()
     {
-        $purchases = Purchase::with(['product.category', 'lines.product.category', 'stock', 'branch'])
+        $purchases = Purchase::stockPurchases()
+            ->with(['product.category', 'lines.product.category', 'stock', 'branch'])
             ->orderBy('date', 'desc')
             ->orderBy('id', 'desc')
             ->get()

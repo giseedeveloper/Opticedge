@@ -32,6 +32,9 @@ class AdminAgentCreditsAdminApiController extends Controller
         $statsQuery = clone $base;
         $sumTotal = (float) (clone $statsQuery)->sum('total_amount');
         $sumPaid = (float) (clone $statsQuery)->sum('paid_amount');
+        $totalProfit = Schema::hasColumn('agent_credits', 'profit')
+            ? (float) (clone $statsQuery)->sum('profit')
+            : 0.0;
 
         $credits = (clone $base)
             ->with(['agent:id,name,phone', 'product.category', 'paymentOption:id,name'])
@@ -48,6 +51,7 @@ class AdminAgentCreditsAdminApiController extends Controller
                 'total_credit' => $sumTotal,
                 'total_paid' => $sumPaid,
                 'total_pending' => max(0, $sumTotal - $sumPaid),
+                'total_profit' => $totalProfit,
             ],
         ]);
     }

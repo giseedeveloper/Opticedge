@@ -3,30 +3,79 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\ProductListItem;
 use App\Models\Purchase;
 use App\Models\Stock;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class StockController extends Controller
 {
     /**
      * List all stocks with current quantity (from product_list count).
+     * Mirrors web admin: when no Stock rows exist, fall back to stock purchases.
      */
     public function index()
     {
-        $stocks = Stock::withCount(['productListItems as quantity_available' => function ($q) {
-            $q->whereNull('sold_at');
-        }])->get()->map(function ($stock) {
-            return [
-                'id' => $stock->id,
-                'name' => $stock->name,
-                'stock_limit' => $stock->stock_limit,
-                'quantity' => $stock->quantity_available ?? $stock->quantity,
-                'under_limit' => ($stock->quantity_available ?? $stock->quantity) < $stock->stock_limit,
-            ];
-        });
+        try {
+            $rows = Stock::orderBy('name')
+                ->withCount(['productListItems as quantity_available' => function ($q) {
+                    $q->whereNull('sold_at');
+                }])
+                ->get()
+                ->map(function ($stock) {
+                    $added = (int) ProductListItem::where('stock_id', $stock->id)->count();
+                    $limit = (int) ($stock->stock_limit ?? 0);
+                    $unsold = (int) ($stock->quantity_available ?? 0);
+                    $complete = $limit > 0 && $added >= $limit;
 
-        return response()->json(['data' => $stocks]);
+                    return [
+                        'id' => $stock->id,
+                        'name' => $stock->name ?? 'Unnamed Stock',
+                        'stock_limit' => $limit,
+                        'stock_quantity' => $limit,
+                        'quantity' => $unsold,
+                        'added' => $added,
+                        'under_limit' => ! $complete,
+                        'status' => $complete ? 'complete' : 'pending',
+                        'from_purchase' => false,
+                    ];
+                });
+
+            if ($rows->isEmpty()) {
+                $purchases = Purchase::stockPurchases()->withCount([
+                    'productListItems',
+                    'productListItems as unsold_items_count' => function ($q) {
+                        $q->whereNull('sold_at');
+                    },
+                ])->orderByDesc('date')->get();
+
+                if ($purchases->isNotEmpty()) {
+                    $rows = $purchases->map(function ($purchase) {
+                        $limit = (int) ($purchase->quantity ?? 0);
+                        $added = (int) ($purchase->product_list_items_count ?? 0);
+                        $complete = $limit > 0 && $added >= $limit;
+
+                        return [
+                            'id' => $purchase->id,
+                            'name' => $purchase->name ?? 'Unnamed Purchase',
+                            'stock_limit' => $limit,
+                            'stock_quantity' => $limit,
+                            'quantity' => $added,
+                            'added' => $added,
+                            'under_limit' => ! $complete,
+                            'status' => $complete ? 'complete' : 'pending',
+                            'from_purchase' => true,
+                        ];
+                    });
+                }
+            }
+        } catch (\Exception $e) {
+            Log::error('API stocks index failed: '.$e->getMessage());
+            $rows = collect([]);
+        }
+
+        return response()->json(['data' => $rows->values()->all()]);
     }
 
     /**

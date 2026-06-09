@@ -209,6 +209,73 @@ class SuperadminCommandCenterApiController extends Controller
         }
     }
 
+    public function trackExtension(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'extension' => 'required|string|max:64|regex:/^[a-zA-Z0-9_]+$/',
+        ]);
+
+        $name = strtolower($validated['extension']);
+        $list = $this->getTrackedExtensions();
+        if (! in_array($name, $list, true)) {
+            $list[] = $name;
+            sort($list);
+            File::put($this->trackedExtensionsPath(), json_encode($list, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+        }
+
+        return response()->json([
+            'message' => "Tracking extension: {$name}",
+            'data' => ['tracked_extensions' => $this->getTrackedExtensions()],
+        ]);
+    }
+
+    public function untrackExtension(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'extension' => 'required|string|max:64',
+        ]);
+
+        $name = strtolower($validated['extension']);
+        $list = array_values(array_filter($this->getTrackedExtensions(), fn ($e) => $e !== $name));
+        File::put($this->trackedExtensionsPath(), json_encode($list, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+
+        return response()->json([
+            'message' => "Removed {$name} from tracked list.",
+            'data' => ['tracked_extensions' => $this->getTrackedExtensions()],
+        ]);
+    }
+
+    public function runCommand(Request $request, string $command): JsonResponse
+    {
+        $resolved = ArtisanCommandController::resolveAllowedCommand($command);
+        if ($resolved === null) {
+            return response()->json([
+                'message' => 'Command not allowed.',
+                'data' => ['allowed' => ArtisanCommandController::allowedCommands()],
+            ], 422);
+        }
+
+        $options = ['--no-interaction' => true];
+        if ($request->boolean('force')) {
+            $options['--force'] = true;
+        }
+        if ($request->boolean('seed') && in_array($resolved, ['migrate:fresh', 'migrate:refresh'], true)) {
+            $options['--seed'] = true;
+        }
+
+        try {
+            Artisan::call($resolved, $options);
+            $output = trim(Artisan::output());
+
+            return response()->json([
+                'message' => $output !== '' ? $output : "Command [{$resolved}] executed successfully.",
+                'data' => ['command' => $resolved, 'output' => $output],
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json(['message' => $e->getMessage()], 500);
+        }
+    }
+
     public function emptyTable(Request $request): JsonResponse
     {
         $validated = $request->validate([

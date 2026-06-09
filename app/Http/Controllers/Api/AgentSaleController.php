@@ -19,7 +19,7 @@ class AgentSaleController extends Controller
      */
     public function index(Request $request)
     {
-        $limit = min((int) $request->query('limit', 50), 200);
+        $limit = min((int) $request->query('limit', 500), 2000);
         $sales = AgentSale::with(['product.category', 'agent', 'paymentOption'])
             ->latest('date')
             ->take($limit)
