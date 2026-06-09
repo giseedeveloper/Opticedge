@@ -46,11 +46,16 @@ class AuthController extends Controller
         $user->tokens()->where('name', 'optic-app')->delete();
         $token = $user->createToken('optic-app')->plainTextToken;
 
-        $user->loadMissing('tenant:id,brand_name');
+        $user->loadMissing('tenant:id,brand_name,slug');
 
         $payload = $user->only(['id', 'name', 'email', 'role', 'tenant_id', 'status', 'business_name']);
         if ($user->tenant) {
             $payload['brand_name'] = $user->tenant->brand_name;
+            $slug = trim((string) ($user->tenant->slug ?? ''));
+            if ($slug !== '') {
+                $payload['tenant_slug'] = $slug;
+                $payload['api_base_url'] = 'https://'.$slug.'.opticedgeafrica.net/api';
+            }
         }
 
         return response()->json([
