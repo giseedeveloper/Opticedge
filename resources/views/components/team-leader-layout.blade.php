@@ -55,18 +55,6 @@
 
                 <div class="flex-grow"></div>
 
-                <div class="hidden md:flex items-center gap-2">
-                    <a href="{{ route('shop') }}"
-                        class="flex items-center gap-2 p-2 px-3 rounded-xl admin-clay-inset text-slate-600 hover:text-[#232f3e] transition-all duration-200">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24"
-                            stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                        </svg>
-                        <span class="text-sm font-medium">Shop</span>
-                    </a>
-                </div>
-
                 <div class="relative" x-data="{ userMenuOpen: false }">
                     <button @click="userMenuOpen = !userMenuOpen" type="button"
                         class="flex items-center gap-2 p-1.5 pr-2 rounded-2xl admin-clay-inset text-slate-700 hover:text-[#232f3e] transition-all duration-200">
@@ -131,8 +119,6 @@
                     class="px-3 py-1.5 rounded-xl shrink-0 {{ request()->routeIs('team-leader.assign-agent*') ? 'bg-white/90 text-[#232f3e] shadow-sm' : 'text-slate-600 hover:text-[#232f3e] hover:bg-white/70' }} transition-all">Assign devices</a>
                 <a href="{{ route('team-leader.profile') }}"
                     class="px-3 py-1.5 rounded-xl shrink-0 {{ request()->routeIs('team-leader.profile') ? 'bg-white/90 text-[#232f3e] shadow-sm' : 'text-slate-600 hover:text-[#232f3e] hover:bg-white/70' }} transition-all">Profile</a>
-                <a href="{{ route('shop') }}"
-                    class="px-3 py-1.5 rounded-xl shrink-0 {{ request()->routeIs('shop') ? 'bg-white/90 text-[#232f3e] shadow-sm' : 'text-slate-600 hover:text-[#232f3e] hover:bg-white/70' }} transition-all">Browse shop</a>
             </div>
         </div>
     </header>
@@ -159,21 +145,6 @@
             </div>
 
             <nav class="flex-1 px-3 py-4 space-y-6">
-                <div>
-                    <p class="admin-sidebar-section-title">Store</p>
-                    <div class="space-y-1">
-                        <a href="{{ route('shop') }}"
-                            class="admin-sidebar-item {{ request()->routeIs('shop') ? 'admin-sidebar-item-active' : '' }}">
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2"
-                                stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round"
-                                    d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-                            </svg>
-                            Browse shop
-                        </a>
-                    </div>
-                </div>
-
                 <div>
                     <p class="admin-sidebar-section-title">Portal</p>
                     <div class="space-y-1">

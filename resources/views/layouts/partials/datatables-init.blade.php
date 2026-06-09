@@ -16,6 +16,10 @@
                     return;
                 }
 
+                if (!hasConsistentColumns(table)) {
+                    return;
+                }
+
                 jQuery(table).DataTable(buildOptions(table));
             });
 
@@ -35,11 +39,68 @@
                 return false;
             }
 
+            function countRowColumns(row) {
+                let count = 0;
+
+                row.querySelectorAll(':scope > th, :scope > td').forEach(function (cell) {
+                    count += parseInt(cell.getAttribute('colspan') || '1', 10);
+                });
+
+                return count;
+            }
+
+            function getHeaderColumnCount(table) {
+                const headerRows = table.querySelectorAll('thead tr');
+
+                if (!headerRows.length) {
+                    return 0;
+                }
+
+                return countRowColumns(headerRows[headerRows.length - 1]);
+            }
+
+            function hasConsistentColumns(table) {
+                const expected = getHeaderColumnCount(table);
+
+                if (expected === 0) {
+                    return false;
+                }
+
+                const bodyRows = table.querySelectorAll('tbody tr');
+
+                for (let i = 0; i < bodyRows.length; i++) {
+                    const row = bodyRows[i];
+
+                    if (row.querySelector('table')) {
+                        return false;
+                    }
+
+                    const cells = row.querySelectorAll(':scope > td, :scope > th');
+
+                    if (cells.length === 1 && cells[0].hasAttribute('colspan')) {
+                        continue;
+                    }
+
+                    if (countRowColumns(row) !== expected) {
+                        return false;
+                    }
+                }
+
+                return true;
+            }
+
             function buildColumnDefs(table) {
                 const defs = [];
-                const headers = table.querySelectorAll('thead th');
+                const headerRows = table.querySelectorAll('thead tr');
+                const headerRow = headerRows.length
+                    ? headerRows[headerRows.length - 1]
+                    : null;
 
-                headers.forEach(function (th, index) {
+                if (!headerRow) {
+                    return defs;
+                }
+
+                headerRow.querySelectorAll('th, td').forEach(function (th, index) {
                     const label = th.textContent.trim().toLowerCase();
                     const isAction = label === 'action' || label === 'actions';
                     const isImage = th.classList.contains('admin-prod-th--image') || label === 'image';
