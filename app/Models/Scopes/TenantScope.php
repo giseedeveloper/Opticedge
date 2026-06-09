@@ -28,6 +28,13 @@ class TenantScope implements Scope
         $tenantId = TenantContext::id();
 
         if ($tenantId === null) {
+            // On single-vendor installs the tenant context may not be injected by middleware
+            // (e.g. older production code). Bypass scope so all rows are visible rather than
+            // returning nothing. Multi-tenant installs keep the strict fail-closed behaviour.
+            if ($this->includeLegacyNullTenantRows()) {
+                return;
+            }
+
             if (method_exists($model, 'usesStrictTenantScope') && $model->usesStrictTenantScope()) {
                 $builder->whereRaw('1 = 0');
             }
