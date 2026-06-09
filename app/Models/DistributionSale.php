@@ -9,6 +9,11 @@ class DistributionSale extends Model
 {
     use BelongsToTenantStrict;
 
+    protected $casts = [
+        'date' => 'date',
+        'collection_date' => 'date',
+    ];
+
     protected $fillable = [
         'dealer_id',
         'tenant_id',

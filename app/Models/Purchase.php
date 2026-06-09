@@ -36,6 +36,8 @@ class Purchase extends Model
 
     protected $casts = [
         'is_passthrough' => 'boolean',
+        'date' => 'date',
+        'expiry_date' => 'date',
     ];
 
     public function scopeStockPurchases(Builder $query): Builder
