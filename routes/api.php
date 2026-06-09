@@ -74,7 +74,7 @@ Route::post('/public/vendor-subscribe/intent', [VendorSubscribeApiController::cl
 Route::post('/public/vendor-subscribe/intent/{intent}/pay', [VendorSubscribeApiController::class, 'startPayment']);
 Route::get('/public/vendor-subscribe/intent/{intent}/status', [VendorSubscribeApiController::class, 'status']);
 
-Route::middleware('auth:sanctum')->group(function () {
+Route::middleware(['auth:sanctum', 'tenant.context'])->group(function () {
     Route::get('/user', function (Request $request) {
         return $request->user()->only(['id', 'name', 'email', 'role', 'status', 'business_name']);
     });
