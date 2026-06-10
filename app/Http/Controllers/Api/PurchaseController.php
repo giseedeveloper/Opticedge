@@ -127,7 +127,7 @@ class PurchaseController extends Controller
     {
         $purchase = Purchase::findOrFail($id);
         $items = $purchase->productListItems()
-            ->with('category:id,name')
+            ->with(['category:id,name', 'product:id,name'])
             ->orderBy('model')
             ->orderBy('imei_number')
             ->get()
@@ -136,7 +136,11 @@ class PurchaseController extends Controller
                     'id' => $item->id,
                     'model' => $item->model ?? '–',
                     'category' => $item->category?->name ?? '–',
+                    'category_name' => $item->category?->name ?? '–',
+                    'product_name' => $item->product?->name ?? '–',
                     'imei_number' => $item->imei_number ?? '–',
+                    'sold_at' => $item->sold_at?->toISOString(),
+                    'status' => $item->sold_at ? 'sold' : 'available',
                 ];
             })
             ->values()
