@@ -117,6 +117,7 @@ Route::middleware(['auth:sanctum', 'tenant.context'])->group(function () {
         Route::post('stocks', [ApiStockController::class, 'store']);
         Route::get('stocks/under-limit', [ApiStockController::class, 'stocksUnderLimit']);
         Route::get('stocks/{id}', [ApiStockController::class, 'show']);
+        Route::get('stocks/{id}/items', [ApiStockController::class, 'items']);
         Route::get('stocks/{id}/models', [ApiStockController::class, 'modelsForStock']);
         Route::get('stocks/{id}/receipts', [AdminPurchaseApiController::class, 'stockReceipts']);
         Route::get('branches', [ApiBranchController::class, 'index']);

@@ -170,6 +170,42 @@ class StockController extends Controller
         return response()->json(['data' => $combined]);
     }
 
+    /**
+     * List all IMEI devices registered in a stock bucket (mirrors web showStock table).
+     */
+    public function items(int $id)
+    {
+        $stock = Stock::findOrFail($id);
+
+        $items = ProductListItem::where('stock_id', $stock->id)
+            ->with(['category:id,name', 'product:id,name'])
+            ->orderBy('model')
+            ->orderBy('imei_number')
+            ->get()
+            ->map(function ($item) {
+                return [
+                    'id' => $item->id,
+                    'model' => $item->model ?? '–',
+                    'imei_number' => $item->imei_number ?? '–',
+                    'category_name' => $item->category?->name ?? '–',
+                    'product_name' => $item->product?->name ?? '–',
+                    'sold_at' => $item->sold_at?->toISOString(),
+                    'status' => $item->sold_at ? 'sold' : 'available',
+                ];
+            })
+            ->values()
+            ->all();
+
+        return response()->json([
+            'data' => $items,
+            'stock' => [
+                'id' => $stock->id,
+                'name' => $stock->name,
+                'stock_limit' => $stock->stock_limit,
+            ],
+        ]);
+    }
+
     public function show(int $id)
     {
         $stock = Stock::withCount(['productListItems as quantity_available' => function ($q) {
