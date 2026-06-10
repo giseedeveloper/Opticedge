@@ -63,7 +63,7 @@ class AgentProductTransferApiController extends Controller
             ->paginate($request->integer('per_page', 50));
 
         return response()->json([
-            'data' => $page->getCollection()->map(fn ($t) => $this->summary($t))->values()->all(),
+            'data' => $page->getCollection()->map(fn ($t) => $this->summary($t, $agentId))->values()->all(),
             'meta' => [
                 'current_page' => $page->currentPage(),
                 'last_page' => $page->lastPage(),
@@ -96,8 +96,8 @@ class AgentProductTransferApiController extends Controller
         $transfer->load(['fromAgent', 'toAgent', 'items']);
 
         return response()->json([
-            'message' => 'Transfer request submitted. Waiting for admin approval.',
-            'data' => $this->detail($transfer),
+            'message' => 'Transfer request submitted. Waiting for the receiving agent to accept.',
+            'data' => $this->detail($transfer, (int) Auth::id()),
         ], 201);
     }
 
@@ -113,7 +113,7 @@ class AgentProductTransferApiController extends Controller
             'items.productListItem.product.category',
         ]);
 
-        return response()->json(['data' => $this->detail($agent_product_transfer)]);
+        return response()->json(['data' => $this->detail($agent_product_transfer, $agentId)]);
     }
 
     public function cancel(AgentProductTransfer $agent_product_transfer)
@@ -125,6 +125,54 @@ class AgentProductTransferApiController extends Controller
         }
 
         return response()->json(['message' => 'Transfer cancelled.']);
+    }
+
+    public function accept(Request $request, AgentProductTransfer $agent_product_transfer)
+    {
+        $validated = $request->validate([
+            'note' => 'nullable|string|max:2000',
+        ]);
+
+        try {
+            app(AgentProductTransferService::class)->acceptByRecipient(
+                $agent_product_transfer,
+                Auth::user(),
+                $validated['note'] ?? null
+            );
+        } catch (\InvalidArgumentException $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
+        }
+
+        $agent_product_transfer->load(['fromAgent', 'toAgent', 'decidedByUser', 'items.productListItem.product.category']);
+
+        return response()->json([
+            'message' => 'Transfer accepted. Devices are now assigned to you.',
+            'data' => $this->detail($agent_product_transfer, (int) Auth::id()),
+        ]);
+    }
+
+    public function decline(Request $request, AgentProductTransfer $agent_product_transfer)
+    {
+        $validated = $request->validate([
+            'note' => 'nullable|string|max:2000',
+        ]);
+
+        try {
+            app(AgentProductTransferService::class)->declineByRecipient(
+                $agent_product_transfer,
+                Auth::user(),
+                $validated['note'] ?? null
+            );
+        } catch (\InvalidArgumentException $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
+        }
+
+        $agent_product_transfer->load(['fromAgent', 'toAgent', 'decidedByUser', 'items.productListItem.product.category']);
+
+        return response()->json([
+            'message' => 'Transfer declined.',
+            'data' => $this->detail($agent_product_transfer, (int) Auth::id()),
+        ]);
     }
 
     public function returnableImeis(Request $request)
@@ -171,8 +219,13 @@ class AgentProductTransferApiController extends Controller
         ]);
     }
 
-    private function summary(AgentProductTransfer $t): array
+    private function summary(AgentProductTransfer $t, ?int $viewerAgentId = null): array
     {
+        $viewerAgentId ??= (int) Auth::id();
+        $isIncoming = (int) $t->to_agent_id === $viewerAgentId;
+        $isOutgoing = (int) $t->from_agent_id === $viewerAgentId;
+        $isPending = $t->isPending();
+
         return [
             'id' => $t->id,
             'status' => $t->status,
@@ -182,12 +235,17 @@ class AgentProductTransferApiController extends Controller
             'items_count' => $t->items->count(),
             'message' => $t->message,
             'admin_note' => $t->admin_note,
+            'direction' => $isIncoming ? 'incoming' : ($isOutgoing ? 'outgoing' : null),
+            'can_accept' => $isPending && $isIncoming,
+            'can_decline' => $isPending && $isIncoming,
+            'can_cancel' => $isPending && $isOutgoing,
         ];
     }
 
-    private function detail(AgentProductTransfer $t): array
+    private function detail(AgentProductTransfer $t, ?int $viewerAgentId = null): array
     {
-        $base = $this->summary($t);
+        $viewerAgentId ??= (int) Auth::id();
+        $base = $this->summary($t, $viewerAgentId);
         $base['decided_at'] = $t->decided_at?->toIso8601String();
         $base['decided_by'] = $t->decidedByUser ? ['id' => $t->decidedByUser->id, 'name' => $t->decidedByUser->name] : null;
         $base['items'] = $t->items->map(function ($ti) {

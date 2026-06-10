@@ -56,18 +56,7 @@
                                 </td>
                                 <td class="font-variant-numeric text-slate-600 text-sm">{{ $user->created_at->format('M j, Y') }}</td>
                                 <x-admin-user-actions>
-                                    <div class="admin-user-actions-collapse__section">
-                                        <p class="admin-user-actions-collapse__label">Reset password</p>
-                                        <form method="POST" action="{{ route('admin.users.reset-password', $user) }}"
-                                            class="mt-1 flex flex-wrap items-center justify-end gap-2">
-                                            @csrf
-                                            <input type="password" name="password" required minlength="8"
-                                                placeholder="New password" class="admin-prod-input w-36 py-1.5 text-sm">
-                                            <input type="password" name="password_confirmation" required minlength="8"
-                                                placeholder="Confirm" class="admin-prod-input w-32 py-1.5 text-sm">
-                                            <button type="submit" class="admin-prod-link whitespace-nowrap text-sm">Save</button>
-                                        </form>
-                                    </div>
+                                    <x-admin-reset-password-form :user="$user" />
                                     @if($isActive)
                                         <form method="POST" action="{{ route('admin.customers.deactivate', ['user' => $user->id]) }}"
                                             class="w-full flex justify-end"

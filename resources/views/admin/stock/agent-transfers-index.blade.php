@@ -6,7 +6,7 @@
             <div>
                 <p class="admin-prod-eyebrow">Agents</p>
                 <h1 class="admin-prod-title">Agent transfer requests</h1>
-                <p class="admin-prod-subtitle">Approve or reject transfers of devices between agents.</p>
+                <p class="admin-prod-subtitle">View transfers between agents. Recipients accept or decline pending requests.</p>
             </div>
         </div>
 

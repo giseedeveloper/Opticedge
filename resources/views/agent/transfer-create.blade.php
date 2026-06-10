@@ -13,7 +13,7 @@
     <div class="mb-6">
         <a href="{{ route('agent.dashboard') }}" class="text-sm text-slate-600 hover:text-slate-900">&larr; Back to dashboard</a>
         <h2 class="mt-2 text-2xl font-bold text-slate-900">Transfer devices to another agent</h2>
-        <p class="mt-1 text-slate-600">Select the receiving agent and your devices (IMEIs). Admin must approve before the transfer completes.</p>
+        <p class="mt-1 text-slate-600">Select the receiving agent and your devices (IMEIs). The receiving agent must accept before the transfer completes.</p>
     </div>
 
     @if(session('error'))
@@ -64,7 +64,7 @@
                         @enderror
                     </div>
                     <div>
-                        <label for="message" class="block text-sm font-medium text-slate-700">Note to admin (optional)</label>
+                        <label for="message" class="block text-sm font-medium text-slate-700">Note to recipient (optional)</label>
                         <textarea id="message" name="message" rows="2"
                             class="mt-1 block w-full rounded-md border-slate-300 text-sm">{{ old('message') }}</textarea>
                     </div>

@@ -5,13 +5,17 @@
 @php
     $imei = $item->imei_number ?? '—';
     $sold = $item->sold_at !== null;
+    $hierarchyChain = $item->hierarchyChain();
+    $hasAgentInChain = collect($hierarchyChain)->contains(fn ($s) => $s['role'] === 'agent');
+    $hasTeamLeaderInChain = collect($hierarchyChain)->contains(fn ($s) => $s['role'] === 'team_leader');
+    $hasRegionalManagerInChain = collect($hierarchyChain)->contains(fn ($s) => $s['role'] === 'regional_manager');
 @endphp
 <div class="admin-clay-inset px-6 py-4 text-sm text-slate-700 space-y-3 border-l-4 border-[#fa8900]/50 mx-2 my-2 rounded-r-xl">
     <div class="flex flex-wrap items-baseline gap-2">
         <span class="font-mono font-semibold text-slate-900">{{ $imei }}</span>
         @if($sold)
             <span class="text-xs uppercase tracking-wide px-2 py-0.5 rounded bg-slate-200 text-slate-700">
-                {{ $item->agent_sale_id || $item->agent_credit_id ? 'Installed' : 'Sold' }}
+                {{ $item->agent_sale_id || $item->agent_credit_id ? 'Installed' : ($item->distribution_sale_id ? 'Distribution' : 'Sold') }}
             </span>
             <span class="text-slate-500">{{ $item->sold_at instanceof \Carbon\Carbon ? $item->sold_at->format('Y-m-d H:i') : $item->sold_at }}</span>
         @else
@@ -39,26 +43,52 @@
             </div>
         @endif
 
-        @if(!$sold)
-            @if($item->agentProductListAssignment && $item->agentProductListAssignment->agent)
-                <div class="sm:col-span-2 rounded-md bg-amber-50 border border-amber-100 px-3 py-2">
-                    <dt class="text-xs uppercase text-amber-800 font-semibold">Agent assignment</dt>
-                    <dd class="mt-1">
-                        Assigned to <strong>{{ $item->agentProductListAssignment->agent->name }}</strong>
-                        @if($item->agentProductListAssignment->agent->email)
-                            <span class="text-slate-600">({{ $item->agentProductListAssignment->agent->email }})</span>
+        @if(count($hierarchyChain) > 0)
+            <div class="sm:col-span-2 rounded-md bg-slate-50 border border-slate-200 px-3 py-2 space-y-2">
+                <dt class="text-xs uppercase text-slate-600 font-semibold">Distribution chain</dt>
+                @foreach($hierarchyChain as $step)
+                    <dd class="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                        <span class="text-xs uppercase tracking-wide text-slate-500">{{ $step['label'] }}:</span>
+                        <strong class="text-slate-900">{{ $step['name'] }}</strong>
+                        @if(!empty($step['email']))
+                            <span class="text-slate-600 text-xs">({{ $step['email'] }})</span>
                         @endif
                     </dd>
-                </div>
-            @else
-                <div class="sm:col-span-2 text-slate-600">
-                    <strong>Not assigned</strong> to an agent — available in warehouse / for assignment.
-                </div>
-            @endif
+                @endforeach
+            </div>
+        @elseif(!$sold)
+            <div class="sm:col-span-2 text-slate-600">
+                <strong>Not assigned</strong> to regional manager — available in warehouse / for assignment.
+            </div>
+        @endif
+
+        @if(!$sold && !$hasAgentInChain)
+            <div class="sm:col-span-2 text-slate-600">
+                @if($hasTeamLeaderInChain)
+                    <strong>With team leader</strong> — not yet assigned to an agent.
+                @elseif($hasRegionalManagerInChain)
+                    <strong>With regional manager</strong> — not yet assigned to a team leader.
+                @endif
+            </div>
         @endif
 
         @if($sold)
-            @if($item->agent_credit_id && $item->agentCredit)
+            @if($item->distribution_sale_id && $item->distributionSale)
+                @php $ds = $item->distributionSale; @endphp
+                <div class="sm:col-span-2 rounded-md bg-emerald-50 border border-emerald-100 px-3 py-2 space-y-1">
+                    <div class="text-xs uppercase text-emerald-800 font-semibold">Distribution sale (dealer)</div>
+                    <div><span class="text-slate-500">Dealer:</span> <strong>{{ $ds->dealer_name ?? '—' }}</strong></div>
+                    @if(!empty($ds->seller_name))
+                        <div><span class="text-slate-500">Recorded by:</span> {{ $ds->seller_name }}</div>
+                    @endif
+                    <div><span class="text-slate-500">Status:</span> <strong>{{ $ds->status ?? '—' }}</strong>
+                        — Paid {{ number_format((float) ($ds->paid_amount ?? 0), 2) }} / {{ number_format((float) ($ds->total_selling_value ?? 0), 2) }} TZS
+                    </div>
+                    @if((float) ($ds->balance ?? 0) > 0)
+                        <div><span class="text-slate-500">Balance:</span> {{ number_format((float) $ds->balance, 2) }} TZS</div>
+                    @endif
+                </div>
+            @elseif($item->agent_credit_id && $item->agentCredit)
                 @php $ac = $item->agentCredit; @endphp
                 <div class="sm:col-span-2 rounded-md bg-violet-50 border border-violet-100 px-3 py-2 space-y-1">
                     <div class="text-xs uppercase text-violet-800 font-semibold">Credit sale (agent)</div>

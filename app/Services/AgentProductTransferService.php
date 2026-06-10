@@ -97,13 +97,47 @@ class AgentProductTransferService
         });
     }
 
+    public function acceptByRecipient(AgentProductTransfer $transfer, User $recipient, ?string $note = null): void
+    {
+        if (! $transfer->isPending()) {
+            throw new \InvalidArgumentException('Transfer is not pending.');
+        }
+        if ((int) $transfer->to_agent_id !== (int) $recipient->id) {
+            throw new \InvalidArgumentException('Only the receiving agent can accept this transfer.');
+        }
+
+        $this->completeTransfer($transfer, $recipient, $note);
+    }
+
+    public function declineByRecipient(AgentProductTransfer $transfer, User $recipient, ?string $note = null): void
+    {
+        if (! $transfer->isPending()) {
+            throw new \InvalidArgumentException('Transfer is not pending.');
+        }
+        if ((int) $transfer->to_agent_id !== (int) $recipient->id) {
+            throw new \InvalidArgumentException('Only the receiving agent can decline this transfer.');
+        }
+
+        $transfer->update([
+            'status' => AgentProductTransfer::STATUS_REJECTED,
+            'admin_note' => $note,
+            'decided_at' => now(),
+            'decided_by' => $recipient->id,
+        ]);
+    }
+
     public function approve(AgentProductTransfer $transfer, User $admin, ?string $adminNote = null): void
     {
         if (! $transfer->isPending()) {
             throw new \InvalidArgumentException('Transfer is not pending.');
         }
 
-        DB::transaction(function () use ($transfer, $admin, $adminNote) {
+        $this->completeTransfer($transfer, $admin, $adminNote);
+    }
+
+    private function completeTransfer(AgentProductTransfer $transfer, User $decidedBy, ?string $note = null): void
+    {
+        DB::transaction(function () use ($transfer, $decidedBy, $note) {
             $transfer->load('items');
             $fromId = (int) $transfer->from_agent_id;
             $toId = (int) $transfer->to_agent_id;
@@ -112,7 +146,7 @@ class AgentProductTransferService
             foreach ($transfer->items as $ti) {
                 $item = ProductListItem::lockForUpdate()->find($ti->product_list_id);
                 if (! $item || $item->isSold()) {
-                    throw new \InvalidArgumentException('A device was sold or removed; cannot approve.');
+                    throw new \InvalidArgumentException('A device was sold or removed; cannot complete transfer.');
                 }
                 $assign = AgentProductListAssignment::where('product_list_id', $item->id)->lockForUpdate()->first();
                 if (! $assign || (int) $assign->agent_id !== $fromId) {
@@ -133,9 +167,9 @@ class AgentProductTransferService
 
             $transfer->update([
                 'status' => AgentProductTransfer::STATUS_APPROVED,
-                'admin_note' => $adminNote,
+                'admin_note' => $note,
                 'decided_at' => now(),
-                'decided_by' => $admin->id,
+                'decided_by' => $decidedBy->id,
             ]);
         });
     }

@@ -139,11 +139,14 @@ class StockController extends Controller
                 'category:id,name',
                 'product:id,name,category_id',
                 'stock:id,name',
+                'regionalManagerProductListAssignment.regionalManager:id,name,email',
+                'teamLeaderProductListAssignment.teamLeader:id,name,email',
                 'agentProductListAssignment.agent:id,name,email',
                 'agentCredit.agent:id,name,email',
                 'agentCredit.paymentOption:id,name',
                 'pendingSale',
                 'agentSale.agent:id,name,email',
+                'distributionSale',
             ])
             ->orderBy('model')
             ->orderBy('imei_number')
@@ -224,11 +227,14 @@ class StockController extends Controller
                 'product',
                 'purchase',
                 'stock:id,name',
+                'regionalManagerProductListAssignment.regionalManager:id,name,email',
+                'teamLeaderProductListAssignment.teamLeader:id,name,email',
                 'agentProductListAssignment.agent:id,name,email',
                 'agentCredit.agent:id,name,email',
                 'agentCredit.paymentOption:id,name',
                 'pendingSale',
                 'agentSale.agent:id,name,email',
+                'distributionSale',
             ])->orderBy('model')->orderBy('imei_number');
         }]);
 
@@ -2870,11 +2876,14 @@ class StockController extends Controller
             'stock',
             'category',
             'product',
-            'agentProductListAssignment.agent',
+            'regionalManagerProductListAssignment.regionalManager:id,name,email',
+            'teamLeaderProductListAssignment.teamLeader:id,name,email',
+            'agentProductListAssignment.agent:id,name,email',
             'agentCredit.agent',
             'agentCredit.paymentOption',
             'pendingSale',
             'agentSale.agent',
+            'distributionSale',
         ]);
 
         return view('admin.stock.imei-detail', compact('item'));

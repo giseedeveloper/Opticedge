@@ -71,7 +71,7 @@ class ProductTransferController extends Controller
             return back()->withInput()->with('error', $e->getMessage());
         }
 
-        return redirect()->route('agent.transfers.index')->with('success', 'Transfer request submitted. Waiting for admin approval.');
+        return redirect()->route('agent.transfers.index')->with('success', 'Transfer request submitted. Waiting for the receiving agent to accept.');
     }
 
     public function transferableImeis(Request $request)
@@ -101,5 +101,43 @@ class ProductTransferController extends Controller
         }
 
         return back()->with('success', 'Transfer cancelled.');
+    }
+
+    public function accept(Request $request, AgentProductTransfer $transfer)
+    {
+        $validated = $request->validate([
+            'note' => 'nullable|string|max:2000',
+        ]);
+
+        try {
+            app(AgentProductTransferService::class)->acceptByRecipient(
+                $transfer,
+                Auth::user(),
+                $validated['note'] ?? null
+            );
+        } catch (\InvalidArgumentException $e) {
+            return back()->with('error', $e->getMessage());
+        }
+
+        return back()->with('success', 'Transfer accepted. Devices are now assigned to you.');
+    }
+
+    public function decline(Request $request, AgentProductTransfer $transfer)
+    {
+        $validated = $request->validate([
+            'note' => 'nullable|string|max:2000',
+        ]);
+
+        try {
+            app(AgentProductTransferService::class)->declineByRecipient(
+                $transfer,
+                Auth::user(),
+                $validated['note'] ?? null
+            );
+        } catch (\InvalidArgumentException $e) {
+            return back()->with('error', $e->getMessage());
+        }
+
+        return back()->with('success', 'Transfer declined.');
     }
 }

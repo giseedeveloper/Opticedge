@@ -300,6 +300,8 @@ Route::middleware(['auth:sanctum', 'tenant.context'])->group(function () {
         Route::post('transfers', [AgentProductTransferApiController::class, 'store']);
         Route::get('transfers/{agent_product_transfer}', [AgentProductTransferApiController::class, 'show']);
         Route::post('transfers/{agent_product_transfer}/cancel', [AgentProductTransferApiController::class, 'cancel']);
+        Route::post('transfers/{agent_product_transfer}/accept', [AgentProductTransferApiController::class, 'accept']);
+        Route::post('transfers/{agent_product_transfer}/decline', [AgentProductTransferApiController::class, 'decline']);
 
         Route::get('return-devices/assignable-imeis', [AgentProductTransferApiController::class, 'returnableImeis']);
         Route::post('return-devices', [AgentProductTransferApiController::class, 'returnToTeamLeader']);

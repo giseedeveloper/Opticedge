@@ -515,6 +515,8 @@ Route::middleware(['auth', 'verified', 'active', 'agent'])->prefix('agent')->nam
     Route::post('transfer', [App\Http\Controllers\Agent\ProductTransferController::class, 'store'])->name('transfer.store');
     Route::get('transferable-imeis', [App\Http\Controllers\Agent\ProductTransferController::class, 'transferableImeis'])->name('transferable-imeis');
     Route::post('transfers/{transfer}/cancel', [App\Http\Controllers\Agent\ProductTransferController::class, 'cancel'])->name('transfers.cancel');
+    Route::post('transfers/{transfer}/accept', [App\Http\Controllers\Agent\ProductTransferController::class, 'accept'])->name('transfers.accept');
+    Route::post('transfers/{transfer}/decline', [App\Http\Controllers\Agent\ProductTransferController::class, 'decline'])->name('transfers.decline');
 });
 
 Route::middleware(['auth', 'active'])->group(function () {

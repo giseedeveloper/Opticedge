@@ -564,4 +564,52 @@ class ProductListItem extends Model
     {
         return $this->sold_at !== null;
     }
+
+    /**
+     * Admin → regional manager → team leader → agent custody chain for IMEI tracking.
+     *
+     * @return array<int, array{role: string, label: string, name: string, email: ?string}>
+     */
+    public function hierarchyChain(): array
+    {
+        $this->loadMissing([
+            'regionalManagerProductListAssignment.regionalManager:id,name,email',
+            'teamLeaderProductListAssignment.teamLeader:id,name,email',
+            'agentProductListAssignment.agent:id,name,email',
+        ]);
+
+        $chain = [];
+
+        $regionalManager = $this->regionalManagerProductListAssignment?->regionalManager;
+        if ($regionalManager) {
+            $chain[] = [
+                'role' => 'regional_manager',
+                'label' => 'Regional manager',
+                'name' => $regionalManager->name,
+                'email' => $regionalManager->email,
+            ];
+        }
+
+        $teamLeader = $this->teamLeaderProductListAssignment?->teamLeader;
+        if ($teamLeader) {
+            $chain[] = [
+                'role' => 'team_leader',
+                'label' => 'Team leader',
+                'name' => $teamLeader->name,
+                'email' => $teamLeader->email,
+            ];
+        }
+
+        $agent = $this->agentProductListAssignment?->agent;
+        if ($agent) {
+            $chain[] = [
+                'role' => 'agent',
+                'label' => 'Agent',
+                'name' => $agent->name,
+                'email' => $agent->email,
+            ];
+        }
+
+        return $chain;
+    }
 }

@@ -6,7 +6,7 @@
             <div>
                 <p class="admin-prod-eyebrow">Agent transfer</p>
                 <h1 class="admin-prod-title">Request #{{ $transfer->id }}</h1>
-                <p class="admin-prod-subtitle">Full details for approval.</p>
+                <p class="admin-prod-subtitle">Full details. Pending transfers wait for the receiving agent to accept or decline.</p>
             </div>
             <a href="{{ route('admin.stock.agent-transfers') }}" class="admin-prod-btn-ghost shrink-0">Back to list</a>
         </div>
@@ -108,25 +108,8 @@
         </div>
 
         @if($transfer->status === 'pending')
-            <div class="mt-6 grid gap-6 lg:grid-cols-2">
-                <div class="admin-clay-panel p-6">
-                    <h3 class="mb-3 text-sm font-semibold text-slate-900">Approve</h3>
-                    <form method="POST" action="{{ route('admin.stock.agent-transfers.approve', $transfer) }}">
-                        @csrf
-                        <label class="admin-prod-label">Admin note (optional)</label>
-                        <textarea name="admin_note" class="admin-prod-input mt-1 w-full" rows="2"></textarea>
-                        <button type="submit" class="admin-prod-btn-primary mt-3">Approve transfer</button>
-                    </form>
-                </div>
-                <div class="admin-clay-panel p-6">
-                    <h3 class="mb-3 text-sm font-semibold text-slate-900">Reject</h3>
-                    <form method="POST" action="{{ route('admin.stock.agent-transfers.reject', $transfer) }}">
-                        @csrf
-                        <label class="admin-prod-label">Admin note (optional)</label>
-                        <textarea name="admin_note" class="admin-prod-input mt-1 w-full" rows="2"></textarea>
-                        <button type="submit" class="mt-3 rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm font-medium text-red-800 hover:bg-red-100">Reject transfer</button>
-                    </form>
-                </div>
+            <div class="admin-clay-panel mt-6 p-6">
+                <p class="text-sm text-slate-700">This transfer is waiting for <strong>{{ $transfer->toAgent->name }}</strong> to accept or decline.</p>
             </div>
         @endif
     </div>

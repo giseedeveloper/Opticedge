@@ -43,11 +43,14 @@ class AdminImeiApiController extends Controller
             'stock',
             'category',
             'product',
-            'agentProductListAssignment.agent',
+            'regionalManagerProductListAssignment.regionalManager:id,name,email',
+            'teamLeaderProductListAssignment.teamLeader:id,name,email',
+            'agentProductListAssignment.agent:id,name,email',
             'agentCredit.agent',
             'agentCredit.paymentOption',
             'pendingSale',
             'agentSale.agent',
+            'distributionSale',
         ]);
 
         return response()->json(['data' => $this->serializeItemDetail($item)]);
@@ -71,19 +74,34 @@ class AdminImeiApiController extends Controller
         $base = $this->serializeItem($item);
         $sold = $item->sold_at !== null;
 
+        $hierarchyChain = $item->hierarchyChain();
+        $assignedAgent = collect($hierarchyChain)->firstWhere('role', 'agent');
+
         $track = [
             'sold' => $sold,
             'sold_label' => $sold
-                ? ($item->agent_sale_id || $item->agent_credit_id ? 'installed' : 'sold')
+                ? ($item->agent_sale_id || $item->agent_credit_id
+                    ? 'installed'
+                    : ($item->distribution_sale_id ? 'distribution' : 'sold'))
                 : 'in_stock',
             'purchase_name' => $item->purchase?->name,
             'purchase_id' => $item->purchase_id,
             'distributor_name' => $item->purchase?->distributor_name,
-            'assigned_agent_name' => $item->agentProductListAssignment?->agent?->name,
-            'assigned_agent_email' => $item->agentProductListAssignment?->agent?->email,
+            'hierarchy_chain' => $hierarchyChain,
+            'assigned_agent_name' => $assignedAgent['name'] ?? null,
+            'assigned_agent_email' => $assignedAgent['email'] ?? null,
         ];
 
-        if ($sold && $item->agent_credit_id && $item->agentCredit) {
+        if ($sold && $item->distribution_sale_id && $item->distributionSale) {
+            $ds = $item->distributionSale;
+            $track['sale_type'] = 'distribution';
+            $track['dealer_name'] = $ds->dealer_name;
+            $track['seller_name'] = $ds->seller_name;
+            $track['distribution_status'] = $ds->status;
+            $track['total_selling_value'] = $ds->total_selling_value;
+            $track['paid_amount'] = $ds->paid_amount;
+            $track['balance'] = $ds->balance;
+        } elseif ($sold && $item->agent_credit_id && $item->agentCredit) {
             $ac = $item->agentCredit;
             $track['sale_type'] = 'credit';
             $track['customer_name'] = $ac->customer_name;

@@ -388,6 +388,23 @@
                 width: 100%;
             }
 
+            .admin-reset-password-collapse {
+                width: 100%;
+            }
+
+            .admin-reset-password-collapse__toggle {
+                cursor: pointer;
+                list-style: none;
+            }
+
+            .admin-reset-password-collapse__toggle::-webkit-details-marker {
+                display: none;
+            }
+
+            .admin-reset-password-collapse__toggle:hover {
+                color: #64748b;
+            }
+
             .admin-prod-actions {
                 display: inline-flex;
                 justify-content: flex-end;
