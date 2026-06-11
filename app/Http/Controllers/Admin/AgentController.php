@@ -19,7 +19,7 @@ class AgentController extends Controller
     public function index()
     {
         $agents = User::where('role', 'agent')
-            ->with(['branch', 'teamLeader'])
+            ->withLocationRelations()
             ->orderBy('name')
             ->get();
 

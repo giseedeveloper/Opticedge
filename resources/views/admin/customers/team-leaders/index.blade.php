@@ -45,8 +45,8 @@
                                 <td class="font-semibold text-[#232f3e]">{{ $user->name }}</td>
                                 <td class="text-slate-600">{{ $user->email }}</td>
                                 <td class="text-slate-600">{{ $user->phone ?? '—' }}</td>
-                                <td class="text-slate-600">{{ $user->region?->name ?? '—' }}</td>
-                                <td class="text-slate-600">{{ $user->branch?->name ?? '—' }}</td>
+                                <td class="text-slate-600">{{ $user->listRegionName() ?? '—' }}</td>
+                                <td class="text-slate-600">{{ $user->listBranchName() ?? '—' }}</td>
                                 <td class="text-slate-600">{{ $user->regionalManager?->name ?? '—' }}</td>
                                 <td>
                                     @php $isActive = ($user->status ?? 'active') === 'active'; @endphp
@@ -55,33 +55,7 @@
                                     </span>
                                 </td>
                                 <td class="font-variant-numeric text-slate-600 text-sm">{{ $user->created_at->format('M j, Y') }}</td>
-                                <x-admin-user-actions>
-                                    <x-admin-reset-password-form :user="$user" />
-                                    @if($isActive)
-                                        <form method="POST" action="{{ route('admin.customers.deactivate', ['user' => $user->id]) }}"
-                                            class="w-full flex justify-end"
-                                            onsubmit="return confirm('Deactivate this team leader? They will not be able to log in until reactivated.');">
-                                            @csrf
-                                            @method('PATCH')
-                                            <button type="submit" class="admin-prod-link text-sm text-red-600 hover:text-red-700">Deactivate</button>
-                                        </form>
-                                    @else
-                                        <form method="POST" action="{{ route('admin.customers.activate', ['user' => $user->id]) }}"
-                                            class="w-full flex justify-end"
-                                            onsubmit="return confirm('Activate this team leader? They will be able to log in again.');">
-                                            @csrf
-                                            @method('PATCH')
-                                            <button type="submit" class="admin-prod-link text-sm text-emerald-700 hover:text-emerald-800">Activate</button>
-                                        </form>
-                                    @endif
-                                    <form method="POST" action="{{ route('admin.customers.destroy', ['user' => $user->id]) }}"
-                                        class="w-full flex justify-end"
-                                        onsubmit="return confirm('Delete this team leader permanently? This cannot be undone.');">
-                                        @csrf
-                                        @method('DELETE')
-                                        <button type="submit" class="admin-prod-link text-sm text-rose-700 hover:text-rose-800">Delete</button>
-                                    </form>
-                                </x-admin-user-actions>
+                                <x-admin-directory-user-actions :user="$user" />
                             </tr>
                         @empty
                             <tr>

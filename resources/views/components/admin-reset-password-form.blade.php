@@ -3,7 +3,7 @@
 <div class="admin-user-actions-collapse__section">
     <details class="admin-reset-password-collapse">
         <summary class="admin-reset-password-collapse__toggle admin-user-actions-collapse__label">
-            Reset password
+            Reset Password
         </summary>
         <form method="POST" action="{{ route('admin.users.reset-password', $user) }}"
             class="admin-reset-password-collapse__form mt-1 flex flex-wrap items-center justify-end gap-2">

@@ -121,7 +121,7 @@
                 <tbody>
                     @foreach($lineRows as $row)
                         <tr>
-                            <td>#{{ $row['id'] }}</td>
+                            <td>{{ $row['invoice_number'] }}</td>
                             <td>{{ $row['date'] ? \Carbon\Carbon::parse($row['date'])->format('d M Y') : '—' }}</td>
                             <td>{{ $row['product_name'] }}</td>
                             <td class="num">{{ number_format($row['quantity']) }}</td>

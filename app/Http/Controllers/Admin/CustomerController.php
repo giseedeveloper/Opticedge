@@ -25,9 +25,32 @@ class CustomerController extends Controller
             $query->where('role', $request->role);
         }
 
-        $customers = $query->latest()->get();
+        $customers = $query->withLocationRelations()->latest()->get();
 
         return view('admin.customers.index', compact('customers'));
+    }
+
+    public function show(User $user)
+    {
+        if ($user->role === 'admin') {
+            abort(404);
+        }
+
+        if ($user->role === 'agent') {
+            return redirect()->route('admin.agents.show', $user);
+        }
+
+        if ($user->role === 'dealer') {
+            return redirect()->route('admin.dealers.show', $user);
+        }
+
+        if (! in_array($user->role, User::customerDirectoryRoleFilters(), true)) {
+            abort(404);
+        }
+
+        $user = User::withLocationRelations()->findOrFail($user->id);
+
+        return view('admin.customers.show', compact('user'));
     }
 
     public function regionalManagersIndex()
@@ -40,7 +63,7 @@ class CustomerController extends Controller
             $query->with('region:id,name');
         }
 
-        $managers = $query->get();
+        $managers = $query->withLocationRelations()->get();
 
         return view('admin.customers.regional-managers.index', compact('managers'));
     }
@@ -63,7 +86,7 @@ class CustomerController extends Controller
             $query->with('regionalManager:id,name');
         }
 
-        $teamLeaders = $query->get();
+        $teamLeaders = $query->withLocationRelations()->get();
 
         return view('admin.customers.team-leaders.index', compact('teamLeaders'));
     }

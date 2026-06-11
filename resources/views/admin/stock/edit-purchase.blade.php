@@ -28,7 +28,7 @@
                         <!-- Invoice Number -->
                         <div class="col-span-2">
                             <label for="name" class="admin-prod-label">Invoice Number</label>
-                            <input type="text" name="name" id="name" value="{{ old('name', $purchase->name) }}" class="admin-prod-input" placeholder="Enter invoice number">
+                            <input type="text" name="name" id="name" value="{{ old('name', $purchase->name) }}" class="admin-prod-input" placeholder="Auto: P26DS00001">
                             @error('name') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
                         </div>
 

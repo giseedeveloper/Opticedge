@@ -13,7 +13,7 @@ class UserController extends Controller
         $role = $request->query('role');
         $allowed = User::customerDirectoryRoleFilters();
 
-        $query = User::query();
+        $query = User::query()->withLocationRelations();
 
         if ($role !== null && $role !== '' && $role !== 'all') {
             if (! in_array($role, $allowed, true)) {
@@ -28,19 +28,8 @@ class UserController extends Controller
             ->orderBy(in_array($effectiveRole, ['agent', 'teamleader', 'regional_manager'], true) ? 'name' : 'created_at', 'asc')
             ->orderByDesc('created_at')
             ->take(200)
-            ->get(['id', 'name', 'email', 'role', 'status', 'phone', 'business_name', 'created_at'])
-            ->map(function ($user) {
-                return [
-                    'id' => $user->id,
-                    'name' => $user->name,
-                    'email' => $user->email,
-                    'role' => $user->role,
-                    'status' => $user->status ?? 'active',
-                    'phone' => $user->phone,
-                    'business_name' => $user->business_name,
-                    'created_at' => $user->created_at?->toISOString(),
-                ];
-            });
+            ->get()
+            ->map(fn (User $user) => $user->toDirectoryListArray());
 
         return response()->json(['data' => $users]);
     }

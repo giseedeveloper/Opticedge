@@ -24,6 +24,7 @@ class DistributionSaleController extends Controller
 
         return [
             'id' => $sale->id,
+            'invoice_number' => $sale->displayInvoiceNumber(),
             'dealer_name' => $sale->dealer?->name ?? $sale->dealer_name ?? '–',
             'seller_name' => $sale->seller_name ?? '–',
             'product_name' => $sale->product?->name ?? '–',

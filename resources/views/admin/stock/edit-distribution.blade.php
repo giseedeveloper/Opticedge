@@ -28,6 +28,7 @@
                 <div class="text-sm text-slate-600 rounded-lg border border-slate-200/80 bg-slate-50/50 p-4">
                     <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                         <div class="space-y-2">
+                            <p><span class="font-semibold text-slate-800">Invoice:</span> {{ $sale->displayInvoiceNumber() }}</p>
                             <p><span class="font-semibold text-slate-800">Dealer:</span> {{ $sale->dealer_name ?? $sale->dealer?->name ?? 'N/A' }}</p>
                             <p><span class="font-semibold text-slate-800">Product:</span> {{ $sale->product ? ($sale->product->name) : 'N/A' }}</p>
                             <p><span class="font-semibold text-slate-800">Total selling value:</span> {{ number_format($saleTotal, 2) }} TZS</p>

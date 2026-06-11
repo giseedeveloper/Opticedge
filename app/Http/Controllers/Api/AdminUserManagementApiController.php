@@ -22,7 +22,8 @@ class AdminUserManagementApiController extends Controller
     public function show(User $user): JsonResponse
     {
         $this->assertManageable($user);
-        $user->load(['branch:id,name', 'teamLeader:id,name', 'regionalManager:id,name', 'subadminRole:id,name']);
+        $user = User::withLocationRelations()->findOrFail($user->id);
+        $user->load('subadminRole:id,name');
 
         return response()->json(['data' => $this->serializeUser($user)]);
     }
@@ -429,7 +430,9 @@ class AdminUserManagementApiController extends Controller
             'phone' => $user->phone,
             'business_name' => $user->business_name,
             'branch_id' => $user->branch_id,
-            'branch_name' => $user->branch?->name,
+            'branch_name' => $user->listBranchName(),
+            'region_id' => $user->region_id,
+            'region_name' => $user->listRegionName(),
             'team_leader_id' => $user->team_leader_id ?? null,
             'team_leader_name' => $user->teamLeader?->name,
             'regional_manager_id' => $user->regional_manager_id ?? null,

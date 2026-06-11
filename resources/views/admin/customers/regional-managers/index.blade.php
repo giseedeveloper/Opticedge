@@ -34,6 +34,7 @@
                             <th scope="col" class="admin-prod-th">Email</th>
                             <th scope="col" class="admin-prod-th">Phone</th>
                             <th scope="col" class="admin-prod-th">Region</th>
+                            <th scope="col" class="admin-prod-th">Branch</th>
                             <th scope="col" class="admin-prod-th">Status</th>
                             <th scope="col" class="admin-prod-th">Joined</th>
                             <th scope="col" class="admin-prod-th admin-prod-th--end">Actions</th>
@@ -45,7 +46,8 @@
                                 <td class="font-semibold text-[#232f3e]">{{ $user->name }}</td>
                                 <td class="text-slate-600">{{ $user->email }}</td>
                                 <td class="text-slate-600">{{ $user->phone ?? '—' }}</td>
-                                <td class="text-slate-600">{{ $user->region?->name ?? '—' }}</td>
+                                <td class="text-slate-600">{{ $user->listRegionName() ?? '—' }}</td>
+                                <td class="text-slate-600">{{ $user->listBranchName() ?? '—' }}</td>
                                 <td>
                                     @php $isActive = ($user->status ?? 'active') === 'active'; @endphp
                                     <span class="admin-prod-user-status {{ $isActive ? 'admin-prod-user-status--active' : 'admin-prod-user-status--inactive' }}">
@@ -53,41 +55,11 @@
                                     </span>
                                 </td>
                                 <td class="font-variant-numeric text-slate-600 text-sm">{{ $user->created_at->format('M j, Y') }}</td>
-                                <x-admin-user-actions>
-                                    @if($isActive)
-                                        <a href="{{ route('admin.customers.regional-managers.assign-devices', ['regional_manager_id' => $user->id]) }}"
-                                            class="admin-prod-link text-sm whitespace-nowrap">Assign devices</a>
-                                    @endif
-                                    <x-admin-reset-password-form :user="$user" />
-                                    @if($isActive)
-                                        <form method="POST" action="{{ route('admin.customers.deactivate', ['user' => $user->id]) }}"
-                                            class="w-full flex justify-end"
-                                            onsubmit="return confirm('Deactivate this regional manager? They will not be able to log in until reactivated.');">
-                                            @csrf
-                                            @method('PATCH')
-                                            <button type="submit" class="admin-prod-link text-sm text-red-600 hover:text-red-700">Deactivate</button>
-                                        </form>
-                                    @else
-                                        <form method="POST" action="{{ route('admin.customers.activate', ['user' => $user->id]) }}"
-                                            class="w-full flex justify-end"
-                                            onsubmit="return confirm('Activate this regional manager? They will be able to log in again.');">
-                                            @csrf
-                                            @method('PATCH')
-                                            <button type="submit" class="admin-prod-link text-sm text-emerald-700 hover:text-emerald-800">Activate</button>
-                                        </form>
-                                    @endif
-                                    <form method="POST" action="{{ route('admin.customers.destroy', ['user' => $user->id]) }}"
-                                        class="w-full flex justify-end"
-                                        onsubmit="return confirm('Delete this regional manager permanently? This cannot be undone.');">
-                                        @csrf
-                                        @method('DELETE')
-                                        <button type="submit" class="admin-prod-link text-sm text-rose-700 hover:text-rose-800">Delete</button>
-                                    </form>
-                                </x-admin-user-actions>
+                                <x-admin-directory-user-actions :user="$user" />
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="7" class="text-center text-slate-500 py-10">No regional managers yet.</td>
+                                <td colspan="8" class="text-center text-slate-500 py-10">No regional managers yet.</td>
                             </tr>
                         @endforelse
                     </tbody>

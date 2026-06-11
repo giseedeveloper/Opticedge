@@ -21,6 +21,7 @@ use App\Models\User;
 use App\Services\BarcodeImageDecoder;
 use App\Support\ImeiListParser;
 use App\Support\PdfDownload;
+use App\Support\DocumentNumberGenerator;
 use App\Support\PurchaseInvoiceNumber;
 use App\Services\AgentCommissionExpenseService;
 use App\Services\AgentSaleCreditMigrationService;
@@ -1216,7 +1217,7 @@ class StockController extends Controller
 
             $nameInput = trim((string) ($validated['name'] ?? ''));
             if ($nameInput === '') {
-                $validated['name'] = PurchaseInvoiceNumber::unique($validated['distributor_name'] ?? null);
+                $validated['name'] = PurchaseInvoiceNumber::unique(null, $validated['date'] ?? null);
             } else {
                 $validated['name'] = $nameInput;
             }
@@ -1378,7 +1379,7 @@ class StockController extends Controller
 
         $nameInput = trim((string) ($validated['name'] ?? ''));
         if ($nameInput === '') {
-            $purchaseName = PurchaseInvoiceNumber::unique($validated['distributor_name'] ?? null);
+            $purchaseName = PurchaseInvoiceNumber::unique(null, $validated['date'] ?? null);
         } else {
             $purchaseName = $nameInput;
         }
@@ -2429,8 +2430,9 @@ class StockController extends Controller
         $paidShares = $this->allocateDistributionPaidAcrossLines($paidTotal, $grandSellingTotal, $lineTotals);
 
         $hasDistributionSaleIdOnList = Schema::hasColumn('product_list', 'distribution_sale_id');
+        $hasInvoiceNumberColumn = Schema::hasColumn('distribution_sales', 'invoice_number');
 
-        DB::transaction(function () use ($validated, $dealerName, $request, $linePayloads, $paidShares, $eps, $hasDistributionSaleIdOnList) {
+        DB::transaction(function () use ($validated, $dealerName, $request, $linePayloads, $paidShares, $eps, $hasDistributionSaleIdOnList, $hasInvoiceNumberColumn) {
             foreach ($linePayloads as $idx => $payload) {
                 $paidLine = (float) ($paidShares[$idx] ?? 0);
                 $totalSell = (float) $payload['total_selling_value'];
@@ -2453,6 +2455,10 @@ class StockController extends Controller
                     'balance' => $balance,
                     'status' => $paidLine >= $totalSell - $eps ? 'complete' : 'pending',
                 ];
+
+                if ($hasInvoiceNumberColumn) {
+                    $attrs['invoice_number'] = DocumentNumberGenerator::nextDistributionSale($validated['date'] ?? null);
+                }
 
                 $sale = DistributionSale::create($attrs);
 
@@ -2528,7 +2534,7 @@ class StockController extends Controller
     {
         $sale = DistributionSale::with(['product.category', 'dealer', 'payments.paymentOption'])->findOrFail($id);
 
-        $invoiceNo = str_pad((string) $sale->id, 5, '0', STR_PAD_LEFT);
+        $invoiceNo = $sale->displayInvoiceNumber();
         $safeDate = ($sale->date ? Carbon::parse($sale->date)->format('Ymd') : now()->format('Ymd'));
         $filename = "distribution-invoice-{$invoiceNo}-{$safeDate}.pdf";
 
@@ -2590,6 +2596,7 @@ class StockController extends Controller
 
             return [
                 'id' => $s->id,
+                'invoice_number' => $s->displayInvoiceNumber(),
                 'date' => $s->date ? Carbon::parse($s->date)->format('Y-m-d') : null,
                 'product_name' => $productName,
                 'quantity' => (int) ($s->quantity_sold ?? 0),

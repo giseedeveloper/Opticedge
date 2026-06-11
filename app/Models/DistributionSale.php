@@ -15,6 +15,7 @@ class DistributionSale extends Model
     ];
 
     protected $fillable = [
+        'invoice_number',
         'dealer_id',
         'tenant_id',
         'order_id',
@@ -66,5 +67,14 @@ class DistributionSale extends Model
     public function productListItems()
     {
         return $this->hasMany(ProductListItem::class, 'distribution_sale_id');
+    }
+
+    public function displayInvoiceNumber(): string
+    {
+        if (! empty($this->invoice_number)) {
+            return (string) $this->invoice_number;
+        }
+
+        return str_pad((string) $this->id, 5, '0', STR_PAD_LEFT);
     }
 }
