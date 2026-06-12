@@ -321,9 +321,9 @@ Route::middleware(['auth:sanctum', 'tenant.context'])->group(function () {
         Route::get('return-devices/assignable-imeis', [RegionalManagerApiController::class, 'returnableImeis']);
         Route::post('return-devices', [RegionalManagerApiController::class, 'storeReturnDevices']);
         Route::get('transfers', [RegionalManagerProductTransferApiController::class, 'index']);
-        Route::get('transfers/{regional_manager_product_transfer}', [RegionalManagerProductTransferApiController::class, 'show']);
-        Route::post('transfers/{regional_manager_product_transfer}/accept', [RegionalManagerProductTransferApiController::class, 'accept']);
-        Route::post('transfers/{regional_manager_product_transfer}/decline', [RegionalManagerProductTransferApiController::class, 'decline']);
+        Route::get('transfers/{transfer}', [RegionalManagerProductTransferApiController::class, 'show']);
+        Route::post('transfers/{transfer}/accept', [RegionalManagerProductTransferApiController::class, 'accept']);
+        Route::post('transfers/{transfer}/decline', [RegionalManagerProductTransferApiController::class, 'decline']);
         Route::get('orders', [ShopCommerceApiController::class, 'orders']);
         Route::get('orders/{order}', [ShopCommerceApiController::class, 'showOrder']);
         Route::get('cart', [ShopCommerceApiController::class, 'cart']);
@@ -356,9 +356,9 @@ Route::middleware(['auth:sanctum', 'tenant.context'])->group(function () {
         Route::get('return-devices/assignable-imeis', [TeamLeaderApiController::class, 'returnableImeis']);
         Route::post('return-devices', [TeamLeaderApiController::class, 'storeReturnDevices']);
         Route::get('transfers', [TeamLeaderProductTransferApiController::class, 'index']);
-        Route::get('transfers/{team_leader_product_transfer}', [TeamLeaderProductTransferApiController::class, 'show']);
-        Route::post('transfers/{team_leader_product_transfer}/accept', [TeamLeaderProductTransferApiController::class, 'accept']);
-        Route::post('transfers/{team_leader_product_transfer}/decline', [TeamLeaderProductTransferApiController::class, 'decline']);
+        Route::get('transfers/{transfer}', [TeamLeaderProductTransferApiController::class, 'show']);
+        Route::post('transfers/{transfer}/accept', [TeamLeaderProductTransferApiController::class, 'accept']);
+        Route::post('transfers/{transfer}/decline', [TeamLeaderProductTransferApiController::class, 'decline']);
         Route::get('orders', [ShopCommerceApiController::class, 'orders']);
         Route::get('orders/{order}', [ShopCommerceApiController::class, 'showOrder']);
         Route::get('cart', [ShopCommerceApiController::class, 'cart']);

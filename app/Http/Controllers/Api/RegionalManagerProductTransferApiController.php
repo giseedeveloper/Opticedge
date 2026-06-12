@@ -30,22 +30,22 @@ class RegionalManagerProductTransferApiController extends Controller
         ]);
     }
 
-    public function show(RegionalManagerProductTransfer $regional_manager_product_transfer)
+    public function show(RegionalManagerProductTransfer $transfer)
     {
         $rmId = (int) Auth::id();
-        if ((int) $regional_manager_product_transfer->to_regional_manager_id !== $rmId) {
+        if ((int) $transfer->to_regional_manager_id !== $rmId) {
             abort(403);
         }
 
-        $regional_manager_product_transfer->load([
+        $transfer->load([
             'createdByAdmin', 'toRegionalManager', 'decidedByUser',
             'items.productListItem.product.category',
         ]);
 
-        return response()->json(['data' => $this->detail($regional_manager_product_transfer, $rmId)]);
+        return response()->json(['data' => $this->detail($transfer, $rmId)]);
     }
 
-    public function accept(Request $request, RegionalManagerProductTransfer $regional_manager_product_transfer)
+    public function accept(Request $request, RegionalManagerProductTransfer $transfer)
     {
         $validated = $request->validate([
             'note' => 'nullable|string|max:2000',
@@ -53,7 +53,7 @@ class RegionalManagerProductTransferApiController extends Controller
 
         try {
             app(RegionalManagerProductTransferService::class)->acceptByRecipient(
-                $regional_manager_product_transfer,
+                $transfer,
                 Auth::user(),
                 $validated['note'] ?? null
             );
@@ -61,18 +61,18 @@ class RegionalManagerProductTransferApiController extends Controller
             return response()->json(['message' => $e->getMessage()], 422);
         }
 
-        $regional_manager_product_transfer->load([
+        $transfer->load([
             'createdByAdmin', 'toRegionalManager', 'decidedByUser',
             'items.productListItem.product.category',
         ]);
 
         return response()->json([
             'message' => 'Transfer accepted. Devices are now in your inventory.',
-            'data' => $this->detail($regional_manager_product_transfer, (int) Auth::id()),
+            'data' => $this->detail($transfer, (int) Auth::id()),
         ]);
     }
 
-    public function decline(Request $request, RegionalManagerProductTransfer $regional_manager_product_transfer)
+    public function decline(Request $request, RegionalManagerProductTransfer $transfer)
     {
         $validated = $request->validate([
             'note' => 'nullable|string|max:2000',
@@ -80,7 +80,7 @@ class RegionalManagerProductTransferApiController extends Controller
 
         try {
             app(RegionalManagerProductTransferService::class)->declineByRecipient(
-                $regional_manager_product_transfer,
+                $transfer,
                 Auth::user(),
                 $validated['note'] ?? null
             );
@@ -88,14 +88,14 @@ class RegionalManagerProductTransferApiController extends Controller
             return response()->json(['message' => $e->getMessage()], 422);
         }
 
-        $regional_manager_product_transfer->load([
+        $transfer->load([
             'createdByAdmin', 'toRegionalManager', 'decidedByUser',
             'items.productListItem.product.category',
         ]);
 
         return response()->json([
             'message' => 'Transfer declined.',
-            'data' => $this->detail($regional_manager_product_transfer, (int) Auth::id()),
+            'data' => $this->detail($transfer, (int) Auth::id()),
         ]);
     }
 

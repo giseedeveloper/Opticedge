@@ -30,22 +30,22 @@ class TeamLeaderProductTransferApiController extends Controller
         ]);
     }
 
-    public function show(TeamLeaderProductTransfer $team_leader_product_transfer)
+    public function show(TeamLeaderProductTransfer $transfer)
     {
         $tlId = (int) Auth::id();
-        if ((int) $team_leader_product_transfer->to_team_leader_id !== $tlId) {
+        if ((int) $transfer->to_team_leader_id !== $tlId) {
             abort(403);
         }
 
-        $team_leader_product_transfer->load([
+        $transfer->load([
             'fromRegionalManager', 'toTeamLeader', 'decidedByUser',
             'items.productListItem.product.category',
         ]);
 
-        return response()->json(['data' => $this->detail($team_leader_product_transfer, $tlId)]);
+        return response()->json(['data' => $this->detail($transfer, $tlId)]);
     }
 
-    public function accept(Request $request, TeamLeaderProductTransfer $team_leader_product_transfer)
+    public function accept(Request $request, TeamLeaderProductTransfer $transfer)
     {
         $validated = $request->validate([
             'note' => 'nullable|string|max:2000',
@@ -53,7 +53,7 @@ class TeamLeaderProductTransferApiController extends Controller
 
         try {
             app(TeamLeaderProductTransferService::class)->acceptByRecipient(
-                $team_leader_product_transfer,
+                $transfer,
                 Auth::user(),
                 $validated['note'] ?? null
             );
@@ -61,18 +61,18 @@ class TeamLeaderProductTransferApiController extends Controller
             return response()->json(['message' => $e->getMessage()], 422);
         }
 
-        $team_leader_product_transfer->load([
+        $transfer->load([
             'fromRegionalManager', 'toTeamLeader', 'decidedByUser',
             'items.productListItem.product.category',
         ]);
 
         return response()->json([
             'message' => 'Transfer accepted. Devices are now in your inventory.',
-            'data' => $this->detail($team_leader_product_transfer, (int) Auth::id()),
+            'data' => $this->detail($transfer, (int) Auth::id()),
         ]);
     }
 
-    public function decline(Request $request, TeamLeaderProductTransfer $team_leader_product_transfer)
+    public function decline(Request $request, TeamLeaderProductTransfer $transfer)
     {
         $validated = $request->validate([
             'note' => 'nullable|string|max:2000',
@@ -80,7 +80,7 @@ class TeamLeaderProductTransferApiController extends Controller
 
         try {
             app(TeamLeaderProductTransferService::class)->declineByRecipient(
-                $team_leader_product_transfer,
+                $transfer,
                 Auth::user(),
                 $validated['note'] ?? null
             );
@@ -88,14 +88,14 @@ class TeamLeaderProductTransferApiController extends Controller
             return response()->json(['message' => $e->getMessage()], 422);
         }
 
-        $team_leader_product_transfer->load([
+        $transfer->load([
             'fromRegionalManager', 'toTeamLeader', 'decidedByUser',
             'items.productListItem.product.category',
         ]);
 
         return response()->json([
             'message' => 'Transfer declined.',
-            'data' => $this->detail($team_leader_product_transfer, (int) Auth::id()),
+            'data' => $this->detail($transfer, (int) Auth::id()),
         ]);
     }
 
