@@ -203,13 +203,11 @@ class RegionalManagerController extends Controller
             ->orderBy('name')
             ->get(['id', 'name', 'email']);
 
-        $agents = $teamLeaderIds->isEmpty()
-            ? collect()
-            : User::query()
-                ->where('role', 'agent')
-                ->whereIn('team_leader_id', $teamLeaderIds)
-                ->orderBy('name')
-                ->get(['id', 'name', 'email', 'team_leader_id']);
+        $agents = User::query()
+            ->where('role', 'agent')
+            ->whereIn('team_leader_id', $teamLeaderIds)
+            ->orderBy('name')
+            ->get(['id', 'name', 'email', 'team_leader_id']);
 
         $agents->load('teamLeader:id,name');
 
