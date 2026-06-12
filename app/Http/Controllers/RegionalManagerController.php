@@ -8,6 +8,7 @@ use App\Models\Product;
 use App\Models\ProductListItem;
 use App\Models\User;
 use App\Services\DeviceHierarchyAssignmentService;
+use App\Services\TeamLeaderProductTransferService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -350,27 +351,30 @@ class RegionalManagerController extends Controller
         ]);
     }
 
-    public function storeAssignTeamLeader(Request $request, DeviceHierarchyAssignmentService $hierarchyService)
+    public function storeAssignTeamLeader(Request $request, TeamLeaderProductTransferService $transferService)
     {
         $validated = $request->validate([
             'team_leader_id' => 'required|exists:users,id',
             'product_id' => 'required|exists:models,id',
             'product_list_ids' => 'required|array|min:1|max:500',
             'product_list_ids.*' => 'distinct|integer|exists:product_list,id',
+            'message' => 'nullable|string|max:2000',
         ]);
 
         $teamLeader = User::findOrFail($validated['team_leader_id']);
 
         try {
-            $count = $hierarchyService->assignToTeamLeader(
+            $transfer = $transferService->createByRegionalManager(
                 Auth::user(),
                 $teamLeader,
                 (int) $validated['product_id'],
-                $validated['product_list_ids']
+                $validated['product_list_ids'],
+                $validated['message'] ?? null
             );
+            $count = $transfer->items->count();
             $message = $count === 1
-                ? '1 device assigned to team leader.'
-                : "{$count} devices assigned to team leader.";
+                ? 'Transfer request sent to team leader (1 device).'
+                : "Transfer request sent to team leader ({$count} devices).";
         } catch (\InvalidArgumentException $e) {
             return back()->withInput()->with('error', $e->getMessage());
         }

@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\AgentProductTransfer;
 use App\Models\ProductListItem;
-use App\Models\User;
 use App\Services\AgentProductTransferService;
 use App\Services\DeviceHierarchyAssignmentService;
 use Illuminate\Http\Request;
@@ -13,44 +12,6 @@ use Illuminate\Support\Facades\Auth;
 
 class AgentProductTransferApiController extends Controller
 {
-    public function transferRecipients()
-    {
-        $agents = User::query()
-            ->where('role', 'agent')
-            ->where('status', 'active')
-            ->where('id', '!=', Auth::id())
-            ->orderBy('name')
-            ->get(['id', 'name', 'email']);
-
-        return response()->json([
-            'data' => $agents->map(fn ($a) => [
-                'id' => $a->id,
-                'name' => $a->name,
-                'email' => $a->email,
-            ])->values()->all(),
-        ]);
-    }
-
-    public function transferableImeis(Request $request)
-    {
-        $validated = $request->validate([
-            'product_id' => 'required|exists:models,id',
-        ]);
-
-        $items = ProductListItem::transferableByAgent((int) $validated['product_id'], (int) Auth::id())
-            ->orderBy('imei_number')
-            ->get(['id', 'imei_number', 'model']);
-
-        return response()->json([
-            'data' => $items->map(fn ($i) => [
-                'id' => $i->id,
-                'imei_number' => $i->imei_number,
-                'model' => $i->model,
-                'text' => $i->imei_number.($i->model ? ' – '.$i->model : ''),
-            ])->values()->all(),
-        ]);
-    }
-
     public function index(Request $request)
     {
         $agentId = (int) Auth::id();
@@ -71,34 +32,6 @@ class AgentProductTransferApiController extends Controller
                 'total' => $page->total(),
             ],
         ]);
-    }
-
-    public function store(Request $request)
-    {
-        $validated = $request->validate([
-            'to_agent_id' => 'required|integer|exists:users,id',
-            'product_list_ids' => 'required|array|min:1',
-            'product_list_ids.*' => 'distinct|integer|exists:product_list,id',
-            'message' => 'nullable|string|max:2000',
-        ]);
-
-        try {
-            $transfer = app(AgentProductTransferService::class)->createTransfer(
-                Auth::user(),
-                (int) $validated['to_agent_id'],
-                $validated['product_list_ids'],
-                $validated['message'] ?? null
-            );
-        } catch (\InvalidArgumentException $e) {
-            return response()->json(['message' => $e->getMessage()], 422);
-        }
-
-        $transfer->load(['fromAgent', 'toAgent', 'items']);
-
-        return response()->json([
-            'message' => 'Transfer request submitted. Waiting for the receiving agent to accept.',
-            'data' => $this->detail($transfer, (int) Auth::id()),
-        ], 201);
     }
 
     public function show(AgentProductTransfer $agent_product_transfer)

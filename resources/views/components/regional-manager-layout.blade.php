@@ -119,6 +119,8 @@
                     class="px-3 py-1.5 rounded-xl shrink-0 {{ request()->routeIs('regional-manager.dashboard') ? 'bg-white/90 text-[#232f3e] shadow-sm' : 'text-slate-600 hover:text-[#232f3e] hover:bg-white/70' }} transition-all">Overview</a>
                 <a href="{{ route('regional-manager.region-inventory') }}"
                     class="px-3 py-1.5 rounded-xl shrink-0 {{ request()->routeIs('regional-manager.region-inventory') ? 'bg-white/90 text-[#232f3e] shadow-sm' : 'text-slate-600 hover:text-[#232f3e] hover:bg-white/70' }} transition-all">IMEIs</a>
+                <a href="{{ route('regional-manager.transfers.index') }}"
+                    class="px-3 py-1.5 rounded-xl shrink-0 {{ request()->routeIs('regional-manager.transfers*') ? 'bg-white/90 text-[#232f3e] shadow-sm' : 'text-slate-600 hover:text-[#232f3e] hover:bg-white/70' }} transition-all">Transfer requests</a>
                 <a href="{{ route('regional-manager.assign-team-leader') }}"
                     class="px-3 py-1.5 rounded-xl shrink-0 {{ request()->routeIs('regional-manager.assign-team-leader*') ? 'bg-white/90 text-[#232f3e] shadow-sm' : 'text-slate-600 hover:text-[#232f3e] hover:bg-white/70' }} transition-all">Assign devices</a>
                 <a href="{{ route('regional-manager.profile') }}"
@@ -171,6 +173,15 @@
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M7 7h.01M7 11h.01M7 15h.01" />
                             </svg>
                             Regional inventory &amp; IMEIs
+                        </a>
+                        <a href="{{ route('regional-manager.transfers.index') }}"
+                            class="admin-sidebar-item {{ request()->routeIs('regional-manager.transfers*') ? 'admin-sidebar-item-active' : '' }}">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2"
+                                stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round"
+                                    d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                            </svg>
+                            Transfer requests
                         </a>
                         <a href="{{ route('regional-manager.assign-team-leader') }}"
                             class="admin-sidebar-item {{ request()->routeIs('regional-manager.assign-team-leader*') ? 'admin-sidebar-item-active' : '' }}">

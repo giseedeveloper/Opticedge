@@ -8,6 +8,7 @@ use App\Models\ProductListItem;
 use App\Models\Purchase;
 use App\Models\User;
 use App\Services\DeviceHierarchyAssignmentService;
+use App\Services\RegionalManagerProductTransferService;
 use Illuminate\Support\Collection;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
@@ -413,7 +414,7 @@ class CustomerController extends Controller
         ]);
     }
 
-    public function storeAssignRegionalManagerDevices(Request $request, DeviceHierarchyAssignmentService $hierarchyService)
+    public function storeAssignRegionalManagerDevices(Request $request, RegionalManagerProductTransferService $transferService)
     {
         $validated = $request->validate([
             'regional_manager_id' => [
@@ -424,6 +425,7 @@ class CustomerController extends Controller
             'product_id' => 'required|exists:models,id',
             'product_list_ids' => 'required|array|min:1|max:500',
             'product_list_ids.*' => 'distinct|integer|exists:product_list,id',
+            'message' => 'nullable|string|max:2000',
         ]);
 
         $regionalManager = User::findOrFail($validated['regional_manager_id']);
@@ -442,14 +444,17 @@ class CustomerController extends Controller
         }
 
         try {
-            $count = $hierarchyService->assignToRegionalManager(
+            $transfer = $transferService->createByAdmin(
+                $request->user(),
                 $regionalManager,
                 $productId,
-                $imeiIds
+                $imeiIds,
+                $validated['message'] ?? null
             );
+            $count = $transfer->items->count();
             $message = $count === 1
-                ? '1 device assigned to regional manager.'
-                : "{$count} devices assigned to regional manager.";
+                ? 'Transfer request sent to regional manager (1 device).'
+                : "Transfer request sent to regional manager ({$count} devices).";
         } catch (\InvalidArgumentException $e) {
             return back()->withInput()->with('error', $e->getMessage());
         }

@@ -27,8 +27,10 @@ use App\Http\Controllers\Api\AgentCatalogController;
 use App\Http\Controllers\Api\AgentCustomerNeedController;
 use App\Http\Controllers\Api\RegionalManagerApiController;
 use App\Http\Controllers\Api\RegionalManagerDashboardController;
+use App\Http\Controllers\Api\RegionalManagerProductTransferApiController;
 use App\Http\Controllers\Api\TeamLeaderApiController;
 use App\Http\Controllers\Api\TeamLeaderDashboardController;
+use App\Http\Controllers\Api\TeamLeaderProductTransferApiController;
 use App\Http\Controllers\Api\UserProfileApiController;
 use App\Http\Controllers\Api\AdminImeiApiController;
 use App\Http\Controllers\Api\AdminPassthroughApiController;
@@ -294,10 +296,7 @@ Route::middleware(['auth:sanctum', 'tenant.context'])->group(function () {
         Route::get('sales/{id}', [\App\Http\Controllers\Api\AgentDashboardController::class, 'saleDetail']);
         Route::get('sales/{id}/invoice', [\App\Http\Controllers\Api\AgentDashboardController::class, 'downloadSaleInvoice']);
 
-        Route::get('transfer-recipients', [AgentProductTransferApiController::class, 'transferRecipients']);
-        Route::get('transferable-imeis', [AgentProductTransferApiController::class, 'transferableImeis']);
         Route::get('transfers', [AgentProductTransferApiController::class, 'index']);
-        Route::post('transfers', [AgentProductTransferApiController::class, 'store']);
         Route::get('transfers/{agent_product_transfer}', [AgentProductTransferApiController::class, 'show']);
         Route::post('transfers/{agent_product_transfer}/cancel', [AgentProductTransferApiController::class, 'cancel']);
         Route::post('transfers/{agent_product_transfer}/accept', [AgentProductTransferApiController::class, 'accept']);
@@ -321,6 +320,10 @@ Route::middleware(['auth:sanctum', 'tenant.context'])->group(function () {
         Route::get('return-devices/form-data', [RegionalManagerApiController::class, 'returnDevicesFormData']);
         Route::get('return-devices/assignable-imeis', [RegionalManagerApiController::class, 'returnableImeis']);
         Route::post('return-devices', [RegionalManagerApiController::class, 'storeReturnDevices']);
+        Route::get('transfers', [RegionalManagerProductTransferApiController::class, 'index']);
+        Route::get('transfers/{regional_manager_product_transfer}', [RegionalManagerProductTransferApiController::class, 'show']);
+        Route::post('transfers/{regional_manager_product_transfer}/accept', [RegionalManagerProductTransferApiController::class, 'accept']);
+        Route::post('transfers/{regional_manager_product_transfer}/decline', [RegionalManagerProductTransferApiController::class, 'decline']);
         Route::get('orders', [ShopCommerceApiController::class, 'orders']);
         Route::get('orders/{order}', [ShopCommerceApiController::class, 'showOrder']);
         Route::get('cart', [ShopCommerceApiController::class, 'cart']);
@@ -352,6 +355,10 @@ Route::middleware(['auth:sanctum', 'tenant.context'])->group(function () {
         Route::get('return-devices/form-data', [TeamLeaderApiController::class, 'returnDevicesFormData']);
         Route::get('return-devices/assignable-imeis', [TeamLeaderApiController::class, 'returnableImeis']);
         Route::post('return-devices', [TeamLeaderApiController::class, 'storeReturnDevices']);
+        Route::get('transfers', [TeamLeaderProductTransferApiController::class, 'index']);
+        Route::get('transfers/{team_leader_product_transfer}', [TeamLeaderProductTransferApiController::class, 'show']);
+        Route::post('transfers/{team_leader_product_transfer}/accept', [TeamLeaderProductTransferApiController::class, 'accept']);
+        Route::post('transfers/{team_leader_product_transfer}/decline', [TeamLeaderProductTransferApiController::class, 'decline']);
         Route::get('orders', [ShopCommerceApiController::class, 'orders']);
         Route::get('orders/{order}', [ShopCommerceApiController::class, 'showOrder']);
         Route::get('cart', [ShopCommerceApiController::class, 'cart']);

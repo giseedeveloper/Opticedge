@@ -115,6 +115,8 @@
                     class="px-3 py-1.5 rounded-xl shrink-0 {{ request()->routeIs('team-leader.dashboard') ? 'bg-white/90 text-[#232f3e] shadow-sm' : 'text-slate-600 hover:text-[#232f3e] hover:bg-white/70' }} transition-all">Overview</a>
                 <a href="{{ route('team-leader.team-inventory') }}"
                     class="px-3 py-1.5 rounded-xl shrink-0 {{ request()->routeIs('team-leader.team-inventory') ? 'bg-white/90 text-[#232f3e] shadow-sm' : 'text-slate-600 hover:text-[#232f3e] hover:bg-white/70' }} transition-all">IMEIs</a>
+                <a href="{{ route('team-leader.transfers.index') }}"
+                    class="px-3 py-1.5 rounded-xl shrink-0 {{ request()->routeIs('team-leader.transfers*') ? 'bg-white/90 text-[#232f3e] shadow-sm' : 'text-slate-600 hover:text-[#232f3e] hover:bg-white/70' }} transition-all">Transfer requests</a>
                 <a href="{{ route('team-leader.assign-agent') }}"
                     class="px-3 py-1.5 rounded-xl shrink-0 {{ request()->routeIs('team-leader.assign-agent*') ? 'bg-white/90 text-[#232f3e] shadow-sm' : 'text-slate-600 hover:text-[#232f3e] hover:bg-white/70' }} transition-all">Assign devices</a>
                 <a href="{{ route('team-leader.profile') }}"
@@ -167,6 +169,15 @@
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M7 7h.01M7 11h.01M7 15h.01" />
                             </svg>
                             Team inventory &amp; IMEIs
+                        </a>
+                        <a href="{{ route('team-leader.transfers.index') }}"
+                            class="admin-sidebar-item {{ request()->routeIs('team-leader.transfers*') ? 'admin-sidebar-item-active' : '' }}">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2"
+                                stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round"
+                                    d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                            </svg>
+                            Transfer requests
                         </a>
                         <a href="{{ route('team-leader.assign-agent') }}"
                             class="admin-sidebar-item {{ request()->routeIs('team-leader.assign-agent*') ? 'admin-sidebar-item-active' : '' }}">

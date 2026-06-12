@@ -7,7 +7,7 @@ use App\Models\Product;
 use App\Models\ProductListItem;
 use App\Models\Purchase;
 use App\Models\User;
-use App\Services\DeviceHierarchyAssignmentService;
+use App\Services\RegionalManagerProductTransferService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
@@ -161,7 +161,7 @@ class AdminRegionalManagerAssignApiController extends Controller
         ]);
     }
 
-    public function store(Request $request, DeviceHierarchyAssignmentService $hierarchyService): JsonResponse
+    public function store(Request $request, RegionalManagerProductTransferService $transferService): JsonResponse
     {
         $validated = $request->validate([
             'regional_manager_id' => [
@@ -172,6 +172,7 @@ class AdminRegionalManagerAssignApiController extends Controller
             'product_id' => 'required|exists:models,id',
             'product_list_ids' => 'required|array|min:1|max:500',
             'product_list_ids.*' => 'distinct|integer|exists:product_list,id',
+            'message' => 'nullable|string|max:2000',
         ]);
 
         $regionalManager = User::findOrFail($validated['regional_manager_id']);
@@ -190,18 +191,21 @@ class AdminRegionalManagerAssignApiController extends Controller
         }
 
         try {
-            $count = $hierarchyService->assignToRegionalManager(
+            $transfer = $transferService->createByAdmin(
+                $request->user(),
                 $regionalManager,
                 $productId,
-                $imeiIds
+                $imeiIds,
+                $validated['message'] ?? null
             );
+            $count = $transfer->items->count();
             $message = $count === 1
-                ? '1 device assigned to regional manager.'
-                : "{$count} devices assigned to regional manager.";
+                ? 'Transfer request sent to regional manager (1 device).'
+                : "Transfer request sent to regional manager ({$count} devices).";
         } catch (\InvalidArgumentException $e) {
             return response()->json(['message' => $e->getMessage()], 422);
         }
 
-        return response()->json(['message' => $message, 'count' => $count]);
+        return response()->json(['message' => $message, 'count' => $count, 'transfer_id' => $transfer->id]);
     }
 }

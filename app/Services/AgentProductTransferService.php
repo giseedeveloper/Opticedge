@@ -44,59 +44,6 @@ class AgentProductTransferService
             ->exists();
     }
 
-    /**
-     * @param  array<int>  $productListIds
-     */
-    public function createTransfer(User $fromAgent, int $toAgentId, array $productListIds, ?string $message = null): AgentProductTransfer
-    {
-        $to = User::findOrFail($toAgentId);
-        if ($to->role !== 'agent' || ($to->status ?? '') !== 'active') {
-            throw new \InvalidArgumentException('Destination must be an active agent.');
-        }
-        if ((int) $to->id === (int) $fromAgent->id) {
-            throw new \InvalidArgumentException('Cannot transfer to yourself.');
-        }
-
-        $ids = array_values(array_unique(array_map('intval', $productListIds)));
-        if ($ids === []) {
-            throw new \InvalidArgumentException('Select at least one device.');
-        }
-
-        foreach ($ids as $id) {
-            if ($this->isProductListInAnyPendingTransfer($id)) {
-                throw new \InvalidArgumentException('One or more devices are already in a pending transfer.');
-            }
-        }
-
-        return DB::transaction(function () use ($fromAgent, $to, $ids, $message) {
-            foreach ($ids as $listId) {
-                $item = ProductListItem::lockForUpdate()->find($listId);
-                if (! $item || $item->isSold()) {
-                    throw new \InvalidArgumentException('One or more devices are invalid or already sold.');
-                }
-                if (! AgentProductListAssignment::where('agent_id', $fromAgent->id)->where('product_list_id', $listId)->exists()) {
-                    throw new \InvalidArgumentException('One or more devices are not assigned to you.');
-                }
-            }
-
-            $transfer = AgentProductTransfer::create([
-                'from_agent_id' => $fromAgent->id,
-                'to_agent_id' => $to->id,
-                'status' => AgentProductTransfer::STATUS_PENDING,
-                'message' => $message,
-            ]);
-
-            foreach ($ids as $listId) {
-                AgentProductTransferItem::create([
-                    'agent_product_transfer_id' => $transfer->id,
-                    'product_list_id' => $listId,
-                ]);
-            }
-
-            return $transfer->load('items');
-        });
-    }
-
     public function acceptByRecipient(AgentProductTransfer $transfer, User $recipient, ?string $note = null): void
     {
         if (! $transfer->isPending()) {

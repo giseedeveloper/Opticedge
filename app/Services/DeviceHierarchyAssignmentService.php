@@ -226,6 +226,12 @@ class DeviceHierarchyAssignmentService
         if ($item->regionalManagerProductListAssignment || $item->teamLeaderProductListAssignment || $item->agentProductListAssignment) {
             throw new \InvalidArgumentException('One or more devices are already assigned in the hierarchy.');
         }
+        if (app(RegionalManagerProductTransferService::class)->isProductListInAnyPendingTransfer($item->id)) {
+            throw new \InvalidArgumentException('One or more devices are already in a pending transfer request.');
+        }
+        if (app(TeamLeaderProductTransferService::class)->isProductListInAnyPendingTransfer($item->id)) {
+            throw new \InvalidArgumentException('One or more devices are already in a pending transfer request.');
+        }
     }
 
     private function assertHeldByRegionalManager(?ProductListItem $item, int $productId, int $regionalManagerId): void
@@ -239,6 +245,9 @@ class DeviceHierarchyAssignmentService
         $rmAssign = $item->regionalManagerProductListAssignment;
         if (! $rmAssign || (int) $rmAssign->regional_manager_id !== $regionalManagerId) {
             throw new \InvalidArgumentException('One or more devices were not given to you by admin.');
+        }
+        if (app(TeamLeaderProductTransferService::class)->isProductListInAnyPendingTransfer($item->id)) {
+            throw new \InvalidArgumentException('One or more devices are in a pending transfer request.');
         }
     }
 }

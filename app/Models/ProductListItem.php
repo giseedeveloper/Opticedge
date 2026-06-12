@@ -152,6 +152,16 @@ class ProductListItem extends Model
         return $this->hasOne(RegionalManagerProductListAssignment::class, 'product_list_id');
     }
 
+    public function regionalManagerProductTransferItems()
+    {
+        return $this->hasMany(RegionalManagerProductTransferItem::class, 'product_list_id');
+    }
+
+    public function teamLeaderProductTransferItems()
+    {
+        return $this->hasMany(TeamLeaderProductTransferItem::class, 'product_list_id');
+    }
+
     public function teamLeaderProductListAssignment()
     {
         return $this->hasOne(TeamLeaderProductListAssignment::class, 'product_list_id');
@@ -290,6 +300,12 @@ class ProductListItem extends Model
             return ['code' => 'agent', 'label' => 'With agent · '.$name, 'selectable' => false];
         }
 
+        if ($this->regionalManagerProductTransferItems()
+            ->whereHas('transfer', fn ($q) => $q->where('status', RegionalManagerProductTransfer::STATUS_PENDING))
+            ->exists()) {
+            return ['code' => 'pending_transfer', 'label' => 'Pending transfer request', 'selectable' => false];
+        }
+
         return ['code' => 'available', 'label' => 'Available', 'selectable' => true];
     }
 
@@ -309,7 +325,10 @@ class ProductListItem extends Model
             ->whereNull('agent_credit_id')
             ->whereDoesntHave('regionalManagerProductListAssignment')
             ->whereDoesntHave('teamLeaderProductListAssignment')
-            ->whereDoesntHave('agentProductListAssignment');
+            ->whereDoesntHave('agentProductListAssignment')
+            ->whereDoesntHave('regionalManagerProductTransferItems', function ($q) {
+                $q->whereHas('transfer', fn ($t) => $t->where('status', RegionalManagerProductTransfer::STATUS_PENDING));
+            });
 
         if ($productId !== null) {
             $query->matchingCatalogProduct($productId);
@@ -351,6 +370,9 @@ class ProductListItem extends Model
             ->whereNull('sold_at')
             ->whereDoesntHave('teamLeaderProductListAssignment')
             ->whereDoesntHave('agentProductListAssignment')
+            ->whereDoesntHave('teamLeaderProductTransferItems', function ($q) {
+                $q->whereHas('transfer', fn ($t) => $t->where('status', TeamLeaderProductTransfer::STATUS_PENDING));
+            })
             ->whereHas('regionalManagerProductListAssignment', fn ($q) => $q->where('regional_manager_id', $regionalManagerId));
     }
 

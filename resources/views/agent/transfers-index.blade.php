@@ -1,14 +1,10 @@
 <x-account-layout>
-    <div class="mb-6 flex flex-wrap items-start justify-between gap-4">
+    <div class="mb-6">
         <div>
             <a href="{{ route('agent.dashboard') }}" class="text-sm text-slate-600 hover:text-slate-900">&larr; Back to dashboard</a>
             <h2 class="mt-2 text-2xl font-bold text-slate-900">Transfer requests</h2>
-            <p class="mt-1 text-slate-600">Requests you sent or received. Incoming requests must be accepted or declined by the receiving agent.</p>
+            <p class="mt-1 text-slate-600">Incoming device transfers sent to you. Accept or decline each request to receive the devices.</p>
         </div>
-        <a href="{{ route('agent.transfer.create') }}"
-            class="inline-flex items-center rounded-lg bg-[#fa8900] px-4 py-2 text-sm font-medium text-white hover:bg-[#e87b00]">
-            New transfer
-        </a>
     </div>
 
     @if(session('success'))

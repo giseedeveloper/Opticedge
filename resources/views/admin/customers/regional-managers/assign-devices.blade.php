@@ -417,7 +417,7 @@
             <div>
                 <p class="admin-prod-eyebrow">Device hierarchy</p>
                 <h1 class="admin-prod-title">Assign devices to regional manager</h1>
-                <p class="admin-prod-subtitle">Move warehouse IMEIs from a purchase to a regional manager. They can then distribute to team leaders and agents.</p>
+                <p class="admin-prod-subtitle">Send warehouse IMEIs from a purchase to a regional manager as a transfer request. They must accept before devices appear in their inventory.</p>
             </div>
             <a href="{{ route('admin.customers.index', ['role' => 'regional_manager']) }}" class="admin-prod-back shrink-0">All users</a>
         </div>
