@@ -33,13 +33,19 @@ class AppServiceProvider extends ServiceProvider
 
         view()->composer('*', function ($view) {
             $cartCount = 0;
+            $portalPendingCounts = [
+                'pending_transfer_requests' => 0,
+                'pending_return_requests' => 0,
+            ];
             if (\Illuminate\Support\Facades\Auth::check()) {
                 $cart = \App\Models\Cart::where('user_id', \Illuminate\Support\Facades\Auth::id())->first();
                 if ($cart) {
                     $cartCount = $cart->items()->sum('quantity');
                 }
+                $portalPendingCounts = \App\Support\PortalPendingRequestCounts::forUser(\Illuminate\Support\Facades\Auth::user());
             }
             $view->with('cartCount', $cartCount);
+            $view->with('portalPendingCounts', $portalPendingCounts);
         });
     }
 

@@ -45,7 +45,16 @@ class RegionalManagerProductTransferService
                 ]);
             }
 
-            return $transfer->load('items');
+            $loaded = $transfer->load('items');
+            app(NotificationDispatchService::class)->transferIncoming(
+                $regionalManager,
+                $admin,
+                (int) $loaded->id,
+                $loaded->items->count(),
+                'admin_to_regional_manager',
+            );
+
+            return $loaded;
         });
     }
 
@@ -67,6 +76,16 @@ class RegionalManagerProductTransferService
         }
 
         $this->completeTransfer($transfer, $recipient, $note);
+
+        $initiator = User::find($transfer->created_by_admin_id);
+        if ($initiator) {
+            app(NotificationDispatchService::class)->transferAccepted(
+                $initiator,
+                $recipient,
+                (int) $transfer->id,
+                'admin_to_regional_manager',
+            );
+        }
     }
 
     public function declineByRecipient(RegionalManagerProductTransfer $transfer, User $recipient, ?string $note = null): void
@@ -84,6 +103,16 @@ class RegionalManagerProductTransferService
             'decided_at' => now(),
             'decided_by' => $recipient->id,
         ]);
+
+        $initiator = User::find($transfer->created_by_admin_id);
+        if ($initiator) {
+            app(NotificationDispatchService::class)->transferDeclined(
+                $initiator,
+                $recipient,
+                (int) $transfer->id,
+                'admin_to_regional_manager',
+            );
+        }
     }
 
     public function cancelByAdmin(RegionalManagerProductTransfer $transfer, User $admin): void
@@ -100,6 +129,16 @@ class RegionalManagerProductTransferService
             'decided_at' => now(),
             'decided_by' => $admin->id,
         ]);
+
+        $recipient = User::find($transfer->to_regional_manager_id);
+        if ($recipient) {
+            app(NotificationDispatchService::class)->transferCancelled(
+                $recipient,
+                $admin,
+                (int) $transfer->id,
+                'admin_to_regional_manager',
+            );
+        }
     }
 
     private function completeTransfer(RegionalManagerProductTransfer $transfer, User $decidedBy, ?string $note = null): void

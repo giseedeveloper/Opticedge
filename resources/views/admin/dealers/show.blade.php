@@ -8,13 +8,20 @@
                 <h1 class="admin-prod-title">{{ $user->name }}</h1>
                 <p class="admin-prod-subtitle">Dealer account details and locations.</p>
             </div>
-            <a href="{{ route('admin.dealers.index') }}" class="admin-prod-back shrink-0">
+            @php
+                $fromCustomers = request('from') === 'customers';
+                $backUrl = $fromCustomers
+                    ? route('admin.customers.index', request()->only('role'))
+                    : route('admin.dealers.index');
+                $backLabel = $fromCustomers ? 'Back to all users' : 'Back to dealers';
+            @endphp
+            <a href="{{ $backUrl }}" class="admin-prod-back shrink-0">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24"
                     stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                         d="M10 19l-7-7m0 0l7-7m-7 7h18" />
                 </svg>
-                Back to dealers
+                {{ $backLabel }}
             </a>
         </div>
 

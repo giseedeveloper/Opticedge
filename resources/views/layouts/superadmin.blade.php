@@ -53,6 +53,10 @@
 
                 <div class="flex-grow"></div>
 
+                <div class="hidden md:flex items-center gap-2 mr-2">
+                    <x-web-notification-bell />
+                </div>
+
                 <div class="hidden md:flex items-center gap-2">
                     <a href="/" target="_blank"
                         class="flex items-center gap-2 p-2 px-3 rounded-xl admin-clay-inset text-slate-600 hover:text-[#232f3e] transition-all duration-200">

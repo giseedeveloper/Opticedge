@@ -275,11 +275,14 @@ class ShopCommerceApiController extends Controller
             }
         }
 
+        app(\App\Services\NotificationDispatchService::class)->orderCreated($order->fresh(['user']));
+
         if ($validated['payment_method'] === 'selcom') {
             try {
                 $result = $this->initiateSelcomPayment($order, $validated['payment_phone']);
             } catch (\Throwable $e) {
                 $order->update(['status' => 'cancelled', 'payment_status' => 'failed']);
+                app(\App\Services\NotificationDispatchService::class)->orderPaymentFailed($order->fresh(['user']), $e->getMessage());
 
                 return response()->json(['message' => $e->getMessage()], 422);
             }
@@ -325,6 +328,7 @@ class ShopCommerceApiController extends Controller
                 if ($minutesPending > 10) {
                     $selcompay->update(['payment_status' => 'timeout']);
                     $order->update(['payment_status' => 'failed', 'status' => 'cancelled']);
+                    app(\App\Services\NotificationDispatchService::class)->orderPaymentFailed($order->fresh(['user']), 'Payment timed out.');
 
                     return response()->json(['status' => 'timeout', 'message' => 'Payment request timed out. Please try again.']);
                 }
@@ -358,6 +362,7 @@ class ShopCommerceApiController extends Controller
                 $order->update(['payment_status' => 'paid', 'status' => 'processed']);
 
                 $order->load(['items.product.category', 'user']);
+                app(\App\Services\NotificationDispatchService::class)->orderPaymentSuccess($order);
                 if ($order->user && $order->user->role === 'dealer') {
                     app(DistributionSaleService::class)->createFromOrder($order, 'complete');
                 }
@@ -380,6 +385,10 @@ class ShopCommerceApiController extends Controller
             if (in_array($paymentStatus, ['FAILED', 'CANCELLED', 'EXPIRED', 'REJECTED', 'USERCANCELLED'], true)) {
                 $selcompay->update(['payment_status' => 'failed']);
                 $order->update(['payment_status' => 'failed', 'status' => 'cancelled']);
+                app(\App\Services\NotificationDispatchService::class)->orderPaymentFailed(
+                    $order->fresh(['user']),
+                    'Payment '.strtolower($paymentStatus ?? 'failed').'.',
+                );
 
                 return response()->json(['status' => 'failed', 'message' => 'Payment '.strtolower($paymentStatus ?? 'failed').'. Please try again.']);
             }

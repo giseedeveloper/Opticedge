@@ -54,6 +54,16 @@ class AgentProductTransferService
         }
 
         $this->completeTransfer($transfer, $recipient, $note);
+
+        $initiator = User::find($transfer->from_agent_id);
+        if ($initiator) {
+            app(NotificationDispatchService::class)->transferAccepted(
+                $initiator,
+                $recipient,
+                (int) $transfer->id,
+                'agent_to_agent',
+            );
+        }
     }
 
     public function declineByRecipient(AgentProductTransfer $transfer, User $recipient, ?string $note = null): void
@@ -71,6 +81,16 @@ class AgentProductTransferService
             'decided_at' => now(),
             'decided_by' => $recipient->id,
         ]);
+
+        $initiator = User::find($transfer->from_agent_id);
+        if ($initiator) {
+            app(NotificationDispatchService::class)->transferDeclined(
+                $initiator,
+                $recipient,
+                (int) $transfer->id,
+                'agent_to_agent',
+            );
+        }
     }
 
     public function approve(AgentProductTransfer $transfer, User $admin, ?string $adminNote = null): void
@@ -80,6 +100,18 @@ class AgentProductTransferService
         }
 
         $this->completeTransfer($transfer, $admin, $adminNote);
+
+        foreach ([$transfer->from_agent_id, $transfer->to_agent_id] as $agentId) {
+            $agent = User::find($agentId);
+            if ($agent) {
+                app(NotificationDispatchService::class)->transferAccepted(
+                    $agent,
+                    $admin,
+                    (int) $transfer->id,
+                    'agent_to_agent',
+                );
+            }
+        }
     }
 
     private function completeTransfer(AgentProductTransfer $transfer, User $decidedBy, ?string $note = null): void
@@ -177,6 +209,18 @@ class AgentProductTransferService
             'decided_at' => now(),
             'decided_by' => $admin->id,
         ]);
+
+        foreach ([$transfer->from_agent_id, $transfer->to_agent_id] as $agentId) {
+            $agent = User::find($agentId);
+            if ($agent) {
+                app(NotificationDispatchService::class)->transferDeclined(
+                    $agent,
+                    $admin,
+                    (int) $transfer->id,
+                    'agent_to_agent',
+                );
+            }
+        }
     }
 
     public function cancelOwn(AgentProductTransfer $transfer, User $agent): void
@@ -192,5 +236,15 @@ class AgentProductTransferService
             'decided_at' => now(),
             'decided_by' => null,
         ]);
+
+        $recipient = User::find($transfer->to_agent_id);
+        if ($recipient) {
+            app(NotificationDispatchService::class)->transferCancelled(
+                $recipient,
+                $agent,
+                (int) $transfer->id,
+                'agent_to_agent',
+            );
+        }
     }
 }

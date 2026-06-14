@@ -167,6 +167,21 @@ class ProductListItem extends Model
         return $this->hasOne(TeamLeaderProductListAssignment::class, 'product_list_id');
     }
 
+    public function agentDeviceReturnItems()
+    {
+        return $this->hasMany(AgentDeviceReturnItem::class, 'product_list_id');
+    }
+
+    public function teamLeaderDeviceReturnItems()
+    {
+        return $this->hasMany(TeamLeaderDeviceReturnItem::class, 'product_list_id');
+    }
+
+    public function regionalManagerDeviceReturnItems()
+    {
+        return $this->hasMany(RegionalManagerDeviceReturnItem::class, 'product_list_id');
+    }
+
     /**
      * Whether this row is the given catalog product (by id on row or on linked purchase).
      */
@@ -454,7 +469,10 @@ class ProductListItem extends Model
     {
         return $query
             ->inAgentCustodyForReturnToTeamLeader($agentId)
-            ->matchingCatalogProduct($productId);
+            ->matchingCatalogProduct($productId)
+            ->whereDoesntHave('agentDeviceReturnItems', function ($q) {
+                $q->whereHas('returnRequest', fn ($r) => $r->where('status', AgentDeviceReturn::STATUS_PENDING));
+            });
     }
 
     /**
@@ -491,7 +509,10 @@ class ProductListItem extends Model
     {
         return $query
             ->inTeamLeaderCustodyForAgentAssignment($teamLeaderId)
-            ->matchingCatalogProduct($productId);
+            ->matchingCatalogProduct($productId)
+            ->whereDoesntHave('teamLeaderDeviceReturnItems', function ($q) {
+                $q->whereHas('returnRequest', fn ($r) => $r->where('status', TeamLeaderDeviceReturn::STATUS_PENDING));
+            });
     }
 
     /**
@@ -501,7 +522,10 @@ class ProductListItem extends Model
     {
         return $query
             ->inRegionalManagerCustodyForTeamLeaderAssignment($regionalManagerId)
-            ->matchingCatalogProduct($productId);
+            ->matchingCatalogProduct($productId)
+            ->whereDoesntHave('regionalManagerDeviceReturnItems', function ($q) {
+                $q->whereHas('returnRequest', fn ($r) => $r->where('status', RegionalManagerDeviceReturn::STATUS_PENDING));
+            });
     }
 
     /**

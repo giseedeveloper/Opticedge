@@ -378,6 +378,13 @@
             2px 2px 8px rgba(250, 137, 0, 0.07);
     }
 
+    .admin-sidebar-sublink-with-badge {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.5rem;
+    }
+
     .admin-sidebar-section-title {
         display: flex;
         align-items: center;

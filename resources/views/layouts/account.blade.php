@@ -88,6 +88,11 @@
             <!-- Spacer -->
             <div class="flex-grow"></div>
 
+            <div class="hidden md:block mr-2">
+                <x-web-notification-bell
+                    button-class="flex items-center p-2 border border-transparent hover:border-white rounded-sm transition-all duration-200 relative text-white" />
+            </div>
+
             @unless ($isFieldPortalUser)
             <!-- Cart -->
             <a href="/cart"
@@ -281,6 +286,46 @@
                         @endunless
                     </div>
                 </div>
+
+                @if(Auth::user()->role === 'agent')
+                <div>
+                    <h3 class="px-2 text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Inventory</h3>
+                    <div class="space-y-1">
+                        <a href="{{ route('agent.transfers.index') }}"
+                            class="flex items-center gap-3 px-2 py-2 text-sm font-medium {{ request()->routeIs('agent.transfers*') ? 'bg-slate-100 text-slate-900' : 'text-slate-700' }} rounded-md hover:bg-slate-50 group">
+                            <svg xmlns="http://www.w3.org/2000/svg"
+                                class="w-5 h-5 {{ request()->routeIs('agent.transfers*') ? 'text-[#fa8900]' : 'text-slate-400 group-hover:text-slate-600' }}"
+                                fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round"
+                                    d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                            </svg>
+                            <span class="flex-1">Transfer requests</span>
+                            <x-portal-pending-badge :count="$portalPendingCounts['pending_transfer_requests'] ?? 0" />
+                        </a>
+                        <a href="{{ route('agent.return-devices') }}"
+                            class="flex items-center gap-3 px-2 py-2 text-sm font-medium {{ request()->routeIs('agent.return-devices*') ? 'bg-slate-100 text-slate-900' : 'text-slate-700' }} rounded-md hover:bg-slate-50 group">
+                            <svg xmlns="http://www.w3.org/2000/svg"
+                                class="w-5 h-5 {{ request()->routeIs('agent.return-devices*') ? 'text-[#fa8900]' : 'text-slate-400 group-hover:text-slate-600' }}"
+                                fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round"
+                                    d="M11 17l-5-5m0 0l5-5m-5 5h12" />
+                            </svg>
+                            <span class="flex-1">Return devices</span>
+                        </a>
+                        <a href="{{ route('agent.return-requests') }}"
+                            class="flex items-center gap-3 px-2 py-2 text-sm font-medium {{ request()->routeIs('agent.return-requests*') ? 'bg-slate-100 text-slate-900' : 'text-slate-700' }} rounded-md hover:bg-slate-50 group">
+                            <svg xmlns="http://www.w3.org/2000/svg"
+                                class="w-5 h-5 {{ request()->routeIs('agent.return-requests*') ? 'text-[#fa8900]' : 'text-slate-400 group-hover:text-slate-600' }}"
+                                fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round"
+                                    d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <span class="flex-1">Return requests</span>
+                            <x-portal-pending-badge :count="$portalPendingCounts['pending_return_requests'] ?? 0" />
+                        </a>
+                    </div>
+                </div>
+                @endif
 
                 @unless ($isFieldPortalUser ?? false)
                 <!-- Shopping Section -->

@@ -118,10 +118,18 @@ class OrderController extends Controller
             }
         }
 
+        $oldStatus = $order->status;
+
         $order->update([
             'status' => $validated['status'],
             'payment_option_id' => $newOptionId,
         ]);
+
+        app(\App\Services\NotificationDispatchService::class)->orderStatusChanged(
+            $order->fresh(['user']),
+            (string) $oldStatus,
+            (string) $validated['status'],
+        );
 
         return $this->show($order->fresh(['user', 'items.product', 'address', 'paymentOption']));
     }

@@ -31,6 +31,10 @@ use App\Http\Controllers\Api\RegionalManagerProductTransferApiController;
 use App\Http\Controllers\Api\TeamLeaderApiController;
 use App\Http\Controllers\Api\TeamLeaderDashboardController;
 use App\Http\Controllers\Api\TeamLeaderProductTransferApiController;
+use App\Http\Controllers\Api\AgentDeviceReturnApiController;
+use App\Http\Controllers\Api\TeamLeaderDeviceReturnApiController;
+use App\Http\Controllers\Api\RegionalManagerDeviceReturnApiController;
+use App\Http\Controllers\Api\AdminDeviceReturnApiController;
 use App\Http\Controllers\Api\UserProfileApiController;
 use App\Http\Controllers\Api\AdminImeiApiController;
 use App\Http\Controllers\Api\AdminPassthroughApiController;
@@ -60,6 +64,8 @@ use App\Http\Controllers\Api\PublicShopApiController;
 use App\Http\Controllers\Api\ShopCommerceApiController;
 use App\Http\Controllers\Api\CustomerDashboardApiController;
 use App\Http\Controllers\Api\VendorSubscribeApiController;
+use App\Http\Controllers\Api\DeviceTokenApiController;
+use App\Http\Controllers\Api\NotificationApiController;
 
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/register', [AuthController::class, 'register']);
@@ -83,6 +89,13 @@ Route::middleware(['auth:sanctum', 'tenant.context'])->group(function () {
 
     Route::post('/email/verification-notification', [AuthController::class, 'sendVerificationEmail']);
     Route::post('/email/verify/{id}/{hash}', [AuthController::class, 'verifyEmail']);
+
+    Route::post('/device-tokens', [DeviceTokenApiController::class, 'store']);
+    Route::delete('/device-tokens', [DeviceTokenApiController::class, 'destroy']);
+    Route::get('/notifications', [NotificationApiController::class, 'index']);
+    Route::get('/notifications/unread-count', [NotificationApiController::class, 'unreadCount']);
+    Route::post('/notifications/read-all', [NotificationApiController::class, 'markAllRead']);
+    Route::post('/notifications/{id}/read', [NotificationApiController::class, 'markRead']);
 
     $shopRoutes = function () {
         Route::get('categories', [ShopCommerceApiController::class, 'categories']);
@@ -257,6 +270,11 @@ Route::middleware(['auth:sanctum', 'tenant.context'])->group(function () {
         Route::post('agent-transfers/{agent_product_transfer}/approve', [AdminAgentProductTransferApiController::class, 'approve']);
         Route::post('agent-transfers/{agent_product_transfer}/reject', [AdminAgentProductTransferApiController::class, 'reject']);
 
+        Route::get('device-returns', [AdminDeviceReturnApiController::class, 'index']);
+        Route::get('device-returns/{return}', [AdminDeviceReturnApiController::class, 'show']);
+        Route::post('device-returns/{return}/accept', [AdminDeviceReturnApiController::class, 'accept']);
+        Route::post('device-returns/{return}/decline', [AdminDeviceReturnApiController::class, 'decline']);
+
         Route::get('branch-transfer/items', [AdminBranchTransferApiController::class, 'items']);
         Route::post('branch-transfer', [AdminBranchTransferApiController::class, 'store']);
         Route::get('branch-transfer/logs', [AdminBranchTransferApiController::class, 'logs']);
@@ -305,6 +323,10 @@ Route::middleware(['auth:sanctum', 'tenant.context'])->group(function () {
         Route::get('return-devices/assignable-imeis', [AgentProductTransferApiController::class, 'returnableImeis']);
         Route::post('return-devices', [AgentProductTransferApiController::class, 'returnToTeamLeader']);
 
+        Route::get('return-requests', [AgentDeviceReturnApiController::class, 'index']);
+        Route::get('return-requests/{return}', [AgentDeviceReturnApiController::class, 'show']);
+        Route::post('return-requests/{return}/cancel', [AgentDeviceReturnApiController::class, 'cancel']);
+
         Route::get('profile', [UserProfileApiController::class, 'show']);
         Route::put('profile', [UserProfileApiController::class, 'update']);
         Route::put('profile/password', [UserProfileApiController::class, 'updatePassword']);
@@ -320,6 +342,11 @@ Route::middleware(['auth:sanctum', 'tenant.context'])->group(function () {
         Route::get('return-devices/form-data', [RegionalManagerApiController::class, 'returnDevicesFormData']);
         Route::get('return-devices/assignable-imeis', [RegionalManagerApiController::class, 'returnableImeis']);
         Route::post('return-devices', [RegionalManagerApiController::class, 'storeReturnDevices']);
+        Route::get('return-requests/incoming', [RegionalManagerDeviceReturnApiController::class, 'indexIncoming']);
+        Route::get('return-requests/outgoing', [RegionalManagerDeviceReturnApiController::class, 'indexOutgoing']);
+        Route::post('return-requests/incoming/{return}/accept', [RegionalManagerDeviceReturnApiController::class, 'acceptIncoming']);
+        Route::post('return-requests/incoming/{return}/decline', [RegionalManagerDeviceReturnApiController::class, 'declineIncoming']);
+        Route::post('return-requests/outgoing/{return}/cancel', [RegionalManagerDeviceReturnApiController::class, 'cancelOutgoing']);
         Route::get('transfers', [RegionalManagerProductTransferApiController::class, 'index']);
         Route::get('transfers/{transfer}', [RegionalManagerProductTransferApiController::class, 'show']);
         Route::post('transfers/{transfer}/accept', [RegionalManagerProductTransferApiController::class, 'accept']);
@@ -355,6 +382,13 @@ Route::middleware(['auth:sanctum', 'tenant.context'])->group(function () {
         Route::get('return-devices/form-data', [TeamLeaderApiController::class, 'returnDevicesFormData']);
         Route::get('return-devices/assignable-imeis', [TeamLeaderApiController::class, 'returnableImeis']);
         Route::post('return-devices', [TeamLeaderApiController::class, 'storeReturnDevices']);
+        Route::get('return-requests/incoming', [TeamLeaderDeviceReturnApiController::class, 'indexIncoming']);
+        Route::get('return-requests/outgoing', [TeamLeaderDeviceReturnApiController::class, 'indexOutgoing']);
+        Route::get('return-requests/incoming/{return}', [TeamLeaderDeviceReturnApiController::class, 'showIncoming']);
+        Route::get('return-requests/outgoing/{return}', [TeamLeaderDeviceReturnApiController::class, 'showOutgoing']);
+        Route::post('return-requests/incoming/{return}/accept', [TeamLeaderDeviceReturnApiController::class, 'acceptIncoming']);
+        Route::post('return-requests/incoming/{return}/decline', [TeamLeaderDeviceReturnApiController::class, 'declineIncoming']);
+        Route::post('return-requests/outgoing/{return}/cancel', [TeamLeaderDeviceReturnApiController::class, 'cancelOutgoing']);
         Route::get('transfers', [TeamLeaderProductTransferApiController::class, 'index']);
         Route::get('transfers/{transfer}', [TeamLeaderProductTransferApiController::class, 'show']);
         Route::post('transfers/{transfer}/accept', [TeamLeaderProductTransferApiController::class, 'accept']);

@@ -2,12 +2,17 @@
 
 @php
     $query = $preserveQuery ? request()->query() : [];
+    if ($preserveQuery) {
+        $query['from'] = 'customers';
+    }
     $role = $user->role ?? 'customer';
     $isActive = ($user->status ?? 'active') === 'active';
     $viewUrl = match ($role) {
-        'agent' => route('admin.agents.show', $user),
-        'dealer' => route('admin.dealers.show', $user->id),
-        default => route('admin.customers.show', $user),
+        'agent' => route('admin.agents.show', ['agent' => $user] + $query),
+        'dealer' => route('admin.dealers.show', ['user' => $user->id] + $query),
+        'teamleader' => route('admin.customers.team-leaders.show', ['teamLeader' => $user] + $query),
+        'regional_manager' => route('admin.customers.regional-managers.show', ['regionalManager' => $user] + $query),
+        default => route('admin.customers.show', ['user' => $user] + $query),
     };
 @endphp
 

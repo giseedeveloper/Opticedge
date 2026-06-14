@@ -323,22 +323,26 @@ class TeamLeaderController extends Controller
         ]);
     }
 
-    public function storeReturnDevices(Request $request, DeviceHierarchyAssignmentService $hierarchyService)
+    public function storeReturnDevices(Request $request, \App\Services\TeamLeaderDeviceReturnService $returnService)
     {
         $validated = $request->validate([
             'product_id' => 'required|exists:models,id',
             'product_list_ids' => 'required|array|min:1',
             'product_list_ids.*' => 'distinct|integer|exists:product_list,id',
+            'message' => 'nullable|string|max:2000',
         ]);
 
         try {
-            $count = $hierarchyService->returnFromTeamLeaderToRegionalManager(
+            $return = $returnService->createByTeamLeader(
                 Auth::user(),
-                $validated['product_list_ids']
+                (int) $validated['product_id'],
+                $validated['product_list_ids'],
+                $validated['message'] ?? null
             );
+            $count = $return->items->count();
             $message = $count === 1
-                ? '1 device returned to regional manager.'
-                : "{$count} devices returned to regional manager.";
+                ? 'Return request sent to your regional manager. They must accept before devices leave your custody.'
+                : "{$count} devices submitted for return. Your regional manager must accept the request.";
         } catch (\InvalidArgumentException $e) {
             return back()->withInput()->with('error', $e->getMessage());
         }

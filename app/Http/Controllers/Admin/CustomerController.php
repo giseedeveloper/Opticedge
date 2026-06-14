@@ -37,12 +37,34 @@ class CustomerController extends Controller
             abort(404);
         }
 
+        $returnQuery = request()->only(['from', 'role']);
+
         if ($user->role === 'agent') {
-            return redirect()->route('admin.agents.show', $user);
+            return redirect()->route('admin.agents.show', array_merge(
+                ['agent' => $user],
+                $returnQuery
+            ));
         }
 
         if ($user->role === 'dealer') {
-            return redirect()->route('admin.dealers.show', $user);
+            return redirect()->route('admin.dealers.show', array_merge(
+                ['user' => $user->id],
+                $returnQuery
+            ));
+        }
+
+        if ($user->role === 'teamleader') {
+            return redirect()->route('admin.customers.team-leaders.show', array_merge(
+                ['teamLeader' => $user],
+                $returnQuery
+            ));
+        }
+
+        if ($user->role === 'regional_manager') {
+            return redirect()->route('admin.customers.regional-managers.show', array_merge(
+                ['regionalManager' => $user],
+                $returnQuery
+            ));
         }
 
         if (! in_array($user->role, User::customerDirectoryRoleFilters(), true)) {
@@ -268,6 +290,204 @@ class CustomerController extends Controller
 
         return redirect()->route('admin.customers.team-leaders.index')
             ->with('success', 'Team leader account created. They can sign in with the email and password you set.');
+    }
+
+    public function showTeamLeader(User $teamLeader)
+    {
+        if ($teamLeader->role !== 'teamleader') {
+            abort(404);
+        }
+
+        $teamLeader->load(['region', 'branch', 'regionalManager']);
+
+        $regions = Schema::hasTable('regions')
+            ? DB::table('regions')->orderBy('name')->get(['id', 'name'])
+            : collect();
+
+        $branches = Schema::hasTable('branches')
+            ? DB::table('branches')->orderBy('name')->get(['id', 'name'])
+            : collect();
+
+        $regionalManagers = $this->regionalManagersForSelect();
+
+        $managedAgents = Schema::hasColumn('users', 'team_leader_id')
+            ? User::query()
+                ->where('role', 'agent')
+                ->where('team_leader_id', $teamLeader->id)
+                ->with('branch')
+                ->orderBy('name')
+                ->get()
+            : collect();
+
+        return view('admin.customers.team-leaders.show', compact(
+            'teamLeader',
+            'regions',
+            'branches',
+            'regionalManagers',
+            'managedAgents'
+        ));
+    }
+
+    public function updateTeamLeader(Request $request, User $teamLeader)
+    {
+        if ($teamLeader->role !== 'teamleader') {
+            abort(404);
+        }
+
+        if (! Schema::hasTable('regions') || ! Schema::hasColumn('users', 'region_id')) {
+            return redirect()->route('admin.customers.team-leaders.show', array_merge(
+                ['teamLeader' => $teamLeader],
+                $request->only(['from', 'role'])
+            ))->withErrors(['error' => 'Regions are not set up yet.']);
+        }
+
+        if (! Schema::hasTable('branches') || ! Schema::hasColumn('users', 'branch_id')) {
+            return redirect()->route('admin.customers.team-leaders.show', array_merge(
+                ['teamLeader' => $teamLeader],
+                $request->only(['from', 'role'])
+            ))->withErrors(['error' => 'Branches are not set up yet.']);
+        }
+
+        $rules = [
+            'name' => 'required|string|max:255',
+            'email' => ['required', 'string', 'email', 'max:255', Rule::unique('users', 'email')->ignore($teamLeader->id)],
+            'phone' => 'nullable|string|max:100',
+            'region_id' => 'required|exists:regions,id',
+            'branch_id' => 'required|exists:branches,id',
+            'password' => 'nullable|string|min:8|confirmed',
+            'business_name' => 'nullable|string|max:255',
+            'notes' => 'nullable|string|max:10000',
+        ];
+
+        if (Schema::hasColumn('users', 'regional_manager_id')) {
+            $rules['regional_manager_id'] = [
+                'required',
+                Rule::exists('users', 'id')->where(function ($q) {
+                    $q->where('role', 'regional_manager')->where('status', 'active');
+                }),
+            ];
+        }
+
+        $validated = $request->validate($rules);
+
+        if (Schema::hasColumn('users', 'regional_manager_id')) {
+            $managerRegionId = DB::table('users')
+                ->where('id', $validated['regional_manager_id'])
+                ->where('role', 'regional_manager')
+                ->where('status', 'active')
+                ->value('region_id');
+
+            if ($managerRegionId === null || (int) $managerRegionId !== (int) $validated['region_id']) {
+                return redirect()->route('admin.customers.team-leaders.show', array_merge(
+                    ['teamLeader' => $teamLeader],
+                    $request->only(['from', 'role'])
+                ))->withErrors(['regional_manager_id' => 'The selected regional manager must belong to the same region you selected.'])
+                    ->withInput();
+            }
+        }
+
+        $payload = [
+            'name' => $validated['name'],
+            'email' => $validated['email'],
+            'phone' => $validated['phone'] ?? null,
+            'region_id' => (int) $validated['region_id'],
+            'branch_id' => (int) $validated['branch_id'],
+            'business_name' => $validated['business_name'] ?? null,
+        ];
+
+        if (Schema::hasColumn('users', 'regional_manager_id')) {
+            $payload['regional_manager_id'] = (int) $validated['regional_manager_id'];
+        }
+
+        if (Schema::hasColumn('users', 'notes')) {
+            $payload['notes'] = $validated['notes'] ?? null;
+        }
+
+        if (! empty($validated['password'])) {
+            $payload['password'] = $validated['password'];
+        }
+
+        $teamLeader->update($payload);
+
+        return redirect()->route('admin.customers.team-leaders.show', array_merge(
+            ['teamLeader' => $teamLeader],
+            $request->only(['from', 'role'])
+        ))->with('success', 'Team leader information updated.');
+    }
+
+    public function showRegionalManager(User $regionalManager)
+    {
+        if ($regionalManager->role !== 'regional_manager') {
+            abort(404);
+        }
+
+        $regionalManager->load('region');
+
+        $regions = Schema::hasTable('regions')
+            ? DB::table('regions')->orderBy('name')->get(['id', 'name'])
+            : collect();
+
+        $managedTeamLeaders = Schema::hasColumn('users', 'regional_manager_id')
+            ? User::query()
+                ->where('role', 'teamleader')
+                ->where('regional_manager_id', $regionalManager->id)
+                ->with(['branch', 'region'])
+                ->orderBy('name')
+                ->get()
+            : collect();
+
+        return view('admin.customers.regional-managers.show', compact(
+            'regionalManager',
+            'regions',
+            'managedTeamLeaders'
+        ));
+    }
+
+    public function updateRegionalManager(Request $request, User $regionalManager)
+    {
+        if ($regionalManager->role !== 'regional_manager') {
+            abort(404);
+        }
+
+        if (! Schema::hasTable('regions') || ! Schema::hasColumn('users', 'region_id')) {
+            return redirect()->route('admin.customers.regional-managers.show', array_merge(
+                ['regionalManager' => $regionalManager],
+                $request->only(['from', 'role'])
+            ))->withErrors(['error' => 'Regions are not set up yet.']);
+        }
+
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => ['required', 'string', 'email', 'max:255', Rule::unique('users', 'email')->ignore($regionalManager->id)],
+            'phone' => 'nullable|string|max:100',
+            'region_id' => 'required|exists:regions,id',
+            'password' => 'nullable|string|min:8|confirmed',
+            'business_name' => 'nullable|string|max:255',
+            'notes' => 'nullable|string|max:10000',
+        ]);
+
+        $payload = [
+            'name' => $validated['name'],
+            'email' => $validated['email'],
+            'phone' => $validated['phone'] ?? null,
+            'region_id' => (int) $validated['region_id'],
+            'business_name' => $validated['business_name'] ?? null,
+        ];
+
+        if (Schema::hasColumn('users', 'notes')) {
+            $payload['notes'] = $validated['notes'] ?? null;
+        }
+
+        if (! empty($validated['password'])) {
+            $payload['password'] = $validated['password'];
+        }
+
+        $regionalManager->update($payload);
+
+        return redirect()->route('admin.customers.regional-managers.show', array_merge(
+            ['regionalManager' => $regionalManager],
+            $request->only(['from', 'role'])
+        ))->with('success', 'Regional manager information updated.');
     }
 
     public function assignRegionalManagerDevicesForm(Request $request)

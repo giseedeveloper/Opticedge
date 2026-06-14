@@ -6,7 +6,7 @@
     'formAction',
     'productOptions' => [],
     'assignableUrl',
-    'submitLabel' => 'Return devices',
+    'submitLabel' => 'Send return request',
     'imeiHelp' => '',
 ])
 

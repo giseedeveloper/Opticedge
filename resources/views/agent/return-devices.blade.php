@@ -6,7 +6,8 @@
     <div class="mb-6">
         <a href="{{ route('agent.dashboard') }}" class="text-sm text-[#fa8900] hover:underline">← Agent dashboard</a>
         <h2 class="mt-2 text-2xl font-bold text-slate-900">Return devices to team leader</h2>
-        <p class="mt-1 text-slate-600">Your team leader can assign these devices to another agent.</p>
+        <p class="mt-1 text-slate-600">Submit a return request. Your team leader must accept before devices leave your custody.</p>
+        <p class="mt-2"><a href="{{ route('agent.return-requests') }}" class="text-sm text-[#fa8900] hover:underline">View my return requests →</a></p>
     </div>
 
     @if (session('success'))

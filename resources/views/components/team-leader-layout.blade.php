@@ -116,9 +116,17 @@
                 <a href="{{ route('team-leader.team-inventory') }}"
                     class="px-3 py-1.5 rounded-xl shrink-0 {{ request()->routeIs('team-leader.team-inventory') ? 'bg-white/90 text-[#232f3e] shadow-sm' : 'text-slate-600 hover:text-[#232f3e] hover:bg-white/70' }} transition-all">IMEIs</a>
                 <a href="{{ route('team-leader.transfers.index') }}"
-                    class="px-3 py-1.5 rounded-xl shrink-0 {{ request()->routeIs('team-leader.transfers*') ? 'bg-white/90 text-[#232f3e] shadow-sm' : 'text-slate-600 hover:text-[#232f3e] hover:bg-white/70' }} transition-all">Transfer requests</a>
+                    class="px-3 py-1.5 rounded-xl shrink-0 inline-flex items-center gap-1.5 {{ request()->routeIs('team-leader.transfers*') ? 'bg-white/90 text-[#232f3e] shadow-sm' : 'text-slate-600 hover:text-[#232f3e] hover:bg-white/70' }} transition-all">
+                    Transfer requests
+                    <x-portal-pending-badge :count="$portalPendingCounts['pending_transfer_requests'] ?? 0" />
+                </a>
                 <a href="{{ route('team-leader.assign-agent') }}"
                     class="px-3 py-1.5 rounded-xl shrink-0 {{ request()->routeIs('team-leader.assign-agent*') ? 'bg-white/90 text-[#232f3e] shadow-sm' : 'text-slate-600 hover:text-[#232f3e] hover:bg-white/70' }} transition-all">Assign devices</a>
+                <a href="{{ route('team-leader.return-requests.incoming') }}"
+                    class="px-3 py-1.5 rounded-xl shrink-0 inline-flex items-center gap-1.5 {{ request()->routeIs('team-leader.return-requests*') ? 'bg-white/90 text-[#232f3e] shadow-sm' : 'text-slate-600 hover:text-[#232f3e] hover:bg-white/70' }} transition-all">
+                    Return requests
+                    <x-portal-pending-badge :count="$portalPendingCounts['pending_return_requests'] ?? 0" />
+                </a>
                 <a href="{{ route('team-leader.profile') }}"
                     class="px-3 py-1.5 rounded-xl shrink-0 {{ request()->routeIs('team-leader.profile') ? 'bg-white/90 text-[#232f3e] shadow-sm' : 'text-slate-600 hover:text-[#232f3e] hover:bg-white/70' }} transition-all">Profile</a>
             </div>
@@ -177,7 +185,8 @@
                                 <path stroke-linecap="round" stroke-linejoin="round"
                                     d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
                             </svg>
-                            Transfer requests
+                            <span class="flex-1">Transfer requests</span>
+                            <x-portal-pending-badge :count="$portalPendingCounts['pending_transfer_requests'] ?? 0" />
                         </a>
                         <a href="{{ route('team-leader.assign-agent') }}"
                             class="admin-sidebar-item {{ request()->routeIs('team-leader.assign-agent*') ? 'admin-sidebar-item-active' : '' }}">
@@ -196,6 +205,16 @@
                                     d="M11 17l-5-5m0 0l5-5m-5 5h12" />
                             </svg>
                             Return to regional manager
+                        </a>
+                        <a href="{{ route('team-leader.return-requests.incoming') }}"
+                            class="admin-sidebar-item {{ request()->routeIs('team-leader.return-requests*') ? 'admin-sidebar-item-active' : '' }}">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2"
+                                stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round"
+                                    d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <span class="flex-1">Return requests</span>
+                            <x-portal-pending-badge :count="$portalPendingCounts['pending_return_requests'] ?? 0" />
                         </a>
                     </div>
                 </div>

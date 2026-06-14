@@ -51,7 +51,17 @@ class TeamLeaderProductTransferService
                 ]);
             }
 
-            return $transfer->load('items');
+            $loaded = $transfer->load('items');
+            $deviceCount = $loaded->items->count();
+            app(NotificationDispatchService::class)->transferIncoming(
+                $teamLeader,
+                $regionalManager,
+                (int) $loaded->id,
+                $deviceCount,
+                'regional_manager_to_team_leader',
+            );
+
+            return $loaded;
         });
     }
 
@@ -73,6 +83,16 @@ class TeamLeaderProductTransferService
         }
 
         $this->completeTransfer($transfer, $recipient, $note);
+
+        $initiator = User::find($transfer->from_regional_manager_id);
+        if ($initiator) {
+            app(NotificationDispatchService::class)->transferAccepted(
+                $initiator,
+                $recipient,
+                (int) $transfer->id,
+                'regional_manager_to_team_leader',
+            );
+        }
     }
 
     public function declineByRecipient(TeamLeaderProductTransfer $transfer, User $recipient, ?string $note = null): void
@@ -90,6 +110,16 @@ class TeamLeaderProductTransferService
             'decided_at' => now(),
             'decided_by' => $recipient->id,
         ]);
+
+        $initiator = User::find($transfer->from_regional_manager_id);
+        if ($initiator) {
+            app(NotificationDispatchService::class)->transferDeclined(
+                $initiator,
+                $recipient,
+                (int) $transfer->id,
+                'regional_manager_to_team_leader',
+            );
+        }
     }
 
     public function cancelByRegionalManager(TeamLeaderProductTransfer $transfer, User $regionalManager): void
@@ -106,6 +136,16 @@ class TeamLeaderProductTransferService
             'decided_at' => now(),
             'decided_by' => $regionalManager->id,
         ]);
+
+        $recipient = User::find($transfer->to_team_leader_id);
+        if ($recipient) {
+            app(NotificationDispatchService::class)->transferCancelled(
+                $recipient,
+                $regionalManager,
+                (int) $transfer->id,
+                'regional_manager_to_team_leader',
+            );
+        }
     }
 
     private function completeTransfer(TeamLeaderProductTransfer $transfer, User $decidedBy, ?string $note = null): void

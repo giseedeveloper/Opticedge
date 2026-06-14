@@ -2,13 +2,20 @@
     @include('admin.partials.catalog-styles')
 
     <div class="admin-prod-page">
-        <a href="{{ route('admin.agents.index') }}" class="admin-prod-back inline-flex mb-6">
+        @php
+            $fromCustomers = request('from') === 'customers';
+            $backUrl = $fromCustomers
+                ? route('admin.customers.index', request()->only('role'))
+                : route('admin.agents.index');
+            $backLabel = $fromCustomers ? 'Back to all users' : 'Back to agents';
+        @endphp
+        <a href="{{ $backUrl }}" class="admin-prod-back inline-flex mb-6">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24"
                 stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                     d="M10 19l-7-7m0 0l7-7m-7 7h18" />
             </svg>
-            Back to agents
+            {{ $backLabel }}
         </a>
 
         @if(session('success'))

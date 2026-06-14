@@ -179,6 +179,10 @@ class AdminUserManagementApiController extends Controller
         $this->assertManageable($user);
         $user->update(['status' => 'active']);
 
+        if ($user->role === 'agent') {
+            app(\App\Services\NotificationDispatchService::class)->userActivated($user->fresh());
+        }
+
         return response()->json(['message' => 'User activated.']);
     }
 
@@ -186,6 +190,8 @@ class AdminUserManagementApiController extends Controller
     {
         $this->assertManageable($user);
         $user->update(['status' => 'inactive']);
+
+        app(\App\Services\NotificationDispatchService::class)->userDeactivated($user->fresh());
 
         return response()->json(['message' => 'User deactivated.']);
     }
@@ -197,6 +203,8 @@ class AdminUserManagementApiController extends Controller
         }
         $user->update(['status' => 'active']);
 
+        app(\App\Services\NotificationDispatchService::class)->dealerApproved($user->fresh());
+
         return response()->json(['message' => 'Dealer approved.']);
     }
 
@@ -206,6 +214,8 @@ class AdminUserManagementApiController extends Controller
             return response()->json(['message' => 'User is not a dealer.'], 422);
         }
         $user->update(['status' => 'suspended']);
+
+        app(\App\Services\NotificationDispatchService::class)->dealerRejected($user->fresh());
 
         return response()->json(['message' => 'Dealer rejected.']);
     }

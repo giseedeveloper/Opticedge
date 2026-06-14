@@ -305,29 +305,33 @@ class RegionalManagerApiController extends Controller
         return response()->json(['data' => AssignableImeiMatcher::mapRows($items)]);
     }
 
-    public function storeReturnDevices(Request $request, DeviceHierarchyAssignmentService $hierarchyService)
+    public function storeReturnDevices(Request $request, \App\Services\RegionalManagerDeviceReturnService $returnService)
     {
         $validated = $request->validate([
             'product_id' => 'required|exists:models,id',
             'product_list_ids' => 'required|array|min:1',
             'product_list_ids.*' => 'distinct|integer|exists:product_list,id',
+            'message' => 'nullable|string|max:2000',
         ]);
 
         try {
-            $count = $hierarchyService->returnFromRegionalManagerToAdmin(
+            $return = $returnService->createByRegionalManager(
                 Auth::user(),
-                $validated['product_list_ids']
+                (int) $validated['product_id'],
+                $validated['product_list_ids'],
+                $validated['message'] ?? null
             );
+            $count = $return->items->count();
         } catch (\InvalidArgumentException $e) {
             return response()->json(['message' => $e->getMessage()], 422);
         }
 
         return response()->json([
             'message' => $count === 1
-                ? '1 device returned to admin.'
-                : "{$count} devices returned to admin.",
-            'data' => ['returned_count' => $count],
-        ]);
+                ? 'Return request sent to admin. An admin must accept before devices leave your custody.'
+                : "{$count} devices submitted for return. Admin must accept the request.",
+            'data' => ['return_id' => $return->id, 'items_count' => $count],
+        ], 201);
     }
 
     private function mapInventoryRow(AgentProductListAssignment $assignment): array

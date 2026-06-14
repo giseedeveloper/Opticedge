@@ -123,6 +123,11 @@ class User extends Authenticatable
         return $this->belongsTo(Tenant::class);
     }
 
+    public function deviceTokens()
+    {
+        return $this->hasMany(DeviceToken::class);
+    }
+
     public function isSuperadmin(): bool
     {
         return $this->role === 'superadmin' && $this->tenant_id === null;

@@ -95,6 +95,13 @@ Route::get('profile', function () {
     return view('profile');
 })->middleware(['auth'])->name('profile');
 
+Route::middleware(['auth', 'active'])->prefix('app/notifications')->name('web.notifications.')->group(function () {
+    Route::get('/', [App\Http\Controllers\NotificationWebController::class, 'index'])->name('index');
+    Route::get('/unread-count', [App\Http\Controllers\NotificationWebController::class, 'unreadCount'])->name('unread-count');
+    Route::post('/{id}/read', [App\Http\Controllers\NotificationWebController::class, 'markRead'])->name('read');
+    Route::post('/read-all', [App\Http\Controllers\NotificationWebController::class, 'markAllRead'])->name('read-all');
+});
+
 Route::middleware(['auth', 'redirect.superadmin.from.admin', 'admin'])
     ->prefix('admin')
     ->name('admin.')
@@ -272,10 +279,14 @@ Route::middleware(['auth', 'redirect.superadmin.from.admin', 'admin', 'tenant.su
         Route::post('customers/regional-managers/assign-devices', [App\Http\Controllers\Admin\CustomerController::class, 'storeAssignRegionalManagerDevices'])->name('customers.regional-managers.assign-devices.store');
         Route::get('customers/regional-managers/assignable-imeis', [App\Http\Controllers\Admin\CustomerController::class, 'assignableImeisForRegionalManager'])->name('customers.regional-managers.assignable-imeis');
         Route::get('customers/regional-managers/assignable-models/{purchase}', [App\Http\Controllers\Admin\CustomerController::class, 'assignableModelsForRegionalManagerPurchase'])->name('customers.regional-managers.assignable-models');
+        Route::get('customers/regional-managers/{regionalManager}', [App\Http\Controllers\Admin\CustomerController::class, 'showRegionalManager'])->name('customers.regional-managers.show');
+        Route::patch('customers/regional-managers/{regionalManager}', [App\Http\Controllers\Admin\CustomerController::class, 'updateRegionalManager'])->name('customers.regional-managers.update');
         Route::get('customers/team-leaders', [App\Http\Controllers\Admin\CustomerController::class, 'teamLeadersIndex'])->name('customers.team-leaders.index');
         Route::get('customers/organization-tree', [App\Http\Controllers\Admin\OrganizationTreeController::class, 'index'])->name('customers.organization-tree');
         Route::get('customers/team-leaders/create', [App\Http\Controllers\Admin\CustomerController::class, 'createTeamLeader'])->name('customers.team-leaders.create');
         Route::post('customers/team-leaders', [App\Http\Controllers\Admin\CustomerController::class, 'storeTeamLeader'])->name('customers.team-leaders.store');
+        Route::get('customers/team-leaders/{teamLeader}', [App\Http\Controllers\Admin\CustomerController::class, 'showTeamLeader'])->name('customers.team-leaders.show');
+        Route::patch('customers/team-leaders/{teamLeader}', [App\Http\Controllers\Admin\CustomerController::class, 'updateTeamLeader'])->name('customers.team-leaders.update');
         Route::patch('customers/{user}/activate', [App\Http\Controllers\Admin\CustomerController::class, 'activate'])->name('customers.activate');
         Route::patch('customers/{user}/deactivate', [App\Http\Controllers\Admin\CustomerController::class, 'deactivate'])->name('customers.deactivate');
         Route::delete('customers/{user}', [App\Http\Controllers\Admin\CustomerController::class, 'destroy'])->name('customers.destroy');
@@ -396,6 +407,10 @@ Route::middleware(['auth', 'redirect.superadmin.from.admin', 'admin', 'tenant.su
             Route::post('agent-transfers/{agent_product_transfer}/approve', [App\Http\Controllers\Admin\AgentTransferController::class, 'approve'])->name('agent-transfers.approve');
             Route::post('agent-transfers/{agent_product_transfer}/reject', [App\Http\Controllers\Admin\AgentTransferController::class, 'reject'])->name('agent-transfers.reject');
 
+            Route::get('device-returns', [App\Http\Controllers\Admin\DeviceReturnController::class, 'index'])->name('device-returns');
+            Route::post('device-returns/{rmReturn}/accept', [App\Http\Controllers\Admin\DeviceReturnController::class, 'accept'])->name('device-returns.accept');
+            Route::post('device-returns/{rmReturn}/decline', [App\Http\Controllers\Admin\DeviceReturnController::class, 'decline'])->name('device-returns.decline');
+
             Route::get('branch-transfer/logs', [App\Http\Controllers\Admin\BranchTransferController::class, 'logs'])->name('branch-transfer.logs');
             Route::get('branch-transfer/items', [App\Http\Controllers\Admin\BranchTransferController::class, 'branchItems'])->name('branch-transfer.items');
             Route::get('branch-transfer', [App\Http\Controllers\Admin\BranchTransferController::class, 'create'])->name('branch-transfer');
@@ -481,6 +496,11 @@ Route::middleware(['auth', 'verified', 'active', 'regionalmanager'])->prefix('re
     Route::get('return-devices', [App\Http\Controllers\RegionalManagerController::class, 'returnDevicesForm'])->name('return-devices');
     Route::post('return-devices', [App\Http\Controllers\RegionalManagerController::class, 'storeReturnDevices'])->name('return-devices.store');
     Route::get('return-devices/assignable-imeis', [App\Http\Controllers\RegionalManagerController::class, 'returnableImeis'])->name('return-devices.assignable-imeis');
+    Route::get('return-requests/incoming', [App\Http\Controllers\RegionalManager\DeviceReturnController::class, 'indexIncoming'])->name('return-requests.incoming');
+    Route::get('return-requests/outgoing', [App\Http\Controllers\RegionalManager\DeviceReturnController::class, 'indexOutgoing'])->name('return-requests.outgoing');
+    Route::post('return-requests/incoming/{tlReturn}/accept', [App\Http\Controllers\RegionalManager\DeviceReturnController::class, 'acceptIncoming'])->name('return-requests.incoming.accept');
+    Route::post('return-requests/incoming/{tlReturn}/decline', [App\Http\Controllers\RegionalManager\DeviceReturnController::class, 'declineIncoming'])->name('return-requests.incoming.decline');
+    Route::post('return-requests/outgoing/{rmReturn}/cancel', [App\Http\Controllers\RegionalManager\DeviceReturnController::class, 'cancelOutgoing'])->name('return-requests.outgoing.cancel');
     Route::get('transfers', [App\Http\Controllers\RegionalManager\ProductTransferController::class, 'index'])->name('transfers.index');
     Route::post('transfers/{transfer}/accept', [App\Http\Controllers\RegionalManager\ProductTransferController::class, 'accept'])->name('transfers.accept');
     Route::post('transfers/{transfer}/decline', [App\Http\Controllers\RegionalManager\ProductTransferController::class, 'decline'])->name('transfers.decline');
@@ -497,6 +517,11 @@ Route::middleware(['auth', 'verified', 'active', 'teamleader'])->prefix('team-le
     Route::get('return-devices', [App\Http\Controllers\TeamLeaderController::class, 'returnDevicesForm'])->name('return-devices');
     Route::post('return-devices', [App\Http\Controllers\TeamLeaderController::class, 'storeReturnDevices'])->name('return-devices.store');
     Route::get('return-devices/assignable-imeis', [App\Http\Controllers\TeamLeaderController::class, 'returnableImeis'])->name('return-devices.assignable-imeis');
+    Route::get('return-requests/incoming', [App\Http\Controllers\TeamLeader\DeviceReturnController::class, 'indexIncoming'])->name('return-requests.incoming');
+    Route::get('return-requests/outgoing', [App\Http\Controllers\TeamLeader\DeviceReturnController::class, 'indexOutgoing'])->name('return-requests.outgoing');
+    Route::post('return-requests/incoming/{agentReturn}/accept', [App\Http\Controllers\TeamLeader\DeviceReturnController::class, 'acceptIncoming'])->name('return-requests.incoming.accept');
+    Route::post('return-requests/incoming/{agentReturn}/decline', [App\Http\Controllers\TeamLeader\DeviceReturnController::class, 'declineIncoming'])->name('return-requests.incoming.decline');
+    Route::post('return-requests/outgoing/{tlReturn}/cancel', [App\Http\Controllers\TeamLeader\DeviceReturnController::class, 'cancelOutgoing'])->name('return-requests.outgoing.cancel');
     Route::get('transfers', [App\Http\Controllers\TeamLeader\ProductTransferController::class, 'index'])->name('transfers.index');
     Route::post('transfers/{transfer}/accept', [App\Http\Controllers\TeamLeader\ProductTransferController::class, 'accept'])->name('transfers.accept');
     Route::post('transfers/{transfer}/decline', [App\Http\Controllers\TeamLeader\ProductTransferController::class, 'decline'])->name('transfers.decline');
@@ -516,6 +541,8 @@ Route::middleware(['auth', 'verified', 'active', 'agent'])->prefix('agent')->nam
     Route::get('return-devices', [App\Http\Controllers\AgentController::class, 'returnDevicesForm'])->name('return-devices');
     Route::post('return-devices', [App\Http\Controllers\AgentController::class, 'returnDevicesStore'])->name('return-devices.store');
     Route::get('return-devices/assignable-imeis', [App\Http\Controllers\AgentController::class, 'returnableImeis'])->name('return-devices.assignable-imeis');
+    Route::get('return-requests', [App\Http\Controllers\Agent\DeviceReturnController::class, 'index'])->name('return-requests');
+    Route::post('return-requests/{agentReturn}/cancel', [App\Http\Controllers\Agent\DeviceReturnController::class, 'cancel'])->name('return-requests.cancel');
 
     Route::get('transfers', [App\Http\Controllers\Agent\ProductTransferController::class, 'index'])->name('transfers.index');
     Route::post('transfers/{transfer}/cancel', [App\Http\Controllers\Agent\ProductTransferController::class, 'cancel'])->name('transfers.cancel');

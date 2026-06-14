@@ -111,6 +111,8 @@ class AuthController extends Controller
             'status' => 'pending',
         ]);
 
+        app(\App\Services\NotificationDispatchService::class)->registrationPending($user, 'agent');
+
         return response()->json([
             'message' => 'Agent registration submitted. An administrator must activate your account before you can sign in.',
         ], 201);
@@ -126,7 +128,7 @@ class AuthController extends Controller
             'business_name' => 'required|string|max:255',
         ]);
 
-        \App\Models\User::create([
+        $user = \App\Models\User::create([
             'name' => $validated['name'],
             'email' => $validated['email'],
             'password' => \Illuminate\Support\Facades\Hash::make($validated['password']),
@@ -135,6 +137,8 @@ class AuthController extends Controller
             'role' => 'dealer',
             'status' => 'pending',
         ]);
+
+        app(\App\Services\NotificationDispatchService::class)->registrationPending($user, 'dealer');
 
         return response()->json([
             'message' => 'Dealer registration submitted. You will be notified when approved.',

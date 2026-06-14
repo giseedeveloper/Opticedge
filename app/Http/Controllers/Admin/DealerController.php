@@ -61,8 +61,8 @@ class DealerController extends Controller
         }
 
         $user->update(['status' => 'active']);
-        
-        // In a real app, send an email here notifying the dealer.
+
+        app(\App\Services\NotificationDispatchService::class)->dealerApproved($user->fresh());
 
         return back()->with('success', 'Dealer approved successfully.');
     }
@@ -74,6 +74,8 @@ class DealerController extends Controller
         }
 
         $user->update(['status' => 'suspended']); // Or delete? Let's suspend for now.
+
+        app(\App\Services\NotificationDispatchService::class)->dealerRejected($user->fresh());
 
         return back()->with('success', 'Dealer rejected/suspended.');
     }
