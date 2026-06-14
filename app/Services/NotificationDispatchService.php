@@ -9,6 +9,7 @@ use App\Support\NotificationRoutes;
 use App\Support\NotificationType;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class NotificationDispatchService
 {
@@ -25,6 +26,16 @@ class NotificationDispatchService
         if (! filled($payload['web_url'] ?? null)) {
             $payload['web_url'] = NotificationRoutes::webForUser($user, $type, $payload);
         }
+
+        Log::info('Notification dispatched to user', [
+            'user_id' => $user->id,
+            'user_email' => $user->email,
+            'user_name' => $user->name,
+            'user_role' => $user->role,
+            'notification_type' => $type,
+            'channels' => $channels,
+            'title' => $title,
+        ]);
 
         $user->notify(new AppNotification($type, $title, $body, $payload, $channels));
     }

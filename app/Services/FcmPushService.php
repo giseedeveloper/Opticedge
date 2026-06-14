@@ -45,21 +45,51 @@ class FcmPushService
     /**
      * @param  array<int, string>  $tokens
      * @param  array<string, mixed>  $data
+     * @param  array<string, mixed>  $userContext
      */
-    public function sendToTokens(array $tokens, string $title, string $body, array $data = []): void
-    {
+    public function sendToTokens(
+        array $tokens,
+        string $title,
+        string $body,
+        array $data = [],
+        array $userContext = [],
+    ): void {
+        $logContext = array_merge($userContext, [
+            'title' => $title,
+            'notification_type' => $data['type'] ?? null,
+        ]);
+
+        if (! config('firebase.enabled')) {
+            Log::info('FCM skipped: FIREBASE_ENABLED is false', $logContext);
+
+            return;
+        }
+
         if (! $this->isConfigured()) {
+            Log::warning('FCM skipped: Firebase is not configured', array_merge($logContext, [
+                'credentials_path' => config('firebase.credentials'),
+                'credentials_exists' => is_file((string) config('firebase.credentials')),
+                'project_id' => $this->projectId(),
+            ]));
+
             return;
         }
 
         $tokens = array_values(array_unique(array_filter(array_map('strval', $tokens))));
         if ($tokens === []) {
+            Log::info('FCM skipped: no device tokens provided', $logContext);
+
             return;
         }
 
         try {
             $accessToken = $this->accessToken();
             $projectId = (string) $this->projectId();
+
+            Log::info('FCM sending push notification', array_merge($logContext, [
+                'token_count' => count($tokens),
+                'project_id' => $projectId,
+            ]));
 
             foreach ($tokens as $token) {
                 $payload = [
@@ -97,16 +127,23 @@ class FcmPushService
                     ->acceptJson()
                     ->post("https://fcm.googleapis.com/v1/projects/{$projectId}/messages:send", $payload);
 
-                if (! $response->successful()) {
-                    Log::warning('FCM send failed', [
+                if ($response->successful()) {
+                    Log::info('FCM send succeeded', array_merge($logContext, [
+                        'token_prefix' => substr($token, 0, 12),
+                        'message_id' => $response->json('name'),
+                    ]));
+                } else {
+                    Log::warning('FCM send failed', array_merge($logContext, [
                         'status' => $response->status(),
                         'body' => $response->body(),
                         'token_prefix' => substr($token, 0, 12),
-                    ]);
+                    ]));
                 }
             }
         } catch (\Throwable $e) {
-            Log::error('FCM push error', ['message' => $e->getMessage()]);
+            Log::error('FCM push error', array_merge($logContext, [
+                'message' => $e->getMessage(),
+            ]));
         }
     }
 

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\DeviceToken;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class DeviceTokenApiController extends Controller
 {
@@ -30,6 +31,15 @@ class DeviceTokenApiController extends Controller
             ],
         );
 
+        Log::info('FCM device token registered', [
+            'user_id' => $user->id,
+            'user_email' => $user->email,
+            'user_name' => $user->name,
+            'user_role' => $user->role,
+            'platform' => $platform,
+            'token_prefix' => substr($validated['token'], 0, 12),
+        ]);
+
         return response()->json(['message' => 'Device token registered.']);
     }
 
@@ -47,7 +57,16 @@ class DeviceTokenApiController extends Controller
             $query->where('token', $token);
         }
 
-        $query->delete();
+        $deleted = $query->delete();
+
+        Log::info('FCM device token removed', [
+            'user_id' => $request->user()->id,
+            'user_email' => $request->user()->email,
+            'user_name' => $request->user()->name,
+            'user_role' => $request->user()->role,
+            'token_prefix' => filled($token) ? substr((string) $token, 0, 12) : null,
+            'deleted_count' => $deleted,
+        ]);
 
         return response()->json(['message' => 'Device token removed.']);
     }

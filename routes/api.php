@@ -66,6 +66,7 @@ use App\Http\Controllers\Api\CustomerDashboardApiController;
 use App\Http\Controllers\Api\VendorSubscribeApiController;
 use App\Http\Controllers\Api\DeviceTokenApiController;
 use App\Http\Controllers\Api\NotificationApiController;
+use App\Http\Controllers\Api\PendingRequestCountsApiController;
 
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/register', [AuthController::class, 'register']);
@@ -94,6 +95,7 @@ Route::middleware(['auth:sanctum', 'tenant.context'])->group(function () {
     Route::delete('/device-tokens', [DeviceTokenApiController::class, 'destroy']);
     Route::get('/notifications', [NotificationApiController::class, 'index']);
     Route::get('/notifications/unread-count', [NotificationApiController::class, 'unreadCount']);
+    Route::get('/pending-request-counts', [PendingRequestCountsApiController::class, 'show']);
     Route::post('/notifications/read-all', [NotificationApiController::class, 'markAllRead']);
     Route::post('/notifications/{id}/read', [NotificationApiController::class, 'markRead']);
 
