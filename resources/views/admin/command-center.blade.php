@@ -1,6 +1,7 @@
 @php
     $commandRoutes = $commandRoutes ?? [
         'execute' => 'superadmin.command.execute',
+        'migrateForce' => 'superadmin.command.migrate-force',
         'migratePath' => 'superadmin.command.migrate-path',
         'seedClass' => 'superadmin.command.seed-class',
         'emptyTable' => 'superadmin.command.empty-table',
@@ -73,9 +74,22 @@
             <div class="admin-clay-panel admin-prod-form-shell overflow-hidden">
                 <div class="admin-prod-form-head">
                     <h2 class="admin-prod-form-title">Migrations</h2>
-                    <p class="admin-prod-form-hint">Run <code class="text-xs">migrate --path=…</code> for one file.</p>
+                    <p class="admin-prod-form-hint">Run <code class="text-xs">migrate --force</code> for all pending files, or <code class="text-xs">migrate --path=…</code> for one file.</p>
                 </div>
                 <div class="admin-prod-form-body space-y-4">
+                    <form action="{{ route($commandRoutes['migrateForce']) }}" method="POST" class="space-y-3">
+                        @csrf
+                        <p class="text-sm text-slate-600">Run all pending migrations in production mode.</p>
+                        @error('migrate_force')
+                            <p class="text-red-600 text-xs font-semibold">{{ $message }}</p>
+                        @enderror
+                        <button type="submit" class="admin-prod-btn-primary">
+                            migrate --force
+                        </button>
+                    </form>
+
+                    <div class="border-t border-slate-200/60 pt-4">
+                        <p class="text-xs text-slate-500 mb-3">Or run a single file with <code class="text-slate-700">migrate --path=… --force</code></p>
                     <form action="{{ route($commandRoutes['migratePath']) }}" method="POST" class="space-y-3">
                         @csrf
                         <div>
@@ -98,6 +112,7 @@
                             Migrate selected file
                         </button>
                     </form>
+                    </div>
 
                     <div class="border-t border-slate-200/60 pt-4">
                         <h3 class="text-sm font-bold text-slate-800 mb-2">migrate:status</h3>

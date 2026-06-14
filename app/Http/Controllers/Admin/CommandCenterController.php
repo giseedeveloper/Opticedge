@@ -92,6 +92,7 @@ class CommandCenterController extends Controller
 
         $commandRoutes = [
             'execute' => 'superadmin.command.execute',
+            'migrateForce' => 'superadmin.command.migrate-force',
             'migratePath' => 'superadmin.command.migrate-path',
             'seedClass' => 'superadmin.command.seed-class',
             'emptyTable' => 'superadmin.command.empty-table',
@@ -144,6 +145,24 @@ class CommandCenterController extends Controller
             );
         } catch (\Throwable $e) {
             return redirect()->back()->withInput()->withErrors(['command' => $e->getMessage()]);
+        }
+    }
+
+    public function migrateForce()
+    {
+        try {
+            Artisan::call('migrate', [
+                '--force' => true,
+                '--no-interaction' => true,
+            ]);
+            $output = trim(Artisan::output());
+
+            return redirect()->back()->with(
+                'success',
+                $output !== '' ? $output : 'migrate --force finished.'
+            );
+        } catch (\Throwable $e) {
+            return redirect()->back()->withErrors(['migrate_force' => $e->getMessage()]);
         }
     }
 
