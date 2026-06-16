@@ -215,20 +215,68 @@
                 <div class="admin-prod-form-head flex items-center justify-between">
                     <div>
                         <h2 class="admin-prod-form-title">Record payment</h2>
-                        <p class="admin-prod-subtitle">Payment amount is added to Total paid and reduced from Pending.</p>
+                        <p class="admin-prod-subtitle">Choose a credit and enter up to its pending balance. Each payment updates that credit only.</p>
                     </div>
                     <button type="button" class="admin-prod-btn-ghost" @click="payModalOpen = false">Close</button>
                 </div>
-                <form method="POST" action="{{ route('admin.stock.agent-credits-pay', request()->query()) }}" class="admin-prod-form-body space-y-4">
+                @php
+                    $payableCreditOptions = $payableCredits->map(function ($credit) {
+                        $pending = max(0, (float) $credit->total_amount - (float) ($credit->paid_amount ?? 0));
+
+                        return [
+                            'id' => $credit->id,
+                            'label' => sprintf(
+                                '#%d — %s — %s (pending %s TZS)',
+                                $credit->id,
+                                $credit->agent?->name ?? '—',
+                                $credit->customer_name,
+                                number_format($pending, 0)
+                            ),
+                            'pending' => round($pending, 2),
+                        ];
+                    })->values();
+                    $defaultPayableCreditId = old('agent_credit_id') ?: optional($payableCredits->first())->id;
+                    $defaultPayableCredit = $payableCreditOptions->firstWhere('id', (int) $defaultPayableCreditId);
+                    $defaultPayableAmount = old('amount', $defaultPayableCredit['pending'] ?? null);
+                @endphp
+                <form method="POST"
+                    action="{{ route('admin.stock.agent-credits-pay', request()->query()) }}"
+                    class="admin-prod-form-body space-y-4"
+                    x-data="{
+                        credits: @js($payableCreditOptions),
+                        selectedId: @js((int) ($defaultPayableCreditId ?? 0)),
+                        amount: @js($defaultPayableAmount !== null && $defaultPayableAmount !== '' ? (float) $defaultPayableAmount : null),
+                        get selectedCredit() {
+                            return this.credits.find(credit => credit.id === this.selectedId) ?? null;
+                        },
+                        get pendingBalance() {
+                            return this.selectedCredit?.pending ?? 0;
+                        }
+                    }">
                     @csrf
-                    @php
-                        $defaultPayableCreditId = old('agent_credit_id')
-                            ?: optional($payableCredits->first())->id;
-                    @endphp
-                    <input type="hidden" name="agent_credit_id" value="{{ $defaultPayableCreditId }}">
                     @if(!$defaultPayableCreditId)
                         <div class="admin-prod-alert admin-prod-alert--warning mb-0">
                             No pending credits available to pay.
+                        </div>
+                    @else
+                        <p class="text-sm text-slate-600">
+                            Payments apply to one credit at a time. Summary total pending is across all credits in the current filter.
+                        </p>
+                        <div>
+                            <label for="agent_credit_id" class="admin-prod-label">Credit</label>
+                            <select name="agent_credit_id" id="agent_credit_id" required class="admin-prod-input"
+                                x-model.number="selectedId"
+                                @change="amount = pendingBalance">
+                                @foreach($payableCreditOptions as $option)
+                                    <option value="{{ $option['id'] }}" @selected((int) $defaultPayableCreditId === (int) $option['id'])>
+                                        {{ $option['label'] }}
+                                    </option>
+                                @endforeach
+                            </select>
+                            <p class="mt-1 text-xs text-slate-500">
+                                Pending for selected credit:
+                                <span class="font-semibold text-amber-700" x-text="pendingBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' TZS'"></span>
+                            </p>
                         </div>
                     @endif
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -238,7 +286,9 @@
                         </div>
                         <div>
                             <label for="amount" class="admin-prod-label">Amount</label>
-                            <input type="number" name="amount" id="amount" value="{{ old('amount') }}" min="0.01" step="0.01" required class="admin-prod-input">
+                            <input type="number" name="amount" id="amount" min="0.01" step="0.01" required class="admin-prod-input"
+                                x-model.number="amount"
+                                :max="pendingBalance > 0 ? pendingBalance : null">
                         </div>
                     </div>
                     <div class="flex items-center justify-end gap-2">

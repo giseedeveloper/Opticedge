@@ -118,11 +118,14 @@
 
         <div class="admin-clay-panel overflow-hidden">
             <div class="admin-prod-table-wrap admin-prod-table-wrap--flush overflow-x-auto">
-                <table class="min-w-[720px]">
+                <table class="min-w-[860px]">
                     <thead>
                         <tr>
                             <th scope="col" class="admin-prod-th">Name</th>
                             <th scope="col" class="admin-prod-th">Email</th>
+                            @if(\Illuminate\Support\Facades\Schema::hasColumn('users', 'team_leader_id'))
+                                <th scope="col" class="admin-prod-th">Team leader</th>
+                            @endif
                             <th scope="col" class="admin-prod-th">Role</th>
                             <th scope="col" class="admin-prod-th">Region</th>
                             <th scope="col" class="admin-prod-th">Branch</th>
@@ -141,6 +144,9 @@
                                     </div>
                                 </td>
                                 <td class="text-slate-600">{{ $user->email }}</td>
+                                @if(\Illuminate\Support\Facades\Schema::hasColumn('users', 'team_leader_id'))
+                                    <td class="text-slate-600">{{ $user->teamLeader?->name ?? '—' }}</td>
+                                @endif
                                 <td>
                                     @php
                                         $role = $user->role ?? 'customer';
@@ -178,7 +184,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="8" class="text-center text-slate-500 py-10">
+                                <td colspan="{{ \Illuminate\Support\Facades\Schema::hasColumn('users', 'team_leader_id') ? 9 : 8 }}" class="text-center text-slate-500 py-10">
                                     No users found.
                                 </td>
                             </tr>
