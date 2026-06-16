@@ -18,6 +18,17 @@ Route::middleware('guest')->group(function () {
         ->name('password.reset');
 });
 
+Route::post('logout', function () {
+    if (auth()->guard('web')->check()) {
+        auth()->guard('web')->logout();
+    }
+
+    request()->session()->invalidate();
+    request()->session()->regenerateToken();
+
+    return redirect()->route('login');
+})->name('logout');
+
 Route::middleware('auth')->group(function () {
     Volt::route('verify-email', 'pages.auth.verify-email')
         ->name('verification.notice');
@@ -28,11 +39,4 @@ Route::middleware('auth')->group(function () {
 
     Volt::route('confirm-password', 'pages.auth.confirm-password')
         ->name('password.confirm');
-
-    Route::post('logout', function () {
-        auth()->guard('web')->logout();
-        session()->invalidate();
-        session()->regenerateToken();
-        return redirect()->route('login');
-    })->name('logout');
 });

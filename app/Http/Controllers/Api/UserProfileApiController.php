@@ -33,6 +33,12 @@ class UserProfileApiController extends Controller
     {
         $user = Auth::user();
 
+        if (! $user->canUpdateOwnProfileInformation()) {
+            return response()->json([
+                'message' => 'Your name and email can only be updated by an administrator.',
+            ], 403);
+        }
+
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'lowercase', 'email', 'max:255', Rule::unique(User::class)->ignore($user->id)],

@@ -18,14 +18,7 @@ class AgentCreditController extends Controller
 {
     public function index(Request $request)
     {
-        $base = AgentCredit::query();
-
-        if ($request->filled('date_from')) {
-            $base->whereDate('date', '>=', $request->date_from);
-        }
-        if ($request->filled('date_to')) {
-            $base->whereDate('date', '<=', $request->date_to);
-        }
+        $base = $this->filteredAgentCreditsQuery($request);
 
         $statsQuery = clone $base;
         $sumTotal = (float) (clone $statsQuery)->sum('total_amount');
@@ -64,51 +57,47 @@ class AgentCreditController extends Controller
             ->limit(100)
             ->get();
 
-        $payableCredits = (clone $base)
-            ->with(['agent'])
-            ->whereRaw('COALESCE(paid_amount, 0) < total_amount')
-            ->orderByDesc('date')
-            ->orderByDesc('id')
-            ->limit(200)
-            ->get();
-
         return view('admin.stock.agent-credits', compact(
             'credits',
             'paymentOptions',
             'agentCreditsDashboard',
             'defaultWatuChannel',
-            'paymentHistory',
-            'payableCredits'
+            'paymentHistory'
         ));
     }
 
     public function pay(Request $request)
     {
         $validated = $request->validate([
-            'agent_credit_id' => 'required|integer|exists:agent_credits,id',
             'paid_date' => 'required|date',
             'amount' => 'required|numeric|min:0.01',
         ]);
 
-        $credit = AgentCredit::query()->findOrFail((int) $validated['agent_credit_id']);
-        $totalAmount = (float) $credit->total_amount;
-        $oldPaid = (float) ($credit->paid_amount ?? 0);
-        $remaining = max(0, $totalAmount - $oldPaid);
         $amount = (float) $validated['amount'];
         $paidDate = $validated['paid_date'];
         $eps = 0.0001;
 
-        if ($remaining <= $eps) {
+        $pendingCredits = $this->filteredAgentCreditsQuery($request)
+            ->whereRaw('COALESCE(paid_amount, 0) < total_amount')
+            ->orderBy('date')
+            ->orderBy('id')
+            ->get();
+
+        $totalPending = $pendingCredits->sum(function (AgentCredit $credit) {
+            return max(0, (float) $credit->total_amount - (float) ($credit->paid_amount ?? 0));
+        });
+
+        if ($totalPending <= $eps) {
             return redirect()
                 ->route('admin.stock.agent-credits', $request->query())
-                ->with('info', 'This credit is already fully paid.');
+                ->with('info', 'There are no pending agent credits to pay.');
         }
 
-        if ($amount > $remaining + $eps) {
+        if ($amount > $totalPending + $eps) {
             return redirect()
                 ->route('admin.stock.agent-credits', $request->query())
                 ->withInput()
-                ->withErrors(['amount' => 'Amount cannot exceed pending balance (' . number_format($remaining, 2) . ').']);
+                ->withErrors(['amount' => 'Amount cannot exceed total pending balance (' . number_format($totalPending, 2) . ').']);
         }
 
         if (! Schema::hasTable('payment_options')) {
@@ -134,32 +123,68 @@ class AgentCreditController extends Controller
                 ->withErrors(['error' => 'Default Watu channel is invalid or hidden. Update Store settings.']);
         }
 
-        DB::transaction(function () use ($credit, $option, $paymentOptionId, $amount, $paidDate, $totalAmount, $oldPaid, $eps) {
+        $creditsUpdated = 0;
+
+        DB::transaction(function () use ($pendingCredits, $option, $paymentOptionId, $amount, $paidDate, $eps, &$creditsUpdated) {
             $option->increment('balance', $amount);
 
-            $newPaid = min($totalAmount, $oldPaid + $amount);
-            $status = $newPaid >= $totalAmount - $eps ? 'paid' : ($newPaid > $eps ? 'partial' : 'pending');
-            $update = [
-                'paid_amount' => $newPaid,
-                'payment_status' => $status,
-                'paid_date' => $paidDate,
-            ];
-            if (Schema::hasColumn('agent_credits', 'payment_option_id')) {
-                $update['payment_option_id'] = $paymentOptionId;
-            }
-            $credit->update($update);
+            $remainingToAllocate = $amount;
 
-            AgentCreditPayment::create([
-                'agent_credit_id' => $credit->id,
-                'payment_option_id' => $paymentOptionId,
-                'amount' => $amount,
-                'paid_date' => $paidDate,
-            ]);
+            foreach ($pendingCredits as $credit) {
+                if ($remainingToAllocate <= $eps) {
+                    break;
+                }
+
+                $creditTotal = (float) $credit->total_amount;
+                $oldPaid = (float) ($credit->paid_amount ?? 0);
+                $creditPending = max(0, $creditTotal - $oldPaid);
+
+                if ($creditPending <= $eps) {
+                    continue;
+                }
+
+                $applied = min($creditPending, $remainingToAllocate);
+                $newPaid = min($creditTotal, $oldPaid + $applied);
+                $status = $newPaid >= $creditTotal - $eps ? 'paid' : ($newPaid > $eps ? 'partial' : 'pending');
+                $update = [
+                    'paid_amount' => $newPaid,
+                    'payment_status' => $status,
+                    'paid_date' => $paidDate,
+                ];
+                if (Schema::hasColumn('agent_credits', 'payment_option_id')) {
+                    $update['payment_option_id'] = $paymentOptionId;
+                }
+                $credit->update($update);
+
+                AgentCreditPayment::create([
+                    'agent_credit_id' => $credit->id,
+                    'payment_option_id' => $paymentOptionId,
+                    'amount' => $applied,
+                    'paid_date' => $paidDate,
+                ]);
+
+                $remainingToAllocate -= $applied;
+                $creditsUpdated++;
+            }
         });
 
         return redirect()
             ->route('admin.stock.agent-credits', $request->query())
-            ->with('success', 'Payment recorded and totals updated.');
+            ->with('success', 'Payment recorded across ' . $creditsUpdated . ' credit(s) and totals updated.');
+    }
+
+    private function filteredAgentCreditsQuery(Request $request)
+    {
+        $query = AgentCredit::query();
+
+        if ($request->filled('date_from')) {
+            $query->whereDate('date', '>=', $request->date_from);
+        }
+        if ($request->filled('date_to')) {
+            $query->whereDate('date', '<=', $request->date_to);
+        }
+
+        return $query;
     }
 
     public function exportCsv(Request $request)

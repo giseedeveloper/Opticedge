@@ -91,7 +91,7 @@
                                 Profile
                             </div>
                         </a>
-                        <form method="POST" action="{{ route('logout') }}">
+                        <form method="POST" action="{{ route('logout') }}" @click.stop>
                             @csrf
                             <button type="submit"
                                 class="w-full text-left px-4 py-2.5 text-sm text-slate-700 hover:bg-white/80 hover:text-red-600 rounded-xl mx-1 mb-1">
@@ -237,7 +237,7 @@
             </nav>
 
             <div class="p-4 border-t border-white/50 mt-auto">
-                <div class="flex items-center gap-3">
+                <div class="flex items-center gap-3 mb-3">
                     <div
                         class="w-9 h-9 rounded-full admin-clay-inset flex items-center justify-center text-slate-600 text-sm font-bold">
                         {{ substr(Auth::user()->name, 0, 1) }}
@@ -247,6 +247,18 @@
                         <p class="text-xs text-slate-500 truncate">{{ Auth::user()->email }}</p>
                     </div>
                 </div>
+                <form method="POST" action="{{ route('logout') }}" @click.stop>
+                    @csrf
+                    <button type="submit"
+                        class="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-white/80 hover:text-red-600 rounded-xl flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24"
+                            stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                        </svg>
+                        Log out
+                    </button>
+                </form>
             </div>
         </aside>
 

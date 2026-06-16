@@ -184,6 +184,20 @@ class AuthController extends Controller
         return response()->json(['message' => __($status)], 422);
     }
 
+    /**
+     * Revoke the current Sanctum token and end the mobile session.
+     */
+    public function logout(Request $request)
+    {
+        $user = $request->user();
+
+        if ($user !== null) {
+            $user->currentAccessToken()?->delete();
+        }
+
+        return response()->json(['message' => 'Logged out successfully.']);
+    }
+
     public function sendVerificationEmail(Request $request)
     {
         $user = $request->user();

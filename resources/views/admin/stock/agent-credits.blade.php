@@ -2,7 +2,7 @@
     @include('admin.partials.catalog-styles')
 
     <div class="admin-prod-page"
-        x-data="{ paymentHistoryOpen: false, payModalOpen: {{ old('agent_credit_id') || old('amount') || old('paid_date') ? 'true' : 'false' }} }">
+        x-data="{ paymentHistoryOpen: false, payModalOpen: {{ old('amount') || old('paid_date') ? 'true' : 'false' }} }">
         <div class="admin-prod-toolbar !mb-4">
             <div>
                 <p class="admin-prod-eyebrow">Agents</p>
@@ -215,85 +215,59 @@
                 <div class="admin-prod-form-head flex items-center justify-between">
                     <div>
                         <h2 class="admin-prod-form-title">Record payment</h2>
-                        <p class="admin-prod-subtitle">Choose a credit and enter up to its pending balance. Each payment updates that credit only.</p>
+                        <p class="admin-prod-subtitle">Enter the amount received. It is applied to pending credits starting with the oldest.</p>
                     </div>
                     <button type="button" class="admin-prod-btn-ghost" @click="payModalOpen = false">Close</button>
                 </div>
                 @php
-                    $payableCreditOptions = $payableCredits->map(function ($credit) {
-                        $pending = max(0, (float) $credit->total_amount - (float) ($credit->paid_amount ?? 0));
-
-                        return [
-                            'id' => $credit->id,
-                            'label' => sprintf(
-                                '#%d — %s — %s (pending %s TZS)',
-                                $credit->id,
-                                $credit->agent?->name ?? '—',
-                                $credit->customer_name,
-                                number_format($pending, 0)
-                            ),
-                            'pending' => round($pending, 2),
-                        ];
-                    })->values();
-                    $defaultPayableCreditId = old('agent_credit_id') ?: optional($payableCredits->first())->id;
-                    $defaultPayableCredit = $payableCreditOptions->firstWhere('id', (int) $defaultPayableCreditId);
-                    $defaultPayableAmount = old('amount', $defaultPayableCredit['pending'] ?? null);
+                    $totalPendingPayable = round((float) ($agentCreditsDashboard['total_pending'] ?? 0), 2);
+                    $defaultPayableAmount = old('amount', $totalPendingPayable > 0 ? $totalPendingPayable : null);
+                    $hasPendingCredits = $totalPendingPayable > 0;
                 @endphp
                 <form method="POST"
                     action="{{ route('admin.stock.agent-credits-pay', request()->query()) }}"
                     class="admin-prod-form-body space-y-4"
                     x-data="{
-                        credits: @js($payableCreditOptions),
-                        selectedId: @js((int) ($defaultPayableCreditId ?? 0)),
-                        amount: @js($defaultPayableAmount !== null && $defaultPayableAmount !== '' ? (float) $defaultPayableAmount : null),
-                        get selectedCredit() {
-                            return this.credits.find(credit => credit.id === this.selectedId) ?? null;
-                        },
-                        get pendingBalance() {
-                            return this.selectedCredit?.pending ?? 0;
-                        }
+                        totalPending: @js($totalPendingPayable),
+                        amount: @js($defaultPayableAmount !== null && $defaultPayableAmount !== '' ? (float) $defaultPayableAmount : null)
                     }">
                     @csrf
-                    @if(!$defaultPayableCreditId)
+                    @if(!$hasPendingCredits)
                         <div class="admin-prod-alert admin-prod-alert--warning mb-0">
                             No pending credits available to pay.
                         </div>
                     @else
-                        <p class="text-sm text-slate-600">
-                            Payments apply to one credit at a time. Summary total pending is across all credits in the current filter.
-                        </p>
-                        <div>
-                            <label for="agent_credit_id" class="admin-prod-label">Credit</label>
-                            <select name="agent_credit_id" id="agent_credit_id" required class="admin-prod-input"
-                                x-model.number="selectedId"
-                                @change="amount = pendingBalance">
-                                @foreach($payableCreditOptions as $option)
-                                    <option value="{{ $option['id'] }}" @selected((int) $defaultPayableCreditId === (int) $option['id'])>
-                                        {{ $option['label'] }}
-                                    </option>
-                                @endforeach
-                            </select>
-                            <p class="mt-1 text-xs text-slate-500">
-                                Pending for selected credit:
-                                <span class="font-semibold text-amber-700" x-text="pendingBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' TZS'"></span>
+                        <div class="rounded-xl border border-amber-200 bg-amber-50/80 p-4">
+                            <p class="text-xs uppercase font-semibold text-amber-800">Total outstanding (all agents)</p>
+                            <p class="mt-1 text-2xl font-bold text-amber-900"
+                                x-text="totalPending.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' TZS'">
+                                {{ number_format($totalPendingPayable, 2) }} TZS
                             </p>
+                            @if(request('date_from') || request('date_to'))
+                                <p class="mt-2 text-xs text-amber-800">Based on the current date filter.</p>
+                            @endif
                         </div>
                     @endif
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
                             <label for="paid_date" class="admin-prod-label">Date</label>
-                            <input type="date" name="paid_date" id="paid_date" value="{{ old('paid_date', now()->toDateString()) }}" required class="admin-prod-input">
+                            <input type="date" name="paid_date" id="paid_date" value="{{ old('paid_date', now()->toDateString()) }}" required class="admin-prod-input" @disabled(!$hasPendingCredits)>
                         </div>
                         <div>
-                            <label for="amount" class="admin-prod-label">Amount</label>
+                            <label for="amount" class="admin-prod-label">Amount to pay</label>
                             <input type="number" name="amount" id="amount" min="0.01" step="0.01" required class="admin-prod-input"
                                 x-model.number="amount"
-                                :max="pendingBalance > 0 ? pendingBalance : null">
+                                :max="totalPending > 0 ? totalPending : null"
+                                @disabled(!$hasPendingCredits)>
+                            <p class="mt-1 text-xs text-slate-500">
+                                Maximum:
+                                <span class="font-semibold text-amber-700" x-text="totalPending.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' TZS'"></span>
+                            </p>
                         </div>
                     </div>
                     <div class="flex items-center justify-end gap-2">
                         <button type="button" class="admin-prod-btn-ghost" @click="payModalOpen = false">Cancel</button>
-                        <button type="submit" class="admin-prod-btn-primary" @disabled(!$defaultPayableCreditId)>Submit payment</button>
+                        <button type="submit" class="admin-prod-btn-primary" @disabled(!$hasPendingCredits)>Submit payment</button>
                     </div>
                 </form>
             </div>

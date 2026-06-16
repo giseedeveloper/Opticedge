@@ -48,6 +48,28 @@ class AgentDashboardController extends Controller
         $totalSold = AgentAssignment::where('agent_id', $agentId)->sum('quantity_sold');
         $totalRemaining = $totalAssigned - $totalSold;
 
+        $custodyItems = AgentProductListAssignment::query()
+            ->where('agent_id', $agentId)
+            ->whereHas('productListItem', fn ($q) => $q->whereNull('sold_at'))
+            ->with(['productListItem.product:id,name'])
+            ->get();
+
+        $devicesInHandCount = $custodyItems->count();
+        $custodyProductStats = $custodyItems
+            ->groupBy(fn (AgentProductListAssignment $row) => $row->productListItem?->product_id ?? 0)
+            ->map(function ($group, $productId) {
+                $product = $group->first()->productListItem?->product;
+
+                return [
+                    'product_id' => (int) $productId,
+                    'product_name' => $product?->name ?? '—',
+                    'device_count' => $group->count(),
+                ];
+            })
+            ->sortByDesc('device_count')
+            ->values()
+            ->all();
+
         // Recent sales: finalized AgentSale rows (payment channel selected) come first.
         // Pending sales (no channel yet, older flow) are merged so the agent still sees them;
         // a pending sale whose product_list item now has an agent_sale_id is excluded to avoid duplicates.
@@ -124,7 +146,9 @@ class AgentDashboardController extends Controller
                     'total_assigned' => (int) $totalAssigned,
                     'total_sold' => (int) $totalSold,
                     'total_remaining' => (int) $totalRemaining,
+                    'devices_in_hand_count' => $devicesInHandCount,
                 ],
+                'custody_product_stats' => $custodyProductStats,
                 'recent_sales' => $recentSales,
             ],
         ]);

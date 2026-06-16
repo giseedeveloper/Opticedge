@@ -5,7 +5,9 @@ namespace App\Services;
 use App\Models\AgentAssignment;
 use App\Models\AgentProductListAssignment;
 use App\Models\Product;
+use App\Models\ProductListItem;
 use App\Models\User;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 class RegionalManagerDashboardService
@@ -123,6 +125,14 @@ class RegionalManagerDashboardService
                 ->get();
         }
 
+        $custodyItems = ProductListItem::query()
+            ->inRegionalManagerCustodyForTeamLeaderAssignment((int) $manager->id)
+            ->with('product:id,name')
+            ->get(['id', 'product_id']);
+
+        $devicesInHandCount = $custodyItems->count();
+        $custodyProductStats = $this->groupCustodyItemsByProduct($custodyItems);
+
         $dealersInRegion = 0;
         $customersInRegion = 0;
         if ($manager->region_id) {
@@ -157,6 +167,9 @@ class RegionalManagerDashboardService
                 $sold += (int) ($row->sold ?? 0);
             }
             $im = $teamLeaderImeiStats->get($tl->id);
+            $tlDevicesInHand = ProductListItem::query()
+                ->inTeamLeaderCustodyForAgentAssignment((int) $tl->id)
+                ->count();
 
             return [
                 'team_leader' => [
@@ -171,6 +184,7 @@ class RegionalManagerDashboardService
                 'qty_assigned' => $assigned,
                 'qty_sold' => $sold,
                 'qty_remaining' => max(0, $assigned - $sold),
+                'devices_in_hand' => $tlDevicesInHand,
                 'imei_total' => (int) ($im->imei_total ?? 0),
                 'imei_unsold' => (int) ($im->imei_unsold ?? 0),
                 'imei_sold' => (int) ($im->imei_sold ?? 0),
@@ -222,6 +236,7 @@ class RegionalManagerDashboardService
                 'team_leaders_count' => $teamLeaders->count(),
                 'agents_count' => $agents->count(),
                 'active_agents' => $activeAgents,
+                'devices_in_hand_count' => $devicesInHandCount,
                 'total_assigned' => $totalAssigned,
                 'total_sold' => $totalSold,
                 'total_remaining' => $totalRemaining,
@@ -235,6 +250,29 @@ class RegionalManagerDashboardService
             'team_leader_rollups' => $teamLeaderRollups,
             'agents' => $agentsPayload,
             'product_imei_stats' => $productStatsPayload,
+            'custody_product_stats' => $custodyProductStats,
         ];
+    }
+
+    /**
+     * @param  Collection<int, ProductListItem>  $items
+     * @return list<array{product_id: int, product_name: string, device_count: int}>
+     */
+    private function groupCustodyItemsByProduct(Collection $items): array
+    {
+        return $items
+            ->groupBy(fn (ProductListItem $item) => $item->product_id ?? 0)
+            ->map(function (Collection $group, $productId) {
+                $product = $group->first()->product;
+
+                return [
+                    'product_id' => (int) $productId,
+                    'product_name' => $product?->name ?? '—',
+                    'device_count' => $group->count(),
+                ];
+            })
+            ->sortByDesc('device_count')
+            ->values()
+            ->all();
     }
 }

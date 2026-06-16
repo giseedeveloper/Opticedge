@@ -121,7 +121,7 @@
                             Profile
                         </div>
                     </a>
-                    <form method="POST" action="{{ route('logout') }}">
+                    <form method="POST" action="{{ route('logout') }}" @click.stop>
                         @csrf
                         <button type="submit"
                             class="w-full text-left px-4 py-2.5 text-sm text-slate-700 hover:bg-white/80 hover:text-red-600 rounded-xl mx-1 mb-1">
@@ -561,7 +561,7 @@
                                 Profile
                             </div>
                         </a>
-                        <form method="POST" action="{{ route('logout') }}">
+                        <form method="POST" action="{{ route('logout') }}" @click.stop>
                             @csrf
                             <button type="submit"
                                 class="w-full text-left px-4 py-2.5 text-sm text-slate-700 hover:bg-white/80 hover:text-red-600 flex items-center gap-2 rounded-xl mx-1">

@@ -5,7 +5,9 @@ namespace App\Services;
 use App\Models\AgentAssignment;
 use App\Models\AgentProductListAssignment;
 use App\Models\Product;
+use App\Models\ProductListItem;
 use App\Models\User;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 class TeamLeaderDashboardService
@@ -89,6 +91,14 @@ class TeamLeaderDashboardService
                 ->get();
         }
 
+        $custodyItems = ProductListItem::query()
+            ->inTeamLeaderCustodyForAgentAssignment((int) $leader->id)
+            ->with('product:id,name')
+            ->get(['id', 'product_id']);
+
+        $devicesInHandCount = $custodyItems->count();
+        $custodyProductStats = $this->groupCustodyItemsByProduct($custodyItems);
+
         $agentsPayload = $agents->map(function (User $agent) use ($assignmentTotals, $agentImeiStats) {
             $row = $assignmentTotals->get($agent->id);
             $im = $agentImeiStats->get($agent->id);
@@ -130,6 +140,7 @@ class TeamLeaderDashboardService
             'stats' => [
                 'agents_count' => $agents->count(),
                 'active_agents' => $activeAgents,
+                'devices_in_hand_count' => $devicesInHandCount,
                 'total_assigned' => $totalAssigned,
                 'total_sold' => $totalSold,
                 'total_remaining' => $totalRemaining,
@@ -140,6 +151,29 @@ class TeamLeaderDashboardService
             ],
             'agents' => $agentsPayload,
             'product_imei_stats' => $productStatsPayload,
+            'custody_product_stats' => $custodyProductStats,
         ];
+    }
+
+    /**
+     * @param  Collection<int, ProductListItem>  $items
+     * @return list<array{product_id: int, product_name: string, device_count: int}>
+     */
+    private function groupCustodyItemsByProduct(Collection $items): array
+    {
+        return $items
+            ->groupBy(fn (ProductListItem $item) => $item->product_id ?? 0)
+            ->map(function (Collection $group, $productId) {
+                $product = $group->first()->product;
+
+                return [
+                    'product_id' => (int) $productId,
+                    'product_name' => $product?->name ?? '—',
+                    'device_count' => $group->count(),
+                ];
+            })
+            ->sortByDesc('device_count')
+            ->values()
+            ->all();
     }
 }

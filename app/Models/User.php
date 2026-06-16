@@ -139,6 +139,15 @@ class User extends Authenticatable
     }
 
     /**
+     * Field roles (team leader, regional manager, agent) cannot edit their own name/email.
+     * Tenant admins update those users from the admin directory.
+     */
+    public function canUpdateOwnProfileInformation(): bool
+    {
+        return ! in_array($this->role, ['teamleader', 'regional_manager', 'agent'], true);
+    }
+
+    /**
      * User roles allowed when listing or filtering users by `role` (admin directory tabs, API).
      */
     public static function customerDirectoryRoleFilters(): array

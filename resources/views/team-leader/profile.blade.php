@@ -4,7 +4,7 @@
             <div>
                 <p class="admin-prod-eyebrow">Account</p>
                 <h1 class="admin-prod-title">Profile</h1>
-                <p class="admin-prod-subtitle">Update your name and email, change your password, or close your account.</p>
+                <p class="admin-prod-subtitle">Your name and email are managed by an administrator. You can change your password or close your account below.</p>
             </div>
         </div>
 

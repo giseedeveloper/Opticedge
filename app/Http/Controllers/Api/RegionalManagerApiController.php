@@ -6,10 +6,12 @@ use App\Http\Controllers\Controller;
 use App\Models\AgentProductListAssignment;
 use App\Models\Product;
 use App\Models\ProductListItem;
+use App\Models\TeamLeaderProductTransfer;
 use App\Models\User;
 use App\Services\DeviceHierarchyAssignmentService;
 use App\Services\TeamLeaderProductTransferService;
 use App\Support\AssignableImeiMatcher;
+use App\Support\ImeiListParser;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -218,9 +220,20 @@ class RegionalManagerApiController extends Controller
             'imei' => 'required|string|max:512',
         ]);
 
+        if (! ImeiListParser::isFifteenDigitImei($validated['imei'])) {
+            return response()->json([
+                'valid' => false,
+                'message' => 'IMEI must be exactly 15 digits.',
+                'data' => null,
+            ], 422);
+        }
+
+        $regionalManagerId = (int) Auth::id();
+        $productId = (int) $validated['product_id'];
+
         $query = ProductListItem::assignableToTeamLeaderByRegionalManager(
-            (int) $validated['product_id'],
-            (int) Auth::id()
+            $productId,
+            $regionalManagerId
         );
 
         $match = AssignableImeiMatcher::findMatch($query, $validated['imei']);
@@ -228,7 +241,11 @@ class RegionalManagerApiController extends Controller
         if ($match === null) {
             return response()->json([
                 'valid' => false,
-                'message' => 'No assignable device matches this scan for the selected product.',
+                'message' => $this->explainAssignTeamLeaderImeiFailure(
+                    $validated['imei'],
+                    $productId,
+                    $regionalManagerId
+                ),
                 'data' => null,
             ], 422);
         }
@@ -242,6 +259,55 @@ class RegionalManagerApiController extends Controller
                 'model' => $match->model,
             ],
         ]);
+    }
+
+    private function explainAssignTeamLeaderImeiFailure(string $raw, int $productId, int $regionalManagerId): string
+    {
+        $item = AssignableImeiMatcher::findMatch(
+            ProductListItem::query()->whereNotNull('imei_number'),
+            $raw
+        );
+
+        if ($item === null) {
+            return 'This IMEI was not found in the system.';
+        }
+
+        if ($item->sold_at !== null) {
+            return 'This device has already been sold.';
+        }
+
+        $inCustody = ProductListItem::query()
+            ->inRegionalManagerCustodyForTeamLeaderAssignment($regionalManagerId)
+            ->whereKey($item->id)
+            ->exists();
+
+        if (! $inCustody) {
+            if ($item->teamLeaderProductListAssignment()->exists()) {
+                return 'This device is already assigned to a team leader.';
+            }
+
+            if ($item->agentProductListAssignment()->exists()) {
+                return 'This device is already assigned to an agent.';
+            }
+
+            if ($item->teamLeaderProductTransferItems()
+                ->whereHas('transfer', fn ($q) => $q->where('status', TeamLeaderProductTransfer::STATUS_PENDING))
+                ->exists()) {
+                return 'This device has a pending transfer request.';
+            }
+
+            return 'This device is not in your inventory.';
+        }
+
+        $matchesProduct = ProductListItem::assignableToTeamLeaderByRegionalManager($productId, $regionalManagerId)
+            ->whereKey($item->id)
+            ->exists();
+
+        if (! $matchesProduct) {
+            return 'This IMEI belongs to a different product than the one selected.';
+        }
+
+        return 'No assignable device matches this scan for the selected product.';
     }
 
     public function storeAssignTeamLeader(Request $request, TeamLeaderProductTransferService $transferService)
