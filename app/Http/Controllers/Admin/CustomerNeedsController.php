@@ -36,7 +36,7 @@ class CustomerNeedsController extends Controller
         }
 
         $customerNeedsQuery = CustomerNeed::query()
-            ->with(['agent', 'category', 'product', 'branch'])
+            ->with(['agent', 'teamLeader', 'category', 'product', 'branch'])
             ->whereBetween('created_at', [$start, $end])
             ->latest('id');
 

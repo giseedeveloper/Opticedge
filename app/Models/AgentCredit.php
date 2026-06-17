@@ -11,6 +11,7 @@ class AgentCredit extends Model
 
     protected $fillable = [
         'agent_id',
+        'team_leader_id',
         'tenant_id',
         'customer_name',
         'customer_phone',
@@ -53,6 +54,11 @@ class AgentCredit extends Model
     public function agent()
     {
         return $this->belongsTo(User::class, 'agent_id');
+    }
+
+    public function teamLeader()
+    {
+        return $this->belongsTo(User::class, 'team_leader_id');
     }
 
     public function productListItem()

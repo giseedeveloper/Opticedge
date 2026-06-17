@@ -472,7 +472,7 @@ class StockController extends Controller
 
     public function agentSales(Request $request)
     {
-        $query = AgentSale::with(['product.category', 'agent', 'paymentOption']);
+        $query = AgentSale::with(['product.category', 'agent', 'teamLeader', 'paymentOption']);
         
         // Date range filter
         if ($request->filled('date_from')) {
@@ -496,7 +496,7 @@ class StockController extends Controller
 
     public function exportAgentSalesCsv(Request $request)
     {
-        $query = AgentSale::with(['product.category', 'agent', 'paymentOption']);
+        $query = AgentSale::with(['product.category', 'agent', 'teamLeader', 'paymentOption']);
 
         if ($request->filled('date_from')) {
             $query->whereDate('date', '>=', $request->input('date_from'));

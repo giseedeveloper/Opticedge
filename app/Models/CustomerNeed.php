@@ -11,6 +11,7 @@ class CustomerNeed extends Model
 
     protected $fillable = [
         'agent_id',
+        'team_leader_id',
         'tenant_id',
         'category_id',
         'product_id',
@@ -22,6 +23,11 @@ class CustomerNeed extends Model
     public function agent()
     {
         return $this->belongsTo(User::class, 'agent_id');
+    }
+
+    public function teamLeader()
+    {
+        return $this->belongsTo(User::class, 'team_leader_id');
     }
 
     public function category()

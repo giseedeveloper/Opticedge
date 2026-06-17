@@ -6,7 +6,7 @@
             <div>
                 <p class="admin-prod-eyebrow">Management</p>
                 <h1 class="admin-prod-title">Customer leads</h1>
-                <p class="admin-prod-subtitle">Category and model requests submitted by agents from the app (Record Sale → Lead).</p>
+                <p class="admin-prod-subtitle">Category and model requests submitted from the app (Record Sale → Lead) by agents and team leaders.</p>
             </div>
         </div>
 
@@ -35,7 +35,7 @@
                     <thead class="text-xs text-slate-500 uppercase border-b border-slate-200">
                         <tr>
                             <th class="py-3 pr-4">Submitted</th>
-                            <th class="py-3 pr-4">Agent</th>
+                            <th class="py-3 pr-4">Submitted by</th>
                             <th class="py-3 pr-4">Customer</th>
                             <th class="py-3 pr-4">Phone</th>
                             <th class="py-3 pr-4">Branch</th>
@@ -47,7 +47,7 @@
                         @forelse($customerNeeds as $n)
                             <tr>
                                 <td class="py-3 pr-4 whitespace-nowrap align-top">{{ $n->created_at?->format('Y-m-d H:i') ?? '—' }}</td>
-                                <td class="py-3 pr-4 align-top break-words">{{ $n->agent?->name ?? '—' }}</td>
+                                <td class="py-3 pr-4 align-top break-words">{{ $n->teamLeader?->name ?? $n->agent?->name ?? '—' }}</td>
                                 <td class="py-3 pr-4 align-top break-words">{{ $n->customer_name ?? '—' }}</td>
                                 <td class="py-3 pr-4 align-top break-words">{{ $n->customer_phone ?? '—' }}</td>
                                 <td class="py-3 pr-4 align-top break-words">{{ $n->branch?->name ?? '—' }}</td>

@@ -26,7 +26,7 @@ class AdminLeadsReportApiController extends Controller
         }
 
         $needs = CustomerNeed::query()
-            ->with(['agent:id,name', 'category:id,name', 'product:id,name', 'branch:id,name'])
+            ->with(['agent:id,name', 'teamLeader:id,name', 'category:id,name', 'product:id,name', 'branch:id,name'])
             ->whereBetween('created_at', [$start, $end])
             ->latest('id')
             ->limit(500)
@@ -35,6 +35,9 @@ class AdminLeadsReportApiController extends Controller
                 'id' => $n->id,
                 'created_at' => $n->created_at?->toISOString(),
                 'agent_name' => $n->agent?->name,
+                'team_leader_name' => $n->teamLeader?->name,
+                'submitter_name' => $n->teamLeader?->name ?? $n->agent?->name,
+                'submitter_type' => $n->team_leader_id ? 'team_leader' : 'agent',
                 'category_name' => $n->category?->name,
                 'product_name' => $n->product?->name,
                 'branch_name' => $n->branch?->name,

@@ -12,6 +12,7 @@ class AgentSale extends Model
 
     protected $fillable = [
         'agent_id',
+        'team_leader_id',
         'tenant_id',
         'customer_name',
         'seller_name',
@@ -44,6 +45,11 @@ class AgentSale extends Model
     public function agent()
     {
         return $this->belongsTo(User::class, 'agent_id');
+    }
+
+    public function teamLeader()
+    {
+        return $this->belongsTo(User::class, 'team_leader_id');
     }
 
     public function paymentOption()
