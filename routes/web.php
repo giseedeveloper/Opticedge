@@ -526,6 +526,12 @@ Route::middleware(['auth', 'verified', 'active', 'teamleader'])->prefix('team-le
     Route::get('transfers', [App\Http\Controllers\TeamLeader\ProductTransferController::class, 'index'])->name('transfers.index');
     Route::post('transfers/{transfer}/accept', [App\Http\Controllers\TeamLeader\ProductTransferController::class, 'accept'])->name('transfers.accept');
     Route::post('transfers/{transfer}/decline', [App\Http\Controllers\TeamLeader\ProductTransferController::class, 'decline'])->name('transfers.decline');
+    Route::get('record-sale', [App\Http\Controllers\TeamLeader\SaleController::class, 'recordSale'])->name('record-sale');
+    Route::post('record-sale', [App\Http\Controllers\TeamLeader\SaleController::class, 'storeCreditSale'])->name('record-sale.store');
+    Route::get('credit-sales', [App\Http\Controllers\TeamLeader\SaleController::class, 'creditSales'])->name('credit-sales');
+    Route::get('leads', [App\Http\Controllers\TeamLeader\SaleController::class, 'leads'])->name('leads');
+    Route::post('leads', [App\Http\Controllers\TeamLeader\SaleController::class, 'storeLead'])->name('leads.store');
+    Route::get('leads/products/{category}', [App\Http\Controllers\TeamLeader\SaleController::class, 'productsForCategory'])->name('leads.products');
     Route::get('profile', [App\Http\Controllers\TeamLeaderController::class, 'profile'])->name('profile');
     Route::get('orders', [App\Http\Controllers\TeamLeaderController::class, 'orders'])->name('orders');
     Route::get('cart', [App\Http\Controllers\TeamLeaderController::class, 'cart'])->name('cart');
