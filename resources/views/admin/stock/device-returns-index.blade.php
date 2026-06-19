@@ -5,8 +5,8 @@
         <div class="admin-prod-toolbar">
             <div>
                 <p class="admin-prod-eyebrow">Stock</p>
-                <h1 class="admin-prod-title">Device return requests</h1>
-                <p class="admin-prod-subtitle">Regional managers return devices to admin stock. Accept or decline each pending request.</p>
+                <h1 class="admin-prod-title">Device return</h1>
+                <p class="admin-prod-subtitle">All device return requests — agent to team leader, team leader to regional manager, and regional manager to admin.</p>
             </div>
         </div>
 
@@ -31,11 +31,13 @@
         </form>
 
         <div class="admin-clay-panel overflow-x-auto">
-            <table class="min-w-[900px] w-full text-sm">
+            <table class="min-w-[1100px] w-full text-sm">
                 <thead>
                     <tr class="border-b border-slate-200">
                         <th class="px-4 py-3 text-left font-semibold text-slate-900">Created</th>
-                        <th class="px-4 py-3 text-left font-semibold text-slate-900">From regional manager</th>
+                        <th class="px-4 py-3 text-left font-semibold text-slate-900">Route</th>
+                        <th class="px-4 py-3 text-left font-semibold text-slate-900">From</th>
+                        <th class="px-4 py-3 text-left font-semibold text-slate-900">To</th>
                         <th class="px-4 py-3 text-left font-semibold text-slate-900">Units</th>
                         <th class="px-4 py-3 text-left font-semibold text-slate-900">Status</th>
                         <th class="px-4 py-3 text-right font-semibold text-slate-900">Action</th>
@@ -44,47 +46,64 @@
                 <tbody>
                     @forelse($returns as $r)
                         <tr class="border-b border-slate-100">
-                            <td class="px-4 py-3 text-slate-600">{{ $r->created_at->format('Y-m-d H:i') }}</td>
-                            <td class="px-4 py-3">{{ $r->fromRegionalManager->name ?? '—' }}<br><span class="text-xs text-slate-500">{{ $r->fromRegionalManager->email ?? '' }}</span></td>
-                            <td class="px-4 py-3">{{ $r->items->count() }}</td>
+                            <td class="px-4 py-3 text-slate-600">{{ $r['created_at']?->format('Y-m-d H:i') ?? '—' }}</td>
+                            <td class="px-4 py-3 text-slate-700">{{ $r['route_label'] }}</td>
+                            <td class="px-4 py-3">
+                                {{ $r['from_name'] }}
+                                @if($r['from_email'])
+                                    <br><span class="text-xs text-slate-500">{{ $r['from_email'] }}</span>
+                                @endif
+                            </td>
+                            <td class="px-4 py-3">
+                                {{ $r['to_name'] }}
+                                @if($r['to_email'])
+                                    <br><span class="text-xs text-slate-500">{{ $r['to_email'] }}</span>
+                                @endif
+                            </td>
+                            <td class="px-4 py-3">{{ $r['units'] }}</td>
                             <td class="px-4 py-3">
                                 <span class="inline-flex rounded-full px-2 py-0.5 text-xs font-medium
-                                    @if($r->status === 'pending') bg-amber-100 text-amber-900
-                                    @elseif($r->status === 'approved') bg-green-100 text-green-900
-                                    @elseif($r->status === 'rejected') bg-red-100 text-red-900
+                                    @if($r['status'] === 'pending') bg-amber-100 text-amber-900
+                                    @elseif($r['status'] === 'approved') bg-green-100 text-green-900
+                                    @elseif($r['status'] === 'rejected') bg-red-100 text-red-900
                                     @else bg-slate-100 text-slate-700 @endif">
-                                    {{ ucfirst($r->status) }}
+                                    {{ ucfirst($r['status']) }}
                                 </span>
                             </td>
                             <td class="px-4 py-3 text-right">
-                                @if($r->status === 'pending')
-                                    <div class="flex justify-end gap-2">
-                                        <form method="POST" action="{{ route('admin.stock.device-returns.accept', $r->id) }}" class="inline"
+                                <div class="flex justify-end items-center gap-3">
+                                    <a href="{{ $r['show_url'] }}" class="text-sm font-medium text-[#fa8900] hover:underline">View</a>
+                                    @if(!empty($r['can_admin_accept']))
+                                        <form method="POST" action="{{ $r['accept_url'] }}" class="inline"
                                             onsubmit="return confirm('Accept this return? Devices will be added to admin stock.');">
                                             @csrf
                                             <button type="submit" class="text-xs font-medium text-green-700 hover:text-green-900">Accept</button>
                                         </form>
-                                        <form method="POST" action="{{ route('admin.stock.device-returns.decline', $r->id) }}" class="inline"
+                                        <form method="POST" action="{{ $r['decline_url'] }}" class="inline"
                                             onsubmit="return confirm('Decline this return request?');">
                                             @csrf
                                             <button type="submit" class="text-xs font-medium text-red-600 hover:text-red-800">Decline</button>
                                         </form>
-                                    </div>
-                                @endif
+                                    @endif
+                                </div>
                             </td>
                         </tr>
-                        @if($r->message || $r->recipient_note)
+                        @if(!empty($r['message']) || !empty($r['recipient_note']))
                             <tr class="bg-slate-50/80">
-                                <td colspan="5" class="px-4 py-2 text-xs text-slate-600">
-                                    @if($r->message)<span class="font-medium text-slate-700">Regional manager note:</span> {{ $r->message }}@endif
-                                    @if($r->message && $r->recipient_note)<br>@endif
-                                    @if($r->recipient_note)<span class="font-medium text-slate-700">Admin response:</span> {{ $r->recipient_note }}@endif
+                                <td colspan="7" class="px-4 py-2 text-xs text-slate-600">
+                                    @if(!empty($r['message']))
+                                        <span class="font-medium text-slate-700">Sender note:</span> {{ $r['message'] }}
+                                    @endif
+                                    @if(!empty($r['message']) && !empty($r['recipient_note']))<br>@endif
+                                    @if(!empty($r['recipient_note']))
+                                        <span class="font-medium text-slate-700">Recipient response:</span> {{ $r['recipient_note'] }}
+                                    @endif
                                 </td>
                             </tr>
                         @endif
                     @empty
                         <tr>
-                            <td colspan="5" class="px-4 py-8 text-center text-slate-500">No device return requests yet.</td>
+                            <td colspan="7" class="px-4 py-8 text-center text-slate-500">No device return requests yet.</td>
                         </tr>
                     @endforelse
                 </tbody>

@@ -8,7 +8,7 @@
                 <h1 class="admin-prod-title">Request #{{ $transfer->id }}</h1>
                 <p class="admin-prod-subtitle">Full details. Pending transfers wait for the receiving agent to accept or decline.</p>
             </div>
-            <a href="{{ route('admin.stock.agent-transfers') }}" class="admin-prod-btn-ghost shrink-0">Back to list</a>
+            <a href="{{ route('admin.stock.device-transfers') }}" class="admin-prod-btn-ghost shrink-0">Back to list</a>
         </div>
 
         @if(session('success'))

@@ -285,7 +285,9 @@
                     'admin.stock.branch-transfer.items',
                     'admin.stock.branch-transfer.logs',
                 ]);
-                $navStockAgentTransfers = request()->routeIs([
+                $navStockDeviceTransfers = request()->routeIs([
+                    'admin.stock.device-transfers',
+                    'admin.stock.device-transfers.*',
                     'admin.stock.agent-transfers',
                     'admin.stock.agent-transfers.*',
                 ]);
@@ -425,16 +427,16 @@
                                 <a href="{{ route('admin.stock.branch-transfer') }}"
                                     @if ($navStockBranchTransfer) aria-current="page" @endif
                                     class="admin-sidebar-sublink {{ $navStockBranchTransfer ? 'admin-sidebar-sublink-active' : '' }}">Branch transfer</a>
-                                <a href="{{ route('admin.stock.agent-transfers') }}"
-                                    @if ($navStockAgentTransfers) aria-current="page" @endif
-                                    class="admin-sidebar-sublink admin-sidebar-sublink-with-badge {{ $navStockAgentTransfers ? 'admin-sidebar-sublink-active' : '' }}">
-                                    <span>Agent transfers</span>
+                                <a href="{{ route('admin.stock.device-transfers') }}"
+                                    @if ($navStockDeviceTransfers) aria-current="page" @endif
+                                    class="admin-sidebar-sublink admin-sidebar-sublink-with-badge {{ $navStockDeviceTransfers ? 'admin-sidebar-sublink-active' : '' }}">
+                                    <span>Device transfer</span>
                                     <x-portal-pending-badge :count="$portalPendingCounts['pending_transfer_requests'] ?? 0" />
                                 </a>
                                 <a href="{{ route('admin.stock.device-returns') }}"
                                     @if ($navStockDeviceReturns) aria-current="page" @endif
                                     class="admin-sidebar-sublink admin-sidebar-sublink-with-badge {{ $navStockDeviceReturns ? 'admin-sidebar-sublink-active' : '' }}">
-                                    <span>Device returns</span>
+                                    <span>Device return</span>
                                     <x-portal-pending-badge :count="$portalPendingCounts['pending_return_requests'] ?? 0" />
                                 </a>
                             </div>

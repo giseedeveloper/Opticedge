@@ -1,27 +1,57 @@
 <x-admin-layout>
     @include('admin.partials.catalog-styles')
-    
-    <style>
-        .field-error input, .field-error select, .field-error textarea {
-            border-color: #ef4444 !important;
-            background-color: #fee2e2;
-        }
-        .field-valid input {
-            border-color: #10b981 !important;
-        }
-        .helper-text {
-            font-size: 0.75rem;
-            color: #64748b;
-            margin-top: 0.375rem;
-        }
-    </style>
 
-    <div class="admin-prod-page admin-prod-form-wide">
+    @push('styles')
+        <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+        <style>
+            .helper-text {
+                font-size: 0.75rem;
+                color: #64748b;
+                margin-top: 0.375rem;
+            }
+            .admin-prod-select2-wrap .select2-container--default .select2-selection--single {
+                min-height: 42px;
+                padding: 6px 8px;
+                border-color: #cbd5e1;
+            }
+            .admin-prod-select2-wrap .select2-container--default .select2-selection--single .select2-selection__rendered {
+                line-height: 28px;
+            }
+            .admin-prod-select2-wrap .select2-container--default .select2-selection--single .select2-selection__arrow {
+                height: 40px;
+            }
+            .price-summary {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
+                gap: 0.75rem;
+            }
+            .price-summary__item {
+                padding: 0.75rem;
+                border-radius: 0.5rem;
+                background: #f8fafc;
+                border: 1px solid #e2e8f0;
+            }
+            .price-summary__label {
+                font-size: 0.6875rem;
+                text-transform: uppercase;
+                letter-spacing: 0.04em;
+                color: #64748b;
+            }
+            .price-summary__value {
+                font-size: 0.9375rem;
+                font-weight: 700;
+                color: #0f172a;
+                margin-top: 0.25rem;
+            }
+        </style>
+    @endpush
+
+    <div class="admin-prod-page admin-prod-form-wide admin-prod-select2-wrap">
         <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between mb-8">
             <div>
                 <p class="admin-prod-eyebrow">Agents</p>
-                <h1 class="admin-prod-title">Create agent sale</h1>
-                <p class="admin-prod-subtitle">Record a manual agent sale.</p>
+                <h1 class="admin-prod-title">Record manual agent sale</h1>
+                <p class="admin-prod-subtitle">Customer name → purchase → model → quantity → sell price from that purchase.</p>
             </div>
             <a href="{{ route('admin.stock.agent-sales') }}" class="admin-prod-back shrink-0">Back to list</a>
         </div>
@@ -32,18 +62,10 @@
             </div>
             <form method="POST" action="{{ route('admin.stock.store-agent-sale') }}" class="admin-prod-form-body space-y-6" id="sale-form">
                 @csrf
+                <input type="hidden" name="seller_name" value="{{ old('seller_name', auth()->user()->name) }}">
 
                 <div>
-                    <label for="date" class="admin-prod-label">Date <span class="text-red-500">*</span></label>
-                    <input id="date" type="date" name="date" value="{{ old('date', date('Y-m-d')) }}" required autofocus max="{{ date('Y-m-d') }}" class="admin-prod-input">
-                    @error('date')
-                        <p class="text-red-600 text-xs mt-1.5 font-semibold">{{ $message }}</p>
-                    @enderror
-                    <p class="helper-text">Date cannot be in the future</p>
-                </div>
-
-                <div>
-                    <label for="customer_name" class="admin-prod-label">Customer name <span class="text-red-500">*</span></label>
+                    <label for="customer_name" class="admin-prod-label">1. Customer name <span class="text-red-500">*</span></label>
                     <input id="customer_name" type="text" name="customer_name" value="{{ old('customer_name') }}" placeholder="Customer name" required class="admin-prod-input">
                     @error('customer_name')
                         <p class="text-red-600 text-xs mt-1.5 font-semibold">{{ $message }}</p>
@@ -51,190 +73,310 @@
                 </div>
 
                 <div>
-                    <label for="seller_name" class="admin-prod-label">Seller name</label>
-                    <input id="seller_name" type="text" name="seller_name" value="{{ old('seller_name', auth()->user()->name) }}" class="admin-prod-input" disabled>
-                    <p class="helper-text">Auto-filled from your account</p>
+                    <label for="date" class="admin-prod-label">Date <span class="text-red-500">*</span></label>
+                    <input id="date" type="date" name="date" value="{{ old('date', date('Y-m-d')) }}" required max="{{ date('Y-m-d') }}" class="admin-prod-input">
+                    @error('date')
+                        <p class="text-red-600 text-xs mt-1.5 font-semibold">{{ $message }}</p>
+                    @enderror
                 </div>
 
                 <div>
-                    <label for="product_id" class="admin-prod-label">Product (stock items) <span class="text-red-500">*</span></label>
-                    <select id="product_id" name="product_id" required class="admin-prod-select">
-                        <option value="">Select product</option>
-                        @foreach($products as $product)
-                            <option value="{{ $product->id }}" data-available="0" @selected(old('product_id') == $product->id)>
-                                {{ $product->name }} ({{ $product->category->name ?? 'No category' }})
+                    <label for="purchase_id" class="admin-prod-label">2. Purchase <span class="text-red-500">*</span></label>
+                    <select id="purchase_id" name="purchase_id" required class="admin-prod-select">
+                        <option value="">Select purchase</option>
+                        @foreach($purchases as $purchase)
+                            @php
+                                $invoiceNo = $purchase->name ?? ('Purchase #' . $purchase->id);
+                                $purchaseLabel = 'Inv no. ' . $invoiceNo;
+                                $models = collect();
+                                if (($purchase->lines ?? collect())->isNotEmpty()) {
+                                    $models = $purchase->lines->map(fn ($line) => $line->product?->name)->filter()->unique();
+                                } elseif ($purchase->product) {
+                                    $models = collect([$purchase->product->name]);
+                                }
+                                if ($models->isNotEmpty()) {
+                                    $purchaseLabel .= ' — ' . $models->implode(', ');
+                                }
+                            @endphp
+                            <option value="{{ $purchase->id }}" @selected((string) old('purchase_id') === (string) $purchase->id)>
+                                {{ $purchaseLabel }}
                             </option>
                         @endforeach
+                    </select>
+                    @error('purchase_id')
+                        <p class="text-red-600 text-xs mt-1.5 font-semibold">{{ $message }}</p>
+                    @enderror
+                    <p class="helper-text">Only models and warehouse stock linked to this purchase can be sold.</p>
+                </div>
+
+                <div>
+                    <label for="product_id" class="admin-prod-label">3. Model on this purchase <span class="text-red-500">*</span></label>
+                    <select id="product_id" name="product_id" required class="admin-prod-select" disabled>
+                        <option value="">Select a purchase first</option>
                     </select>
                     @error('product_id')
                         <p class="text-red-600 text-xs mt-1.5 font-semibold">{{ $message }}</p>
                     @enderror
-                    <p class="helper-text">Available: <span id="available-qty">—</span> units</p>
+                    <p class="helper-text" id="product-hint">Select a purchase to load models with available quantity.</p>
+                </div>
+
+                <div class="price-summary hidden" id="price-summary">
+                    <div class="price-summary__item">
+                        <div class="price-summary__label">Unit buy (purchase)</div>
+                        <div class="price-summary__value" id="unit-buy-display">—</div>
+                    </div>
+                    <div class="price-summary__item">
+                        <div class="price-summary__label">Suggested sell</div>
+                        <div class="price-summary__value" id="suggested-sell-display">—</div>
+                    </div>
+                    <div class="price-summary__item">
+                        <div class="price-summary__label">Available</div>
+                        <div class="price-summary__value" id="available-display">—</div>
+                    </div>
                 </div>
 
                 <div>
-                    <label for="quantity_sold" class="admin-prod-label">Quantity sold <span class="text-red-500">*</span></label>
-                    <input id="quantity_sold" type="number" name="quantity_sold" value="{{ old('quantity_sold') }}" required min="1" class="admin-prod-input">
+                    <label for="quantity_sold" class="admin-prod-label">4. Quantity <span class="text-red-500">*</span></label>
+                    <input id="quantity_sold" type="number" name="quantity_sold" value="{{ old('quantity_sold', 1) }}" required min="1" class="admin-prod-input" disabled>
                     @error('quantity_sold')
                         <p class="text-red-600 text-xs mt-1.5 font-semibold">{{ $message }}</p>
                     @enderror
-                    <p class="helper-text" id="qty-error" style="color: #ef4444; display: none;"></p>
+                    <p class="helper-text" id="qty-hint">Choose a model to see how many devices are available.</p>
                 </div>
 
                 <div>
-                    <label for="selling_price" class="admin-prod-label">Selling price per unit <span class="text-red-500">*</span></label>
-                    <input id="selling_price" type="number" step="0.01" name="selling_price" value="{{ old('selling_price') }}" required min="0" class="admin-prod-input">
+                    <label for="selling_price" class="admin-prod-label">5. Selling price per unit (TZS) <span class="text-red-500">*</span></label>
+                    <input id="selling_price" type="number" step="0.01" name="selling_price" value="{{ old('selling_price') }}" required min="0" class="admin-prod-input" disabled>
                     @error('selling_price')
                         <p class="text-red-600 text-xs mt-1.5 font-semibold">{{ $message }}</p>
                     @enderror
-                    <p class="helper-text">Must be greater than 0</p>
+                    <p class="helper-text">Prefilled from the purchase sell price — you can adjust if needed.</p>
                 </div>
 
                 <div class="bg-slate-50 border border-slate-200 rounded-lg p-4">
                     <div class="flex justify-between items-center">
-                        <span class="font-semibold text-slate-900">Total amount:</span>
-                        <span class="text-2xl font-bold text-slate-900">{{ number_format(0, 2) }} TZS</span>
+                        <span class="font-semibold text-slate-900">Total amount</span>
+                        <span id="total-amount-display" class="text-2xl font-bold text-slate-900">0.00 TZS</span>
                     </div>
                     <input type="hidden" id="total-amount" name="total_amount" value="0">
-                    <p class="text-xs text-slate-600 mt-2">Calculated as: Quantity × Selling Price per Unit</p>
-                </div>
-
-                <div>
-                    <label for="paid_amount" class="admin-prod-label">Initial payment (if any)</label>
-                    <input id="paid_amount" type="number" step="0.01" name="paid_amount" value="{{ old('paid_amount', 0) }}" min="0" class="admin-prod-input">
-                    @error('paid_amount')
-                        <p class="text-red-600 text-xs mt-1.5 font-semibold">{{ $message }}</p>
-                    @enderror
-                    <p class="helper-text" id="payment-status"></p>
+                    <p class="text-xs text-slate-600 mt-2">Quantity × selling price per unit</p>
                 </div>
 
                 <div class="admin-prod-form-footer !mt-0 !pt-0 !border-0 !shadow-none">
                     <a href="{{ route('admin.stock.agent-sales') }}" class="admin-prod-btn-ghost">Cancel</a>
-                    <button type="submit" class="admin-prod-btn-primary px-8" id="submit-btn" onclick="return validateForm()">Record sale</button>
+                    <button type="submit" class="admin-prod-btn-primary px-8 opacity-50 cursor-not-allowed" id="submit-btn" disabled>Record sale</button>
                 </div>
             </form>
         </div>
     </div>
 
-    <script>
-        function validateForm() {
-            const form = document.getElementById('sale-form');
-            const customerName = document.getElementById('customer_name').value.trim();
-            const productId = document.getElementById('product_id').value;
-            const quantity = parseFloat(document.getElementById('quantity_sold').value) || 0;
-            const price = parseFloat(document.getElementById('selling_price').value) || 0;
-            
-            if (!customerName) {
-                alert('❌ Please enter customer name');
-                document.getElementById('customer_name').focus();
-                return false;
+    @push('scripts')
+        <script src="https://code.jquery.com/jquery-3.7.1.min.js" crossorigin="anonymous"></script>
+        <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+        <script>
+            const PURCHASE_MODELS_URL = @json(route('admin.stock.agent-sale-purchase-models', ['purchase' => '__ID__']));
+            const PRODUCT_META = {};
+            const oldProductId = @json(old('product_id'));
+            const oldPurchaseId = @json(old('purchase_id'));
+
+            const purchaseSelect = document.getElementById('purchase_id');
+            const productSelect = document.getElementById('product_id');
+            const quantityInput = document.getElementById('quantity_sold');
+            const priceInput = document.getElementById('selling_price');
+            const totalDisplay = document.getElementById('total-amount-display');
+            const totalHidden = document.getElementById('total-amount');
+            const submitBtn = document.getElementById('submit-btn');
+            const productHint = document.getElementById('product-hint');
+            const qtyHint = document.getElementById('qty-hint');
+            const priceSummary = document.getElementById('price-summary');
+
+            function formatCurrency(value) {
+                return new Intl.NumberFormat('en-US', {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                }).format(value) + ' TZS';
             }
-            
-            if (!productId) {
-                alert('❌ Please select a product');
-                document.getElementById('product_id').focus();
-                return false;
+
+            function selectedMeta() {
+                const id = productSelect.value;
+                return id ? PRODUCT_META[id] : null;
             }
-            
-            if (quantity <= 0) {
-                alert('❌ Quantity must be greater than 0');
-                document.getElementById('quantity_sold').focus();
-                return false;
+
+            function updateProductSummary() {
+                const meta = selectedMeta();
+                if (!meta) {
+                    priceSummary.classList.add('hidden');
+                    quantityInput.disabled = true;
+                    priceInput.disabled = true;
+                    qtyHint.textContent = 'Choose a model to see how many devices are available.';
+                    return;
+                }
+
+                priceSummary.classList.remove('hidden');
+                document.getElementById('unit-buy-display').textContent = formatCurrency(meta.unit_price || 0);
+                document.getElementById('suggested-sell-display').textContent = formatCurrency(meta.sell_price || 0);
+                document.getElementById('available-display').textContent = String(meta.available_units || 0) + ' device' + ((meta.available_units || 0) === 1 ? '' : 's');
+
+                quantityInput.disabled = meta.available_units <= 0;
+                priceInput.disabled = meta.available_units <= 0;
+                quantityInput.max = meta.available_units > 0 ? String(meta.available_units) : '';
+                qtyHint.textContent = meta.available_units > 0
+                    ? 'Up to ' + meta.available_units + ' device(s) available on this purchase.'
+                    : 'No warehouse stock left for this model on the selected purchase.';
+
+                if (meta.available_units > 0 && (!priceInput.value || parseFloat(priceInput.value) <= 0)) {
+                    priceInput.value = meta.sell_price || meta.unit_price || '';
+                }
             }
-            
-            if (price <= 0) {
-                alert('❌ Selling price must be greater than 0');
-                document.getElementById('selling_price').focus();
-                return false;
+
+            function calculateTotal() {
+                const quantity = parseFloat(quantityInput.value) || 0;
+                const price = parseFloat(priceInput.value) || 0;
+                const total = quantity * price;
+                totalDisplay.textContent = formatCurrency(total);
+                totalHidden.value = total;
+                validateSubmit();
             }
-            
-            return confirm('✓ Confirm record sale?\n\nCustomer: ' + customerName + '\nQuantity: ' + quantity + '\nPrice: ' + price.toFixed(2) + ' TZS');
-        }
 
-    <script>
-        const quantityInput = document.getElementById('quantity_sold');
-        const priceInput = document.getElementById('selling_price');
-        const paidAmountInput = document.getElementById('paid_amount');
-        const totalAmountDisplay = document.querySelector('.bg-slate-50 .text-2xl');
-        const totalAmountInput = document.getElementById('total-amount');
-        const submitBtn = document.getElementById('submit-btn');
-        const paymentStatus = document.getElementById('payment-status');
-        const qtyError = document.getElementById('qty-error');
-        const productSelect = document.getElementById('product_id');
+            function validateSubmit() {
+                const meta = selectedMeta();
+                const quantity = parseInt(quantityInput.value, 10) || 0;
+                const price = parseFloat(priceInput.value) || 0;
+                const customerName = document.getElementById('customer_name').value.trim();
+                const purchaseOk = purchaseSelect.value !== '';
+                const productOk = productSelect.value !== '';
+                const qtyOk = meta && quantity > 0 && quantity <= (meta.available_units || 0);
+                const ok = customerName && purchaseOk && productOk && qtyOk && price > 0;
 
-        function formatCurrency(value) {
-            return new Intl.NumberFormat('en-US', {
-                style: 'decimal',
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2
-            }).format(value);
-        }
-
-        function calculateTotal() {
-            const quantity = parseFloat(quantityInput.value) || 0;
-            const price = parseFloat(priceInput.value) || 0;
-            const total = quantity * price;
-            
-            totalAmountDisplay.textContent = formatCurrency(total) + ' TZS';
-            totalAmountInput.value = total;
-            
-            updatePaymentStatus();
-            validateSubmit();
-        }
-
-        function updatePaymentStatus() {
-            const total = parseFloat(totalAmountInput.value) || 0;
-            const paid = parseFloat(paidAmountInput.value) || 0;
-            const remaining = total - paid;
-
-            if (total === 0) {
-                paymentStatus.textContent = '';
-                paymentStatus.style.color = '#64748b';
-            } else if (paid === 0) {
-                paymentStatus.textContent = 'Unpaid';
-                paymentStatus.style.color = '#ef4444';
-            } else if (paid >= total) {
-                paymentStatus.textContent = '✓ Fully paid';
-                paymentStatus.style.color = '#10b981';
-            } else {
-                paymentStatus.textContent = 'Partially paid • Remaining: ' + formatCurrency(remaining) + ' TZS';
-                paymentStatus.style.color = '#f59e0b';
+                submitBtn.disabled = !ok;
+                submitBtn.classList.toggle('opacity-50', !ok);
+                submitBtn.classList.toggle('cursor-not-allowed', !ok);
             }
-        }
 
-        function validateSubmit() {
-            const quantity = parseFloat(quantityInput.value) || 0;
-            const price = parseFloat(priceInput.value) || 0;
-            const total = parseFloat(totalAmountInput.value) || 0;
-            const customerName = document.getElementById('customer_name').value.trim();
-            const productSelected = productSelect.value !== '';
-
-            if (quantity > 0 && price > 0 && total > 0 && customerName && productSelected) {
-                submitBtn.disabled = false;
-                submitBtn.classList.remove('opacity-50', 'cursor-not-allowed');
-            } else {
-                submitBtn.disabled = true;
-                submitBtn.classList.add('opacity-50', 'cursor-not-allowed');
+            function resetProductSelect(message) {
+                if (window.jQuery && jQuery.fn.select2 && jQuery(productSelect).data('select2')) {
+                    jQuery(productSelect).select2('destroy');
+                }
+                productSelect.innerHTML = '';
+                const opt = document.createElement('option');
+                opt.value = '';
+                opt.textContent = message || 'Select a purchase first';
+                productSelect.appendChild(opt);
+                productSelect.disabled = true;
+                Object.keys(PRODUCT_META).forEach(function (k) { delete PRODUCT_META[k]; });
+                updateProductSummary();
+                calculateTotal();
             }
-        }
 
-        quantityInput.addEventListener('input', calculateTotal);
-        priceInput.addEventListener('input', calculateTotal);
-        paidAmountInput.addEventListener('change', updatePaymentStatus);
-        document.getElementById('customer_name').addEventListener('input', validateSubmit);
-        productSelect.addEventListener('change', validateSubmit);
-
-        // Initial calculation and validation
-        calculateTotal();
-        validateSubmit();
-
-        // Form submission
-        document.getElementById('sale-form').addEventListener('submit', function(e) {
-            if (!submitBtn.disabled) {
-                // Form will submit normally
-                return true;
+            function initProductSelect2() {
+                if (!window.jQuery || !jQuery.fn.select2) return;
+                jQuery(productSelect).select2({
+                    placeholder: 'Select model on this purchase',
+                    width: '100%',
+                    allowClear: false,
+                });
+                jQuery(productSelect).off('change').on('change', function () {
+                    updateProductSummary();
+                    calculateTotal();
+                });
             }
-            e.preventDefault();
-        });
-    </script>
+
+            function loadModelsForPurchase(purchaseId, preselectProductId) {
+                if (!purchaseId) {
+                    resetProductSelect();
+                    productHint.textContent = 'Select a purchase to load models with available quantity.';
+                    return;
+                }
+
+                resetProductSelect('Loading models…');
+                productHint.textContent = 'Loading models for this purchase…';
+
+                fetch(PURCHASE_MODELS_URL.replace('__ID__', encodeURIComponent(purchaseId)), {
+                    headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                    credentials: 'same-origin',
+                })
+                    .then(function (r) { return r.json(); })
+                    .then(function (json) {
+                        const rows = (json && json.data) ? json.data : [];
+                        resetProductSelect(rows.length ? 'Select model' : 'No models on this purchase');
+
+                        rows.forEach(function (row) {
+                            const id = String(row.product_id);
+                            PRODUCT_META[id] = row;
+                            const option = document.createElement('option');
+                            option.value = id;
+                            option.textContent = row.picker_label || row.label;
+                            if (row.available_units <= 0) {
+                                option.disabled = true;
+                            }
+                            productSelect.appendChild(option);
+                        });
+
+                        productSelect.disabled = rows.length === 0;
+                        initProductSelect2();
+
+                        const withStock = rows.filter(function (r) { return (r.available_units || 0) > 0; }).length;
+                        productHint.textContent = rows.length
+                            ? rows.length + ' model(s) on this purchase — ' + withStock + ' with stock available.'
+                            : 'No models on this purchase. Register IMEIs on the purchase first.';
+
+                        if (preselectProductId && PRODUCT_META[String(preselectProductId)]) {
+                            productSelect.value = String(preselectProductId);
+                            if (window.jQuery) {
+                                jQuery(productSelect).val(String(preselectProductId)).trigger('change.select2');
+                            }
+                        }
+
+                        updateProductSummary();
+                        calculateTotal();
+                    })
+                    .catch(function () {
+                        resetProductSelect('Could not load models');
+                        productHint.textContent = 'Could not load models for this purchase.';
+                    });
+            }
+
+            purchaseSelect.addEventListener('change', function () {
+                loadModelsForPurchase(purchaseSelect.value, null);
+            });
+
+            quantityInput.addEventListener('input', calculateTotal);
+            priceInput.addEventListener('input', calculateTotal);
+            document.getElementById('customer_name').addEventListener('input', validateSubmit);
+
+            document.getElementById('sale-form').addEventListener('submit', function (e) {
+                const meta = selectedMeta();
+                const quantity = parseInt(quantityInput.value, 10) || 0;
+                if (!meta || quantity <= 0 || quantity > (meta.available_units || 0)) {
+                    e.preventDefault();
+                    alert('Quantity exceeds available stock on this purchase.');
+                    return false;
+                }
+                const customerName = document.getElementById('customer_name').value.trim();
+                const price = parseFloat(priceInput.value) || 0;
+                if (!confirm('Record agent sale?\n\nCustomer: ' + customerName + '\nQuantity: ' + quantity + '\nUnit price: ' + formatCurrency(price) + '\nTotal: ' + formatCurrency(quantity * price))) {
+                    e.preventDefault();
+                    return false;
+                }
+            });
+
+            document.addEventListener('DOMContentLoaded', function () {
+                if (window.jQuery && jQuery.fn.select2) {
+                    jQuery('#purchase_id').select2({ placeholder: 'Select purchase', width: '100%', allowClear: false });
+                    jQuery('#purchase_id').on('change', function () {
+                        loadModelsForPurchase(purchaseSelect.value, null);
+                    });
+                }
+
+                if (oldPurchaseId) {
+                    loadModelsForPurchase(String(oldPurchaseId), oldProductId ? String(oldProductId) : null);
+                } else {
+                    resetProductSelect();
+                }
+
+                calculateTotal();
+                validateSubmit();
+            });
+        </script>
+    @endpush
 </x-admin-layout>

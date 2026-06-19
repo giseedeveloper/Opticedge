@@ -34,7 +34,7 @@ final class NotificationRoutes
 
         if (str_starts_with($type, 'transfer.')) {
             return match ($role) {
-                'admin', 'subadmin' => '/admin/stock/agent-transfers',
+                'admin', 'subadmin' => '/admin/stock/device-transfers',
                 'regional_manager' => '/regional-manager/transfers',
                 'teamleader' => '/team-leader/transfers',
                 'agent' => '/agent/transfers',
@@ -96,7 +96,7 @@ final class NotificationRoutes
 
         if (str_starts_with($type, 'transfer.')) {
             return match ($role) {
-                'admin', 'subadmin' => self::safeRoute('admin.stock.agent-transfers'),
+                'admin', 'subadmin' => self::safeRoute('admin.stock.device-transfers'),
                 'regional_manager' => self::safeRoute('regional-manager.transfers.index'),
                 'teamleader' => self::safeRoute('team-leader.transfers.index'),
                 'agent' => self::safeRoute('agent.transfers.index'),

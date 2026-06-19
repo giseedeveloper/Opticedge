@@ -11,18 +11,7 @@ class AgentTransferController extends Controller
 {
     public function index(Request $request)
     {
-        $status = $request->query('status');
-        $q = AgentProductTransfer::query()
-            ->with(['fromAgent', 'toAgent', 'items.productListItem.product.category', 'items.productListItem.purchase.branch', 'items.productListItem.stock', 'items.productListItem.branch'])
-            ->latest();
-
-        if ($status && in_array($status, ['pending', 'approved', 'rejected', 'cancelled'], true)) {
-            $q->where('status', $status);
-        }
-
-        $transfers = $q->get();
-
-        return view('admin.stock.agent-transfers-index', compact('transfers', 'status'));
+        return redirect()->route('admin.stock.device-transfers', $request->only('status'));
     }
 
     public function show(AgentProductTransfer $agent_product_transfer)

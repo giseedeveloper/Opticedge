@@ -2316,10 +2316,10 @@ class StockController extends Controller
 
         $validated = $request->validate([
             'date' => 'required|date',
-            'purchase_id' => 'required|integer|exists:purchases,id',
             'dealer_id' => 'required|exists:users,id',
             'seller_name' => 'nullable|string|max:255',
             'lines' => 'required|array|min:1',
+            'lines.*.purchase_id' => 'required|integer|exists:purchases,id',
             'lines.*.product_id' => 'required|integer|exists:models,id',
             'lines.*.product_list_ids' => 'required|array|min:1',
             'lines.*.product_list_ids.*' => 'integer|distinct|exists:product_list,id',
@@ -2327,16 +2327,25 @@ class StockController extends Controller
         ]);
 
         $service = app(DistributionSaleService::class);
-        $purchaseId = (int) $validated['purchase_id'];
-        $purchase = Purchase::stockPurchases()->with('lines')->findOrFail($purchaseId);
         $dealer = User::findOrFail((int) $validated['dealer_id']);
         $dealerName = $dealer->business_name ?? $dealer->name;
+
+        $purchaseCache = [];
+        $resolvePurchase = function (int $purchaseId) use (&$purchaseCache): Purchase {
+            if (! isset($purchaseCache[$purchaseId])) {
+                $purchaseCache[$purchaseId] = Purchase::stockPurchases()->with('lines')->findOrFail($purchaseId);
+            }
+
+            return $purchaseCache[$purchaseId];
+        };
 
         $linePayloads = [];
         $grandSellingTotal = 0.0;
         $usedImeiIds = [];
 
         foreach ($validated['lines'] as $lineIndex => $line) {
+            $purchaseId = (int) $line['purchase_id'];
+            $purchase = $resolvePurchase($purchaseId);
             $pid = (int) $line['product_id'];
             $imeiIds = array_values(array_unique(array_map('intval', $line['product_list_ids'] ?? [])));
             $product = Product::findOrFail($pid);
@@ -2731,36 +2740,171 @@ class StockController extends Controller
     // Agent Sales
     public function createAgentSale()
     {
-        // Fetch products that have been purchased at least once
-        $products = \App\Models\Product::whereHas('purchases')->orderBy('name')->get();
+        $purchases = Purchase::stockPurchases()
+            ->with(['product.category', 'lines.product.category'])
+            ->where(function ($q) {
+                $q->whereNotNull('product_id')->orWhereHas('lines');
+            })
+            ->orderByDesc('date')
+            ->orderByDesc('id')
+            ->get();
 
-        return view('admin.stock.create-agent-sale', compact('products'));
+        return view('admin.stock.create-agent-sale', compact('purchases'));
+    }
+
+    /**
+     * JSON: models on a purchase with warehouse units available for manual agent sale.
+     */
+    public function agentSaleModelsForPurchase(Purchase $purchase)
+    {
+        if ($purchase->isPassthrough()) {
+            abort(404);
+        }
+
+        $purchase->load(['lines.product.category', 'product.category']);
+        $purchaseId = (int) $purchase->id;
+
+        $products = collect();
+        if ($purchase->product) {
+            $products->put((int) $purchase->product->id, $purchase->product);
+        }
+        foreach ($purchase->lines as $line) {
+            if ($line->product && ! $products->has((int) $line->product->id)) {
+                $products->put((int) $line->product->id, $line->product);
+            }
+        }
+
+        $registeredProductIds = ProductListItem::onPurchaseStock($purchaseId)
+            ->whereNotNull('product_id')
+            ->distinct()
+            ->pluck('product_id')
+            ->map(fn ($id) => (int) $id);
+
+        foreach ($registeredProductIds as $rpid) {
+            if (! $products->has($rpid)) {
+                $extra = Product::with('category')->find($rpid);
+                if ($extra) {
+                    $products->put($rpid, $extra);
+                }
+            }
+        }
+
+        if ($products->isEmpty()) {
+            return response()->json(['data' => []]);
+        }
+
+        $pricingService = app(DistributionSaleService::class);
+
+        $data = $products->map(function ($product) use ($purchase, $purchaseId, $pricingService) {
+            $pid = (int) $product->id;
+
+            $available = ProductListItem::assignableFromAdminOnPurchase($purchaseId, $pid)->count();
+            $totalRegistered = ProductListItem::onPurchaseStock($purchaseId)
+                ->matchingCatalogProduct($pid)
+                ->count();
+            $categoryName = $product->category?->name ?? '—';
+            $label = $categoryName.' — '.$product->name;
+            $prices = $pricingService->getPricesForProductOnPurchase($pid, $purchase);
+            $sell = $prices['sell'] > 0 ? $prices['sell'] : $prices['buy'];
+
+            $pickerSuffix = $available > 0
+                ? $available.' available on this purchase'
+                : ($totalRegistered > 0
+                    ? $totalRegistered.' registered — none free in warehouse'
+                    : '0 registered — add IMEIs on the purchase first');
+
+            return [
+                'product_id' => $pid,
+                'label' => $label,
+                'available_units' => $available,
+                'total_registered' => $totalRegistered,
+                'unit_price' => $prices['buy'],
+                'sell_price' => $sell,
+                'suggest' => $sell,
+                'picker_label' => $label.' ('.$pickerSuffix.')',
+            ];
+        })
+            ->sortBy('label')
+            ->values()
+            ->all();
+
+        return response()->json(['data' => $data]);
     }
 
     public function storeAgentSale(Request $request)
     {
         $validated = $request->validate([
             'date' => 'required|date',
-            'customer_name' => 'nullable|string|max:255',
+            'customer_name' => 'required|string|max:255',
             'seller_name' => 'nullable|string|max:255',
+            'purchase_id' => 'required|integer|exists:purchases,id',
             'product_id' => 'required|exists:models,id',
             'quantity_sold' => 'required|integer|min:1',
             'selling_price' => 'required|numeric|min:0',
         ]);
 
-        $service = app(\App\Services\DistributionSaleService::class);
-        $buyPrice = $service->getBuyPriceForProduct($validated['product_id']);
-        
+        $purchase = Purchase::stockPurchases()->with('lines')->findOrFail((int) $validated['purchase_id']);
+        $productId = (int) $validated['product_id'];
+        $qty = (int) $validated['quantity_sold'];
+
+        $service = app(DistributionSaleService::class);
+        $prices = $service->getPricesForProductOnPurchase($productId, $purchase);
+        $buyPrice = $prices['buy'];
+        $sellUnit = (float) $validated['selling_price'];
+
+        if ($sellUnit <= 0) {
+            return redirect()->back()
+                ->withInput()
+                ->withErrors(['selling_price' => 'Selling price must be greater than 0.']);
+        }
+
+        $items = ProductListItem::assignableFromAdminOnPurchase((int) $purchase->id, $productId)
+            ->orderBy('id')
+            ->limit($qty)
+            ->get();
+
+        if ($items->count() < $qty) {
+            return redirect()->back()
+                ->withInput()
+                ->withErrors([
+                    'quantity_sold' => 'Only '.$items->count().' device(s) available on this purchase for the selected model.',
+                ]);
+        }
+
         $validated['purchase_price'] = $buyPrice;
-        $validated['total_selling_value'] = $validated['quantity_sold'] * $validated['selling_price'];
-        $validated['total_purchase_value'] = $validated['quantity_sold'] * $buyPrice;
+        $validated['total_selling_value'] = $qty * $sellUnit;
+        $validated['total_purchase_value'] = $qty * $buyPrice;
         $validated['profit'] = $validated['total_selling_value'] - $validated['total_purchase_value'];
+        $validated['selling_price'] = $sellUnit;
 
-        // Save to pending sales instead of agent_sales
-        \App\Models\PendingSale::create($validated);
+        $itemIds = $items->pluck('id')->all();
 
-        // Keep product.stock_quantity in sync for Category Management / dashboards
-        \App\Models\Product::where('id', $validated['product_id'])->decrement('stock_quantity', $validated['quantity_sold']);
+        DB::transaction(function () use ($validated, $request, $itemIds, $qty) {
+            $attrs = [
+                'customer_name' => $validated['customer_name'],
+                'seller_name' => $validated['seller_name'] ?? $request->user()?->name,
+                'product_id' => $validated['product_id'],
+                'quantity_sold' => $qty,
+                'purchase_price' => $validated['purchase_price'],
+                'selling_price' => $validated['selling_price'],
+                'total_purchase_value' => $validated['total_purchase_value'],
+                'total_selling_value' => $validated['total_selling_value'],
+                'profit' => $validated['profit'],
+                'date' => $validated['date'],
+            ];
+
+            if (Schema::hasColumn('pending_sales', 'seller_id') && $request->user()) {
+                $attrs['seller_id'] = $request->user()->id;
+            }
+
+            $pendingSale = \App\Models\PendingSale::create($attrs);
+
+            ProductListItem::whereIn('id', $itemIds)->update([
+                'pending_sale_id' => $pendingSale->id,
+            ]);
+
+            \App\Models\Product::where('id', $validated['product_id'])->decrement('stock_quantity', $qty);
+        });
 
         return redirect()->route('admin.stock.pending-sales')->with('success', 'Sale recorded successfully. Please select payment option and save.');
     }
@@ -2809,10 +2953,11 @@ class StockController extends Controller
         $agentSale = AgentSale::create($agentSaleAttrs);
 
         // Update product_list items linked to this pending sale
-        \App\Models\ProductListItem::where('pending_sale_id', $pendingSale->id)
+        ProductListItem::where('pending_sale_id', $pendingSale->id)
             ->update([
                 'agent_sale_id' => $agentSale->id,
                 'pending_sale_id' => null,
+                'sold_at' => now(),
             ]);
 
         // Remove from pending sales (hard delete — row must not remain for reports)

@@ -353,7 +353,7 @@
             <div>
                 <p class="admin-prod-eyebrow">Dealers</p>
                 <h1 class="admin-prod-title">Create distribution sale</h1>
-                <p class="admin-prod-subtitle">Search a model, pick IMEIs from the list or scanner, then record the sale.</p>
+                <p class="admin-prod-subtitle">Pick IMEIs from one or more purchases — each line keeps that purchase’s buy and sell prices.</p>
             </div>
             <a href="{{ route('admin.stock.distribution') }}" class="admin-prod-back shrink-0">Back to list</a>
         </div>
@@ -375,8 +375,8 @@
                 </div>
 
                 <div>
-                    <label for="purchase_id" class="admin-prod-label">Purchase <span class="text-red-500">*</span></label>
-                    <select id="purchase_id" name="purchase_id" required class="admin-prod-select">
+                    <label for="purchase_id" class="admin-prod-label">Purchase <span class="text-slate-400 font-normal">(for next selection)</span></label>
+                    <select id="purchase_id" class="admin-prod-select">
                         <option value="">Select purchase</option>
                         @foreach($purchases as $purchase)
                             @php
@@ -397,10 +397,10 @@
                             </option>
                         @endforeach
                     </select>
-                    @error('purchase_id')
+                    @error('lines.*.purchase_id')
                         <p class="text-red-600 text-xs mt-1.5 font-semibold">{{ $message }}</p>
                     @enderror
-                    <p class="helper-text">Only IMEIs linked to this purchase can be sold on this distribution.</p>
+                    <p class="helper-text">Choose a purchase, add models and IMEIs to the sale, then switch purchase to add more lines from another invoice.</p>
                     <p id="purchase-slots-hint" class="helper-text mt-1 hidden"></p>
                 </div>
 
@@ -557,7 +557,7 @@
                         <span id="dist-total-display" class="text-2xl font-bold text-slate-900">0.00 TZS</span>
                     </div>
                     <input type="hidden" id="total-amount" name="total_amount_meta" value="0">
-                    <p class="text-xs text-slate-600 mt-2">Sum of each line: selected IMEIs × unit sell price from the selected purchase.</p>
+                    <p class="text-xs text-slate-600 mt-2">Sum of each line: selected IMEIs × unit sell price from that line’s purchase.</p>
                 </div>
 
                 <div>
@@ -588,6 +588,11 @@
             const PURCHASE_MODELS_FOR_REGISTER_URL_TEMPLATE = @json(route('admin.stock.add-product.purchase.models', ['purchase' => '__ID__']));
             const REGISTER_IMEIS_URL = @json(route('admin.stock.distribution-register-imeis'));
             const PURCHASE_REGISTER_META = @json($purchaseRegisterMeta ?? []);
+            const PURCHASE_LABELS = @json(
+                $purchases->mapWithKeys(fn ($p) => [
+                    (string) $p->id => 'Inv no. ' . ($p->name ?? ('Purchase #' . $p->id)),
+                ])
+            );
             const CSRF_TOKEN = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
 
             let purchaseRegistrationModels = [];
@@ -610,6 +615,7 @@
             const addLineBtn = document.getElementById('dist-add-line-btn');
 
             let activeProductId = null;
+            let activePurchaseId = null;
             let editingLineRow = null;
             let selectedImeiIds = new Set();
             let imeiRows = [];
@@ -649,10 +655,19 @@
                 return lineQty(tr) * sell;
             }
 
-            function selectedProductIds(excludeRow) {
+            function lineKey(productId, purchaseId) {
+                return String(productId) + ':' + String(purchaseId);
+            }
+
+            function purchaseLabel(purchaseId) {
+                const idStr = String(purchaseId || '');
+                return PURCHASE_LABELS[idStr] || ('Purchase #' + idStr);
+            }
+
+            function selectedLineKeys(excludeRow) {
                 return [...tbody.querySelectorAll('tr[data-line-row]')]
                     .filter(tr => tr !== excludeRow)
-                    .map(tr => tr.getAttribute('data-product-id'));
+                    .map(tr => lineKey(tr.getAttribute('data-product-id'), tr.getAttribute('data-purchase-id')));
             }
 
             function usedImeiIds(excludeRow) {
@@ -668,6 +683,7 @@
                 const rows = tbody.querySelectorAll('tr[data-line-row]');
                 rows.forEach((tr, idx) => {
                     tr.querySelector('.line-product-id').name = 'lines[' + idx + '][product_id]';
+                    tr.querySelector('.line-purchase-id').name = 'lines[' + idx + '][purchase_id]';
                     tr.querySelectorAll('.line-imei-id').forEach(inp => {
                         inp.name = 'lines[' + idx + '][product_list_ids][]';
                     });
@@ -692,11 +708,12 @@
                 };
             }
 
-            function ensureProductMeta(productId, meta) {
+            function ensureProductMeta(productId, purchaseId, meta) {
                 const idStr = String(productId);
+                const purchaseIdStr = String(purchaseId || getPurchaseId() || '');
                 const sell = parseFloat(meta.sell_price || meta.sell || 0) || 0;
                 const buy = parseFloat(meta.unit_price || meta.buy || 0) || 0;
-                PRODUCT_META[idStr] = {
+                const payload = {
                     id: parseInt(idStr, 10),
                     label: meta.label || ('Model #' + idStr),
                     unit_price: buy,
@@ -704,13 +721,17 @@
                     suggest: sell,
                     buy_price: buy,
                 };
+                if (purchaseIdStr) {
+                    PRODUCT_META[lineKey(idStr, purchaseIdStr)] = payload;
+                }
+                PRODUCT_META[idStr] = payload;
             }
 
-            function autoAddRegisteredItemsToSale(productId, items) {
-                const idStr = String(productId);
+            function autoAddRegisteredItemsToSale(productId, purchaseId, items) {
+                const key = lineKey(productId, purchaseId);
                 let existingRow = null;
                 tbody.querySelectorAll('tr[data-line-row]').forEach(function (tr) {
-                    if (tr.getAttribute('data-product-id') === idStr) {
+                    if (lineKey(tr.getAttribute('data-product-id'), tr.getAttribute('data-purchase-id')) === key) {
                         existingRow = tr;
                     }
                 });
@@ -730,7 +751,7 @@
                     merged = existing;
                 }
 
-                addLine(idStr, merged, existingRow);
+                addLine(productId, purchaseId, merged, existingRow);
             }
 
             function recalcGrandTotal() {
@@ -772,8 +793,7 @@
                     paymentStatus.style.color = '#f59e0b';
                 }
 
-                const purchaseOk = document.getElementById('purchase_id').value !== '';
-                submitBtn.disabled = saleSum <= 0 || saleDeviceCount === 0 || document.getElementById('dealer_id').value === '' || !purchaseOk;
+                submitBtn.disabled = saleSum <= 0 || saleDeviceCount === 0 || document.getElementById('dealer_id').value === '';
                 submitBtn.classList.toggle('opacity-50', submitBtn.disabled);
                 submitBtn.classList.toggle('cursor-not-allowed', submitBtn.disabled);
             }
@@ -792,15 +812,17 @@
                 return wrap;
             }
 
-            function addLine(productId, imeis, existingRow) {
+            function addLine(productId, purchaseId, imeis, existingRow) {
                 const idStr = String(productId);
-                if (!imeis || !imeis.length) return;
+                const purchaseIdStr = String(purchaseId);
+                if (!imeis || !imeis.length || !purchaseIdStr) return;
 
-                const meta = PRODUCT_META[idStr];
+                const meta = PRODUCT_META[lineKey(idStr, purchaseIdStr)] || PRODUCT_META[idStr];
                 if (!meta) return;
 
-                if (!existingRow && selectedProductIds(null).includes(idStr)) {
-                    alert('This model is already on the sale. Use “Change IMEIs” on that row, or remove it first.');
+                const rowKey = lineKey(idStr, purchaseIdStr);
+                if (!existingRow && selectedLineKeys(null).includes(rowKey)) {
+                    alert('This model on this purchase is already on the sale. Use “Change IMEIs” on that row, or remove it first.');
                     return;
                 }
 
@@ -814,15 +836,18 @@
                     tr.className = 'border-b border-slate-100 hover:bg-slate-50/50';
                     tr.setAttribute('data-line-row', '1');
                     tr.setAttribute('data-product-id', idStr);
+                    tr.setAttribute('data-purchase-id', purchaseIdStr);
                     tr.setAttribute('data-sell-price', String(sellPrice));
                     tr.setAttribute('data-buy-price', String(buyPrice));
 
                     tr.innerHTML =
                         '<td class="px-4 py-3 align-top">' +
                             '<div class="font-medium text-[#232f3e]">' + escapeHtml(meta.label) + '</div>' +
+                            '<div class="text-xs text-slate-500 mt-0.5">' + escapeHtml(purchaseLabel(purchaseIdStr)) + '</div>' +
                             '<div class="text-xs text-slate-500 mt-0.5"><span class="line-imei-count">' + imeis.length + ' device' + (imeis.length === 1 ? '' : 's') + '</span> · ' +
                             '<button type="button" class="text-[#fa8900] font-semibold hover:underline change-imeis">Change IMEIs</button></div>' +
                             '<input type="hidden" class="line-product-id" name="lines[' + idx + '][product_id]" value="' + idStr + '">' +
+                            '<input type="hidden" class="line-purchase-id" name="lines[' + idx + '][purchase_id]" value="' + purchaseIdStr + '">' +
                         '</td>' +
                         '<td class="px-3 py-3 align-top text-right font-variant-numeric text-slate-700 line-buy-cell">' + formatCurrency(buyPrice) + '</td>' +
                         '<td class="px-3 py-3 align-top text-right font-variant-numeric text-slate-700 line-sell-cell">' + formatCurrency(sellPrice) + '</td>' +
@@ -846,7 +871,7 @@
                         recalcGrandTotal();
                     });
                     tr.querySelector('.change-imeis').addEventListener('click', function () {
-                        onModelPicked(idStr, tr);
+                        onModelPicked(idStr, purchaseIdStr, tr);
                     });
                 } else {
                     const oldWrap = tr.querySelector('.line-imei-inputs');
@@ -958,7 +983,9 @@
             function updateImeiPanelSummary() {
                 const summary = document.getElementById('dist-sale-summary');
                 const count = selectedImeiIds.size;
-                const meta = activeProductId ? PRODUCT_META[String(activeProductId)] : null;
+                const meta = activeProductId
+                    ? (PRODUCT_META[lineKey(activeProductId, activePurchaseId || getPurchaseId())] || PRODUCT_META[String(activeProductId)])
+                    : null;
                 if (!summary) return;
                 if (count > 0 && meta) {
                     summary.classList.remove('hidden');
@@ -1221,6 +1248,7 @@
 
             function resetImeiPanel() {
                 activeProductId = null;
+                activePurchaseId = null;
                 editingLineRow = null;
                 selectedImeiIds.clear();
                 imeiRows = [];
@@ -1233,8 +1261,7 @@
                 updateImeiPanelSummary();
             }
 
-            function loadImeisForModel(productId) {
-                const purchaseId = getPurchaseId();
+            function loadImeisForModel(productId, purchaseId) {
                 if (!purchaseId || !productId) {
                     resetImeiPanel();
                     return;
@@ -1275,24 +1302,26 @@
                     });
             }
 
-            function onModelPicked(productId, editingRow) {
+            function onModelPicked(productId, purchaseId, editingRow) {
                 const idStr = String(productId);
-                const meta = PRODUCT_META[idStr];
+                const purchaseIdStr = String(purchaseId || getPurchaseId());
+                const meta = PRODUCT_META[lineKey(idStr, purchaseIdStr)] || PRODUCT_META[idStr];
                 if (!meta) return;
 
-                const purchaseId = getPurchaseId();
-                if (!purchaseId) {
+                if (!purchaseIdStr) {
                     alert('Select a purchase first.');
                     return;
                 }
 
-                if (!editingRow && selectedProductIds(null).includes(idStr)) {
-                    alert('This model is already on the sale. Use “Change IMEIs” on that row, or remove it first.');
+                const rowKey = lineKey(idStr, purchaseIdStr);
+                if (!editingRow && selectedLineKeys(null).includes(rowKey)) {
+                    alert('This model on this purchase is already on the sale. Use “Change IMEIs” on that row, or remove it first.');
                     if (window.jQuery) jQuery('#product_picker').val(null).trigger('change');
                     return;
                 }
 
                 activeProductId = idStr;
+                activePurchaseId = purchaseIdStr;
                 editingLineRow = editingRow || null;
                 imeiPanel.classList.remove('hidden');
 
@@ -1300,7 +1329,7 @@
                     jQuery('#product_picker').val(idStr).trigger('change.select2');
                 }
 
-                loadImeisForModel(idStr);
+                loadImeisForModel(idStr, purchaseIdStr);
             }
 
             function getPurchaseId() {
@@ -1322,7 +1351,7 @@
                 $pick.off('select2:select').on('select2:select', function (e) {
                     const id = e.params.data.id;
                     if (id) {
-                        onModelPicked(id, null);
+                        onModelPicked(id, getPurchaseId(), null);
                     }
                 });
             }
@@ -1364,7 +1393,7 @@
                             const id = String(row.product_id);
                             const available = row.available_imeis || 0;
                             const registered = row.total_registered || 0;
-                            PRODUCT_META[id] = {
+                            const metaPayload = {
                                 id: row.product_id,
                                 label: row.label,
                                 unit_price: row.unit_price || 0,
@@ -1372,6 +1401,8 @@
                                 suggest: row.sell_price || row.suggest || 0,
                                 available_imeis: available,
                             };
+                            PRODUCT_META[lineKey(id, purchaseId)] = metaPayload;
+                            PRODUCT_META[id] = metaPayload;
                             const opt = new Option(row.picker_label || row.label, id, false, false);
                             jQuery(opt).attr('data-suggest', row.suggest || 0);
                             $pick.append(opt);
@@ -1449,14 +1480,15 @@
             });
 
             addLineBtn.addEventListener('click', function () {
-                if (!activeProductId || selectedImeiIds.size === 0) {
-                    alert('Select at least one IMEI.');
+                const purchaseId = getPurchaseId();
+                if (!activeProductId || !purchaseId || selectedImeiIds.size === 0) {
+                    alert('Select a purchase and at least one IMEI.');
                     return;
                 }
                 const picked = imeiRows
                     .filter(function (r) { return selectedImeiIds.has(String(r.id)); })
                     .map(function (r) { return { id: r.id, text: r.text || r.imei_number }; });
-                addLine(activeProductId, picked, editingLineRow);
+                addLine(activeProductId, purchaseId, picked, editingLineRow);
                 resetImeiPanel();
                 if (window.jQuery) jQuery('#product_picker').val(null).trigger('change');
             });
@@ -1725,14 +1757,14 @@
                         const selectedLabel = registerModelSelect.options[registerModelSelect.selectedIndex]
                             ? registerModelSelect.options[registerModelSelect.selectedIndex].text
                             : '';
-                        ensureProductMeta(productId, {
+                        ensureProductMeta(productId, getPurchaseId(), {
                             label: selectedLabel,
                             unit_price: res.json.unit_price,
                             sell_price: res.json.sell_price,
                         });
 
                         if (res.json.items && res.json.items.length) {
-                            autoAddRegisteredItemsToSale(productId, res.json.items);
+                            autoAddRegisteredItemsToSale(productId, getPurchaseId(), res.json.items);
                         }
 
                         switchDistTab('sale');
@@ -1754,7 +1786,7 @@
 
             document.getElementById('dealer_id').addEventListener('change', recalcGrandTotal);
             function onPurchaseChanged() {
-                clearAllLines();
+                resetImeiPanel();
                 syncProductPickerForPurchase();
                 loadPurchaseRegistrationMeta();
                 recalcGrandTotal();
@@ -1767,11 +1799,6 @@
             paidInput.addEventListener('input', recalcGrandTotal);
 
             form.addEventListener('submit', function (e) {
-                if (!getPurchaseId()) {
-                    e.preventDefault();
-                    alert('Select a purchase for this distribution sale.');
-                    return false;
-                }
                 const rows = tbody.querySelectorAll('tr[data-line-row]');
                 if (rows.length === 0) {
                     e.preventDefault();

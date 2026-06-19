@@ -395,6 +395,7 @@ Route::middleware(['auth', 'redirect.superadmin.from.admin', 'admin', 'tenant.su
             Route::get('agent-sales', [App\Http\Controllers\Admin\StockController::class , 'agentSales'])->name('agent-sales');
             Route::get('agent-sales/export-csv', [App\Http\Controllers\Admin\StockController::class, 'exportAgentSalesCsv'])->name('agent-sales.export-csv');
             Route::get('agent-sales/create', [App\Http\Controllers\Admin\StockController::class, 'createAgentSale'])->name('create-agent-sale');
+            Route::get('agent-sales/purchases/{purchase}/models', [App\Http\Controllers\Admin\StockController::class, 'agentSaleModelsForPurchase'])->name('agent-sale-purchase-models');
             Route::post('agent-sales', [App\Http\Controllers\Admin\StockController::class, 'storeAgentSale'])->name('store-agent-sale');
             Route::get('agent-sales/{id}/invoice', [App\Http\Controllers\Admin\StockController::class, 'downloadAgentSaleInvoice'])->name('agent-sale-invoice');
             Route::patch('agent-sales/{id}/commission', [App\Http\Controllers\Admin\StockController::class, 'updateAgentSaleCommission'])->name('agent-sales-update-commission');
@@ -403,12 +404,18 @@ Route::middleware(['auth', 'redirect.superadmin.from.admin', 'admin', 'tenant.su
             Route::delete('agent-sales/{id}', [App\Http\Controllers\Admin\StockController::class, 'destroyAgentSale'])->name('destroy-agent-sale');
 
             Route::get('pending-sales', [App\Http\Controllers\Admin\StockController::class, 'pendingSales'])->name('pending-sales');
-            Route::get('agent-transfers', [App\Http\Controllers\Admin\AgentTransferController::class, 'index'])->name('agent-transfers');
+            Route::get('device-transfers', [App\Http\Controllers\Admin\DeviceTransferController::class, 'index'])->name('device-transfers');
+            Route::get('device-transfers/admin-regional-manager/{transfer}', [App\Http\Controllers\Admin\DeviceTransferController::class, 'showAdminRegionalManager'])->name('device-transfers.show-admin-rm');
+            Route::get('device-transfers/regional-manager-team-leader/{transfer}', [App\Http\Controllers\Admin\DeviceTransferController::class, 'showRegionalManagerTeamLeader'])->name('device-transfers.show-rm-tl');
+            Route::get('agent-transfers', fn () => redirect()->route('admin.stock.device-transfers'))->name('agent-transfers');
             Route::get('agent-transfers/{agent_product_transfer}', [App\Http\Controllers\Admin\AgentTransferController::class, 'show'])->name('agent-transfers.show');
             Route::post('agent-transfers/{agent_product_transfer}/approve', [App\Http\Controllers\Admin\AgentTransferController::class, 'approve'])->name('agent-transfers.approve');
             Route::post('agent-transfers/{agent_product_transfer}/reject', [App\Http\Controllers\Admin\AgentTransferController::class, 'reject'])->name('agent-transfers.reject');
 
             Route::get('device-returns', [App\Http\Controllers\Admin\DeviceReturnController::class, 'index'])->name('device-returns');
+            Route::get('device-returns/agent-team-leader/{return}', [App\Http\Controllers\Admin\DeviceReturnController::class, 'showAgentTeamLeader'])->name('device-returns.show-agent-tl');
+            Route::get('device-returns/team-leader-regional-manager/{return}', [App\Http\Controllers\Admin\DeviceReturnController::class, 'showTeamLeaderRegionalManager'])->name('device-returns.show-tl-rm');
+            Route::get('device-returns/regional-manager-admin/{return}', [App\Http\Controllers\Admin\DeviceReturnController::class, 'showRegionalManagerAdmin'])->name('device-returns.show-rm-admin');
             Route::post('device-returns/{rmReturn}/accept', [App\Http\Controllers\Admin\DeviceReturnController::class, 'accept'])->name('device-returns.accept');
             Route::post('device-returns/{rmReturn}/decline', [App\Http\Controllers\Admin\DeviceReturnController::class, 'decline'])->name('device-returns.decline');
 
