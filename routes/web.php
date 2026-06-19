@@ -404,6 +404,7 @@ Route::middleware(['auth', 'redirect.superadmin.from.admin', 'admin', 'tenant.su
             Route::delete('agent-sales/{id}', [App\Http\Controllers\Admin\StockController::class, 'destroyAgentSale'])->name('destroy-agent-sale');
 
             Route::get('pending-sales', [App\Http\Controllers\Admin\StockController::class, 'pendingSales'])->name('pending-sales');
+            Route::post('pending-sales/{id}/save', [App\Http\Controllers\Admin\StockController::class, 'savePendingSale'])->name('save-pending-sale');
             Route::get('device-transfers', [App\Http\Controllers\Admin\DeviceTransferController::class, 'index'])->name('device-transfers');
             Route::get('device-transfers/admin-regional-manager/{transfer}', [App\Http\Controllers\Admin\DeviceTransferController::class, 'showAdminRegionalManager'])->name('device-transfers.show-admin-rm');
             Route::get('device-transfers/regional-manager-team-leader/{transfer}', [App\Http\Controllers\Admin\DeviceTransferController::class, 'showRegionalManagerTeamLeader'])->name('device-transfers.show-rm-tl');

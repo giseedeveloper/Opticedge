@@ -15,6 +15,7 @@ use App\Models\TeamLeaderProductListAssignment;
 use App\Models\User;
 use App\Services\DistributionSaleService;
 use App\Services\TeamLeaderProductTransferService;
+use App\Support\PdfDownload;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -326,6 +327,25 @@ class TeamLeaderSaleApiController extends Controller
                 'invoice_endpoint' => '/team-leader/credits/' . $credit->id . '/invoice',
             ],
         ]);
+    }
+
+    public function downloadInvoice(int $id)
+    {
+        $credit = AgentCredit::query()
+            ->where('team_leader_id', Auth::id())
+            ->with(['product.category', 'productListItem'])
+            ->findOrFail($id);
+
+        $invoiceNo = 'AC-' . str_pad((string) $credit->id, 6, '0', STR_PAD_LEFT);
+        $invoiceDate = $credit->paid_date ?? $credit->date ?? now();
+        $filename = 'agent-credit-invoice-' . strtolower($invoiceNo) . '-' . $invoiceDate->format('Ymd') . '.pdf';
+
+        return PdfDownload::fromView('admin.stock.receipt-invoice', [
+            'credit' => $credit,
+            'invoiceNo' => $invoiceNo,
+            'invoiceDate' => $invoiceDate,
+            'title' => 'RECEIPT',
+        ], $filename);
     }
 
     public function sales(): JsonResponse

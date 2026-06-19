@@ -411,6 +411,7 @@ Route::middleware(['auth:sanctum', 'tenant.context'])->group(function () {
         Route::get('customer-needs/{id}', [TeamLeaderCustomerNeedController::class, 'show']);
         Route::get('credits', [TeamLeaderSaleApiController::class, 'credits']);
         Route::get('credits/{id}', [TeamLeaderSaleApiController::class, 'creditDetail']);
+        Route::get('credits/{id}/invoice', [TeamLeaderSaleApiController::class, 'downloadInvoice']);
         Route::get('sales', [TeamLeaderSaleApiController::class, 'sales']);
         Route::get('orders', [ShopCommerceApiController::class, 'orders']);
         Route::get('orders/{order}', [ShopCommerceApiController::class, 'showOrder']);
