@@ -31,7 +31,7 @@
         </form>
 
         <div class="admin-clay-panel overflow-x-auto">
-            <table class="min-w-[1100px] w-full text-sm">
+            <table id="deviceTransfersTable" class="js-datatable min-w-[1200px] w-full text-sm" data-datatable-order="0,desc">
                 <thead>
                     <tr class="border-b border-slate-200">
                         <th class="px-4 py-3 text-left font-semibold text-slate-900">Created</th>
@@ -40,13 +40,16 @@
                         <th class="px-4 py-3 text-left font-semibold text-slate-900">To</th>
                         <th class="px-4 py-3 text-left font-semibold text-slate-900">Units</th>
                         <th class="px-4 py-3 text-left font-semibold text-slate-900">Status</th>
+                        <th class="px-4 py-3 text-left font-semibold text-slate-900">Notes</th>
                         <th class="px-4 py-3 text-right font-semibold text-slate-900">Action</th>
                     </tr>
                 </thead>
                 <tbody>
-                    @forelse($transfers as $t)
+                    @foreach($transfers as $t)
                         <tr class="border-b border-slate-100">
-                            <td class="px-4 py-3 text-slate-600">{{ $t['created_at']?->format('Y-m-d H:i') ?? '—' }}</td>
+                            <td class="px-4 py-3 text-slate-600 whitespace-nowrap" data-order="{{ $t['created_at']?->timestamp ?? 0 }}">
+                                {{ $t['created_at']?->format('Y-m-d H:i') ?? '—' }}
+                            </td>
                             <td class="px-4 py-3 text-slate-700">{{ $t['route_label'] }}</td>
                             <td class="px-4 py-3">
                                 {{ $t['from_name'] }}
@@ -60,7 +63,7 @@
                                     <br><span class="text-xs text-slate-500">{{ $t['to_email'] }}</span>
                                 @endif
                             </td>
-                            <td class="px-4 py-3">{{ $t['units'] }}</td>
+                            <td class="px-4 py-3" data-order="{{ $t['units'] }}">{{ $t['units'] }}</td>
                             <td class="px-4 py-3">
                                 <span class="rounded-full px-2 py-0.5 text-xs font-medium
                                     @if($t['status'] === 'pending') bg-amber-100 text-amber-900
@@ -68,22 +71,18 @@
                                     @elseif($t['status'] === 'rejected') bg-red-100 text-red-900
                                     @else bg-slate-100 text-slate-700 @endif">{{ ucfirst($t['status']) }}</span>
                             </td>
-                            <td class="px-4 py-3 text-right">
+                            <td class="px-4 py-3 text-xs text-slate-600 max-w-xs">
+                                @if(!empty($t['message']))
+                                    <span class="font-medium text-slate-700">Message:</span> {{ $t['message'] }}
+                                @else
+                                    —
+                                @endif
+                            </td>
+                            <td class="px-4 py-3 text-right whitespace-nowrap">
                                 <a href="{{ $t['show_url'] }}" class="text-sm font-medium text-[#fa8900] hover:underline">View</a>
                             </td>
                         </tr>
-                        @if(!empty($t['message']))
-                            <tr class="bg-slate-50/80">
-                                <td colspan="7" class="px-4 py-2 text-xs text-slate-600">
-                                    <span class="font-medium text-slate-700">Message:</span> {{ $t['message'] }}
-                                </td>
-                            </tr>
-                        @endif
-                    @empty
-                        <tr>
-                            <td colspan="7" class="px-4 py-8 text-center text-slate-500">No device transfer requests yet.</td>
-                        </tr>
-                    @endforelse
+                    @endforeach
                 </tbody>
             </table>
         </div>

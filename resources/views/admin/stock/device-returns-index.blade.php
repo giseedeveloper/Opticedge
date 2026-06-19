@@ -31,7 +31,7 @@
         </form>
 
         <div class="admin-clay-panel overflow-x-auto">
-            <table class="min-w-[1100px] w-full text-sm">
+            <table id="deviceReturnsTable" class="js-datatable min-w-[1200px] w-full text-sm" data-datatable-order="0,desc">
                 <thead>
                     <tr class="border-b border-slate-200">
                         <th class="px-4 py-3 text-left font-semibold text-slate-900">Created</th>
@@ -40,13 +40,16 @@
                         <th class="px-4 py-3 text-left font-semibold text-slate-900">To</th>
                         <th class="px-4 py-3 text-left font-semibold text-slate-900">Units</th>
                         <th class="px-4 py-3 text-left font-semibold text-slate-900">Status</th>
+                        <th class="px-4 py-3 text-left font-semibold text-slate-900">Notes</th>
                         <th class="px-4 py-3 text-right font-semibold text-slate-900">Action</th>
                     </tr>
                 </thead>
                 <tbody>
-                    @forelse($returns as $r)
+                    @foreach($returns as $r)
                         <tr class="border-b border-slate-100">
-                            <td class="px-4 py-3 text-slate-600">{{ $r['created_at']?->format('Y-m-d H:i') ?? '—' }}</td>
+                            <td class="px-4 py-3 text-slate-600 whitespace-nowrap" data-order="{{ $r['created_at']?->timestamp ?? 0 }}">
+                                {{ $r['created_at']?->format('Y-m-d H:i') ?? '—' }}
+                            </td>
                             <td class="px-4 py-3 text-slate-700">{{ $r['route_label'] }}</td>
                             <td class="px-4 py-3">
                                 {{ $r['from_name'] }}
@@ -60,7 +63,7 @@
                                     <br><span class="text-xs text-slate-500">{{ $r['to_email'] }}</span>
                                 @endif
                             </td>
-                            <td class="px-4 py-3">{{ $r['units'] }}</td>
+                            <td class="px-4 py-3" data-order="{{ $r['units'] }}">{{ $r['units'] }}</td>
                             <td class="px-4 py-3">
                                 <span class="inline-flex rounded-full px-2 py-0.5 text-xs font-medium
                                     @if($r['status'] === 'pending') bg-amber-100 text-amber-900
@@ -70,7 +73,19 @@
                                     {{ ucfirst($r['status']) }}
                                 </span>
                             </td>
-                            <td class="px-4 py-3 text-right">
+                            <td class="px-4 py-3 text-xs text-slate-600 max-w-xs">
+                                @if(!empty($r['message']))
+                                    <span class="font-medium text-slate-700">Sender:</span> {{ $r['message'] }}
+                                @endif
+                                @if(!empty($r['message']) && !empty($r['recipient_note']))<br>@endif
+                                @if(!empty($r['recipient_note']))
+                                    <span class="font-medium text-slate-700">Response:</span> {{ $r['recipient_note'] }}
+                                @endif
+                                @if(empty($r['message']) && empty($r['recipient_note']))
+                                    —
+                                @endif
+                            </td>
+                            <td class="px-4 py-3 text-right whitespace-nowrap">
                                 <div class="flex justify-end items-center gap-3">
                                     <a href="{{ $r['show_url'] }}" class="text-sm font-medium text-[#fa8900] hover:underline">View</a>
                                     @if(!empty($r['can_admin_accept']))
@@ -88,24 +103,7 @@
                                 </div>
                             </td>
                         </tr>
-                        @if(!empty($r['message']) || !empty($r['recipient_note']))
-                            <tr class="bg-slate-50/80">
-                                <td colspan="7" class="px-4 py-2 text-xs text-slate-600">
-                                    @if(!empty($r['message']))
-                                        <span class="font-medium text-slate-700">Sender note:</span> {{ $r['message'] }}
-                                    @endif
-                                    @if(!empty($r['message']) && !empty($r['recipient_note']))<br>@endif
-                                    @if(!empty($r['recipient_note']))
-                                        <span class="font-medium text-slate-700">Recipient response:</span> {{ $r['recipient_note'] }}
-                                    @endif
-                                </td>
-                            </tr>
-                        @endif
-                    @empty
-                        <tr>
-                            <td colspan="7" class="px-4 py-8 text-center text-slate-500">No device return requests yet.</td>
-                        </tr>
-                    @endforelse
+                    @endforeach
                 </tbody>
             </table>
         </div>
