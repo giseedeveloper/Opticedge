@@ -26,7 +26,10 @@ class CustomerController extends Controller
             $query->where('role', $request->role);
         }
 
-        $customers = $query->withLocationRelations()->latest()->get();
+        $customers = $query->withLocationRelations()
+            ->latest()
+            ->paginate(50)
+            ->withQueryString();
 
         return view('admin.customers.index', compact('customers'));
     }

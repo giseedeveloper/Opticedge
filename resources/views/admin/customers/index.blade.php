@@ -118,7 +118,7 @@
 
         <div class="admin-clay-panel overflow-hidden">
             <div class="admin-prod-table-wrap admin-prod-table-wrap--flush overflow-x-auto">
-                <table class="min-w-[860px]">
+                <table class="min-w-[860px]" data-no-datatable>
                     <thead>
                         <tr>
                             <th scope="col" class="admin-prod-th">Name</th>
@@ -192,6 +192,15 @@
                     </tbody>
                 </table>
             </div>
+            @if ($customers->hasPages())
+                <div class="border-t border-slate-200/70 px-4 py-3 flex flex-wrap items-center justify-between gap-3 text-sm text-slate-600">
+                    <p>
+                        Showing {{ number_format($customers->firstItem()) }}–{{ number_format($customers->lastItem()) }}
+                        of {{ number_format($customers->total()) }} users
+                    </p>
+                    {{ $customers->links() }}
+                </div>
+            @endif
         </div>
     </div>
 </x-admin-layout>
