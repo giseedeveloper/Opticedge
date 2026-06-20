@@ -381,7 +381,7 @@
                 <div>
                     <h3 class="admin-sidebar-section-title">Stock Management</h3>
                     <div class="space-y-1">
-                        <div x-data="{ open: true }">
+                        <div x-data="{ open: {{ $sidebarStockActive ? 'true' : 'false' }} }">
                             <button type="button" @click="open = !open"
                                 class="admin-sidebar-item admin-sidebar-group-btn {{ $sidebarStockActive ? 'admin-sidebar-item-active' : '' }}">
                                 <div class="admin-sidebar-item-leading flex-1 min-w-0">
