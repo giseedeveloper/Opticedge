@@ -21,23 +21,28 @@ class AgentCreditController extends Controller
         $base = $this->filteredAgentCreditsQuery($request);
 
         $statsQuery = clone $base;
-        $sumTotal = (float) (clone $statsQuery)->sum('total_amount');
-        $sumPaid = (float) (clone $statsQuery)->sum('paid_amount');
-        $totalProfit = Schema::hasColumn('agent_credits', 'profit')
-            ? (float) (clone $statsQuery)->sum('profit')
-            : 0.0;
+        $aggregateSelect = 'COUNT(*) as aggregate_count, COALESCE(SUM(total_amount), 0) as aggregate_total, COALESCE(SUM(paid_amount), 0) as aggregate_paid';
+        if (Schema::hasColumn('agent_credits', 'profit')) {
+            $aggregateSelect .= ', COALESCE(SUM(profit), 0) as aggregate_profit';
+        }
+        $aggregates = (clone $statsQuery)->selectRaw($aggregateSelect)->first();
+        $sumTotal = (float) ($aggregates->aggregate_total ?? 0);
+        $sumPaid = (float) ($aggregates->aggregate_paid ?? 0);
         $agentCreditsDashboard = [
-            'count' => (clone $statsQuery)->count(),
+            'count' => (int) ($aggregates->aggregate_count ?? 0),
             'total_credit' => $sumTotal,
             'total_paid' => $sumPaid,
             'total_pending' => max(0, $sumTotal - $sumPaid),
-            'total_profit' => $totalProfit,
+            'total_profit' => Schema::hasColumn('agent_credits', 'profit')
+                ? (float) ($aggregates->aggregate_profit ?? 0)
+                : 0.0,
         ];
 
         $credits = $base->with(['agent', 'product.category', 'productListItem', 'paymentOption'])
             ->orderByDesc('date')
             ->orderByDesc('id')
-            ->get();
+            ->paginate(50)
+            ->withQueryString();
 
         $paymentOptions = Schema::hasTable('payment_options')
             ? PaymentOption::visible()->orderBy('name')->get()

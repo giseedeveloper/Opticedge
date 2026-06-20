@@ -84,7 +84,7 @@
 
         <div id="credits-table" class="admin-clay-panel overflow-x-auto">
             <div class="admin-prod-table-wrap admin-prod-table-wrap--flush min-w-0">
-                <table class="min-w-[1280px]">
+                <table class="min-w-[1280px]" data-no-datatable>
                     <thead>
                         <tr>
                             <th scope="col" class="admin-prod-th">Date</th>
@@ -152,6 +152,15 @@
                     </tbody>
                 </table>
             </div>
+            @if ($credits->hasPages())
+                <div class="border-t border-slate-200/70 px-4 py-3 flex flex-wrap items-center justify-between gap-3 text-sm text-slate-600">
+                    <p>
+                        Showing {{ number_format($credits->firstItem()) }}–{{ number_format($credits->lastItem()) }}
+                        of {{ number_format($credits->total()) }} credits
+                    </p>
+                    {{ $credits->links() }}
+                </div>
+            @endif
         </div>
 
         <div x-show="paymentHistoryOpen" x-cloak
