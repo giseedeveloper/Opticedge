@@ -8,38 +8,47 @@ return new class extends Migration
 {
     public function up(): void
     {
-        if (! Schema::hasTable('regional_manager_product_transfers')) {
-            Schema::create('regional_manager_product_transfers', function (Blueprint $table) {
-                $table->id();
-                $table->foreignId('created_by_admin_id')->constrained('users')->cascadeOnDelete();
-                $table->foreignId('to_regional_manager_id')->constrained('users')->cascadeOnDelete();
-                $table->string('status', 32)->default('pending');
-                $table->text('message')->nullable();
-                $table->text('admin_note')->nullable();
-                $table->timestamp('decided_at')->nullable();
-                $table->foreignId('decided_by')->nullable()->constrained('users')->nullOnDelete();
-                $table->timestamps();
+        Schema::dropIfExists('regional_manager_product_transfer_items');
+        Schema::dropIfExists('regional_manager_product_transfers');
 
-                $table->index(['status', 'created_at']);
-                $table->index('to_regional_manager_id');
-            });
-        }
+        Schema::create('regional_manager_product_transfers', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedBigInteger('created_by_admin_id');
+            $table->unsignedBigInteger('to_regional_manager_id');
+            $table->string('status', 32)->default('pending');
+            $table->text('message')->nullable();
+            $table->text('admin_note')->nullable();
+            $table->timestamp('decided_at')->nullable();
+            $table->unsignedBigInteger('decided_by')->nullable();
+            $table->timestamps();
 
-        if (! Schema::hasTable('regional_manager_product_transfer_items')) {
-            Schema::create('regional_manager_product_transfer_items', function (Blueprint $table) {
-                $table->id();
-                $table->foreignId('regional_manager_product_transfer_id')
-                    ->constrained('regional_manager_product_transfers')
-                    ->cascadeOnDelete();
-                $table->foreignId('product_list_id')->constrained('product_list')->cascadeOnDelete();
-                $table->timestamps();
+            $table->index(['status', 'created_at']);
+            $table->index('to_regional_manager_id');
 
-                $table->unique(
-                    ['regional_manager_product_transfer_id', 'product_list_id'],
-                    'rmpti_transfer_product_list_uniq'
-                );
-            });
-        }
+            $table->foreign('created_by_admin_id', 'rm_pt_created_by_fk')
+                ->references('id')->on('users')->cascadeOnDelete();
+            $table->foreign('to_regional_manager_id', 'rm_pt_to_rm_fk')
+                ->references('id')->on('users')->cascadeOnDelete();
+            $table->foreign('decided_by', 'rm_pt_decided_by_fk')
+                ->references('id')->on('users')->nullOnDelete();
+        });
+
+        Schema::create('regional_manager_product_transfer_items', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedBigInteger('regional_manager_product_transfer_id');
+            $table->unsignedBigInteger('product_list_id');
+            $table->timestamps();
+
+            $table->unique(
+                ['regional_manager_product_transfer_id', 'product_list_id'],
+                'rmpti_transfer_product_list_uniq'
+            );
+
+            $table->foreign('regional_manager_product_transfer_id', 'rm_pti_transfer_fk')
+                ->references('id')->on('regional_manager_product_transfers')->cascadeOnDelete();
+            $table->foreign('product_list_id', 'rm_pti_product_fk')
+                ->references('id')->on('product_list')->cascadeOnDelete();
+        });
     }
 
     public function down(): void
