@@ -40,7 +40,7 @@ class CustomerNeedsController extends Controller
             ->whereBetween('created_at', [$start, $end])
             ->latest('id');
 
-        $customerNeeds = $customerNeedsQuery->limit(500)->get();
+        $customerNeeds = $customerNeedsQuery->paginate(50)->withQueryString();
 
         $topProducts = CustomerNeed::query()
             ->selectRaw('product_id, COUNT(*) as total')

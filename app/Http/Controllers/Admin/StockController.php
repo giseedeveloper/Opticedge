@@ -151,7 +151,8 @@ class StockController extends Controller
             ])
             ->orderBy('model')
             ->orderBy('imei_number')
-            ->get();
+            ->paginate(50)
+            ->withQueryString();
 
         return view('admin.stock.purchase-show', [
             'purchase' => $purchase,
@@ -222,8 +223,9 @@ class StockController extends Controller
      */
     public function showStock(Stock $stock)
     {
-        $stock->load(['productListItems' => function ($q) {
-            $q->with([
+        $itemsQuery = ProductListItem::query()
+            ->where('stock_id', $stock->id)
+            ->with([
                 'category',
                 'product',
                 'purchase',
@@ -236,13 +238,15 @@ class StockController extends Controller
                 'pendingSale',
                 'agentSale.agent:id,name,email',
                 'distributionSale',
-            ])->orderBy('model')->orderBy('imei_number');
-        }]);
+            ])
+            ->orderBy('model')
+            ->orderBy('imei_number');
 
-        $available = $stock->productListItems->whereNull('sold_at')->count();
+        $available = (clone $itemsQuery)->whereNull('sold_at')->count();
         $atLimit = $available >= $stock->stock_limit;
+        $items = $itemsQuery->paginate(50)->withQueryString();
 
-        return view('admin.stock.stock-show', compact('stock', 'atLimit'));
+        return view('admin.stock.stock-show', compact('stock', 'atLimit', 'items', 'available'));
     }
 
     public function purchases(Request $request)
@@ -370,19 +374,24 @@ class StockController extends Controller
         if ($request->filled('date_to')) {
             $query->where('date', '<=', $request->date_to);
         }
-        
-        $distributionSales = $query->latest('date')->get();
+
+        $stats = (clone $query)->selectRaw('
+            COUNT(*) as aggregate_count,
+            COALESCE(SUM(total_selling_value), 0) as aggregate_sell,
+            COALESCE(SUM(profit), 0) as aggregate_profit
+        ')->first();
+
+        $pendingCount = (clone $query)
+            ->whereRaw('COALESCE(paid_amount, 0) < COALESCE(total_selling_value, 0) - 0.0001')
+            ->count();
+
+        $distributionSales = $query->latest('date')->paginate(50)->withQueryString();
 
         $distributionDashboard = [
-            'count' => $distributionSales->count(),
-            'total_sell' => (float) $distributionSales->sum('total_selling_value'),
-            'total_profit' => (float) $distributionSales->sum('profit'),
-            'pending' => $distributionSales->filter(function ($s) {
-                $total = (float) ($s->total_selling_value ?? 0);
-                $paid = (float) ($s->paid_amount ?? 0);
-
-                return $paid < $total - 0.0001;
-            })->count(),
+            'count' => (int) ($stats->aggregate_count ?? 0),
+            'total_sell' => (float) ($stats->aggregate_sell ?? 0),
+            'total_profit' => (float) ($stats->aggregate_profit ?? 0),
+            'pending' => $pendingCount,
         ];
 
         $consolidatedDealers = User::query()
@@ -481,14 +490,20 @@ class StockController extends Controller
         if ($request->filled('date_to')) {
             $query->where('date', '<=', $request->date_to);
         }
-        
-        $agentSales = $query->latest('date')->get();
+
+        $stats = (clone $query)->selectRaw('
+            COUNT(*) as aggregate_count,
+            COALESCE(SUM(total_selling_value), 0) as aggregate_sell,
+            COALESCE(SUM(profit), 0) as aggregate_profit
+        ')->first();
+
+        $agentSales = $query->latest('date')->paginate(50)->withQueryString();
         $paymentOptions = PaymentOption::visible()->orderBy('name')->get();
 
         $agentSalesDashboard = [
-            'count' => $agentSales->count(),
-            'total_sell' => (float) $agentSales->sum('total_selling_value'),
-            'total_profit' => (float) $agentSales->sum('profit'),
+            'count' => (int) ($stats->aggregate_count ?? 0),
+            'total_sell' => (float) ($stats->aggregate_sell ?? 0),
+            'total_profit' => (float) ($stats->aggregate_profit ?? 0),
         ];
 
         return view('admin.stock.agent-sales', compact('agentSales', 'paymentOptions', 'agentSalesDashboard'));
@@ -1703,18 +1718,19 @@ class StockController extends Controller
             $query->where('date', '<=', $dateTo);
         }
 
-        $purchases = $query->latest('date')->get();
+        $valueExpr = 'COALESCE(total_amount, quantity * unit_price)';
+        $stats = (clone $query)->selectRaw("
+            COUNT(*) as aggregate_count,
+            COALESCE(SUM({$valueExpr}), 0) as aggregate_total,
+            COALESCE(SUM(GREATEST(0, {$valueExpr} - COALESCE(paid_amount, 0))), 0) as aggregate_pending
+        ")->first();
+
+        $purchases = $query->latest('date')->paginate(50)->withQueryString();
 
         $purchaseDashboard = [
-            'count' => $purchases->count(),
-            'total_value' => (float) $purchases->sum(function ($p) {
-                return (float) ($p->total_amount ?? ($p->quantity * $p->unit_price));
-            }),
-            'pending_amount' => (float) $purchases->sum(function ($p) {
-                $total = (float) ($p->total_amount ?? ($p->quantity * $p->unit_price));
-
-                return max(0, $total - (float) ($p->paid_amount ?? 0));
-            }),
+            'count' => (int) ($stats->aggregate_count ?? 0),
+            'total_value' => (float) ($stats->aggregate_total ?? 0),
+            'pending_amount' => (float) ($stats->aggregate_pending ?? 0),
         ];
 
         $isPassthrough = $passthrough;
@@ -2911,8 +2927,12 @@ class StockController extends Controller
 
     public function pendingSales()
     {
-        $pendingSales = \App\Models\PendingSale::with(['product.category', 'paymentOption'])->latest('date')->get();
+        $pendingSales = \App\Models\PendingSale::with(['product.category', 'paymentOption'])
+            ->latest('date')
+            ->paginate(50)
+            ->withQueryString();
         $paymentOptions = \App\Models\PaymentOption::visible()->orderBy('name')->get();
+
         return view('admin.stock.pending-sales', compact('pendingSales', 'paymentOptions'));
     }
 

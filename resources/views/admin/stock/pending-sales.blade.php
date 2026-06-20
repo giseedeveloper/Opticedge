@@ -18,7 +18,7 @@
 
         <div class="admin-clay-panel overflow-x-auto">
             <div class="admin-prod-table-wrap admin-prod-table-wrap--flush min-w-0">
-                <table class="min-w-[1100px]">
+                <table class="min-w-[1100px]" data-no-datatable>
                     <thead>
                         <tr>
                             <th scope="col" class="admin-prod-th">Date</th>
@@ -86,6 +86,7 @@
                     </tbody>
                 </table>
             </div>
+            @include('admin.partials.table-pagination', ['paginator' => $pendingSales, 'label' => 'pending sales'])
         </div>
     </div>
 </x-admin-layout>

@@ -42,7 +42,7 @@
 
         <div class="admin-clay-panel overflow-hidden">
             <div class="admin-prod-table-wrap admin-prod-table-wrap--flush overflow-x-auto">
-                <table>
+                <table data-no-datatable>
                     <thead>
                         <tr>
                             <th scope="col" class="admin-prod-th admin-prod-th--index" aria-label="Expand"></th>
@@ -53,14 +53,14 @@
                             <th scope="col" class="admin-prod-th">In stock / sold</th>
                         </tr>
                     </thead>
-                    @forelse($stock->productListItems as $index => $item)
+                    @forelse($items as $index => $item)
                         <tbody x-data="{ open: false }" class="border-b border-slate-100/80 last:border-0">
                             <tr class="cursor-pointer hover:bg-white/50" @click="open = !open" role="button" tabindex="0"
                                 @keydown.enter.prevent="open = !open" @keydown.space.prevent="open = !open">
                                 <td class="text-slate-400 select-none w-10" title="Click row for full IMEI details">
                                     <span x-text="open ? '▼' : '▶'" class="inline-block w-5 text-center text-xs"></span>
                                 </td>
-                                <td class="text-slate-500 text-sm">{{ $index + 1 }}</td>
+                                <td class="text-slate-500 text-sm">{{ ($items->firstItem() ?? 1) + $index }}</td>
                                 <td class="font-medium text-[#232f3e]">{{ $item->model ?? '–' }}</td>
                                 <td class="font-mono text-sm" @click.stop>
                                     <a href="{{ route('admin.stock.imei-item', $item) }}" class="text-[#232f3e] hover:underline">{{ $item->imei_number ?? '–' }}</a>
@@ -94,6 +94,7 @@
                     @endforelse
                 </table>
             </div>
+            @include('admin.partials.table-pagination', ['paginator' => $items, 'label' => 'devices'])
         </div>
     </div>
 </x-admin-layout>

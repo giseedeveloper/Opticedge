@@ -56,7 +56,7 @@
 
         <div class="admin-clay-panel overflow-hidden">
             <div class="admin-prod-table-wrap admin-prod-table-wrap--flush overflow-x-auto">
-                <table>
+                <table data-no-datatable>
                     <thead>
                         <tr>
                             <th scope="col" class="admin-prod-th">Date</th>
@@ -104,6 +104,7 @@
                     </tbody>
                 </table>
             </div>
+            @include('admin.partials.table-pagination', ['paginator' => $expenses, 'label' => 'expenses'])
         </div>
     </div>
 </x-admin-layout>

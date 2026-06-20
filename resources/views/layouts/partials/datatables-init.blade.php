@@ -122,6 +122,7 @@
                 const options = {
                     pageLength: 25,
                     lengthMenu: [10, 25, 50, 100, 250],
+                    deferRender: true,
                     order: [],
                     autoWidth: false,
                     language: {

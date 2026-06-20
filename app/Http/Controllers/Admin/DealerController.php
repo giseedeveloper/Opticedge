@@ -13,7 +13,10 @@ class DealerController extends Controller
 {
     public function index()
     {
-        $dealers = User::where('role', 'dealer')->orderBy('created_at', 'desc')->get();
+        $dealers = User::where('role', 'dealer')
+            ->orderBy('created_at', 'desc')
+            ->paginate(50)
+            ->withQueryString();
         return view('admin.dealers.index', compact('dealers'));
     }
 

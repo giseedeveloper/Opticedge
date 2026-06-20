@@ -41,7 +41,7 @@
 
         <div class="admin-clay-panel overflow-hidden">
             <div class="admin-prod-table-wrap admin-prod-table-wrap--flush overflow-x-auto">
-                <table>
+                <table data-no-datatable>
                     <thead>
                         <tr>
                             <th scope="col" class="admin-prod-th admin-prod-th--index" aria-label="Expand"></th>
@@ -60,7 +60,7 @@
                                 <td class="text-slate-400 select-none w-10">
                                     <span x-text="open ? '▼' : '▶'" class="inline-block w-5 text-center text-xs"></span>
                                 </td>
-                                <td class="text-slate-500 text-sm">{{ $index + 1 }}</td>
+                                <td class="text-slate-500 text-sm">{{ ($items->firstItem() ?? 1) + $index }}</td>
                                 <td class="font-medium text-[#232f3e]">{{ $item->model ?? '–' }}</td>
                                 <td>{{ $item->category?->name ?? '–' }}</td>
                                 <td class="font-mono text-sm" @click.stop>
@@ -105,6 +105,7 @@
                     @endforelse
                 </table>
             </div>
+            @include('admin.partials.table-pagination', ['paginator' => $items, 'label' => 'devices'])
         </div>
     </div>
 </x-admin-layout>

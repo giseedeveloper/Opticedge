@@ -21,7 +21,8 @@ class AgentController extends Controller
         $agents = User::where('role', 'agent')
             ->withLocationRelations()
             ->orderBy('name')
-            ->get();
+            ->paginate(50)
+            ->withQueryString();
 
         $teamLeaders = $this->teamLeadersForSelect();
 

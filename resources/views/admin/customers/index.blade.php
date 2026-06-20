@@ -192,15 +192,7 @@
                     </tbody>
                 </table>
             </div>
-            @if ($customers->hasPages())
-                <div class="border-t border-slate-200/70 px-4 py-3 flex flex-wrap items-center justify-between gap-3 text-sm text-slate-600">
-                    <p>
-                        Showing {{ number_format($customers->firstItem()) }}–{{ number_format($customers->lastItem()) }}
-                        of {{ number_format($customers->total()) }} users
-                    </p>
-                    {{ $customers->links() }}
-                </div>
-            @endif
+            @include('admin.partials.table-pagination', ['paginator' => $customers, 'label' => 'users'])
         </div>
     </div>
 </x-admin-layout>

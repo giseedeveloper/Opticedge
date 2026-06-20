@@ -152,15 +152,7 @@
                     </tbody>
                 </table>
             </div>
-            @if ($credits->hasPages())
-                <div class="border-t border-slate-200/70 px-4 py-3 flex flex-wrap items-center justify-between gap-3 text-sm text-slate-600">
-                    <p>
-                        Showing {{ number_format($credits->firstItem()) }}–{{ number_format($credits->lastItem()) }}
-                        of {{ number_format($credits->total()) }} credits
-                    </p>
-                    {{ $credits->links() }}
-                </div>
-            @endif
+            @include('admin.partials.table-pagination', ['paginator' => $credits, 'label' => 'credits'])
         </div>
 
         <div x-show="paymentHistoryOpen" x-cloak

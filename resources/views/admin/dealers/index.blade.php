@@ -27,7 +27,7 @@
 
         <div class="mt-6 admin-clay-panel overflow-hidden">
             <div class="admin-prod-table-wrap admin-prod-table-wrap--flush overflow-x-auto">
-                <table class="min-w-[980px]">
+                <table class="min-w-[980px]" data-no-datatable>
                     <thead>
                         <tr>
                             <th scope="col" class="admin-prod-th">Name</th>
@@ -128,6 +128,7 @@
                     </tbody>
                 </table>
             </div>
+            @include('admin.partials.table-pagination', ['paginator' => $dealers, 'label' => 'dealers'])
         </div>
     </div>
 </x-admin-layout>

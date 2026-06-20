@@ -118,7 +118,7 @@
 
         <div class="mt-6 admin-clay-panel overflow-x-auto min-w-0">
             <div class="admin-prod-table-wrap admin-prod-table-wrap--flush min-w-0">
-                <table class="min-w-[1200px]">
+                <table class="min-w-[1200px]" data-no-datatable>
                     <thead>
                         <tr>
                             <th scope="col" class="admin-prod-th">Invoice</th>
@@ -220,6 +220,7 @@
                     </tbody>
                 </table>
             </div>
+            @include('admin.partials.table-pagination', ['paginator' => $purchases, 'label' => 'purchases'])
         </div>
     </div>
 </x-admin-layout>

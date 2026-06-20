@@ -31,7 +31,7 @@
                 <p class="admin-prod-form-hint">Full list of submitted leads.</p>
             </div>
             <div class="w-full overflow-x-auto p-4 sm:p-6">
-                <table id="customerLeadsTable" class="js-datatable w-full min-w-[640px] text-sm text-left" data-datatable-order="0,desc">
+                <table id="customerLeadsTable" class="w-full min-w-[640px] text-sm text-left" data-no-datatable>
                     <thead class="text-xs text-slate-500 uppercase border-b border-slate-200">
                         <tr>
                             <th class="py-3 pr-4">Submitted</th>
@@ -59,6 +59,7 @@
                     </tbody>
                 </table>
             </div>
+            @include('admin.partials.table-pagination', ['paginator' => $customerNeeds, 'label' => 'leads'])
         </div>
     </div>
 

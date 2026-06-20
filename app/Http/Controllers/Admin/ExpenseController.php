@@ -26,7 +26,7 @@ class ExpenseController extends Controller
         }
 
         $totalExpenseAmount = (clone $expensesQuery)->sum('amount');
-        $expenses = $expensesQuery->latest('date')->latest('id')->get();
+        $expenses = $expensesQuery->latest('date')->latest('id')->paginate(50)->withQueryString();
 
         return view('admin.expenses.index', [
             'expenses' => $expenses,
