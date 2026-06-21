@@ -7,6 +7,7 @@ use App\Models\AgentProductListAssignment;
 use App\Models\Product;
 use App\Models\ProductListItem;
 use App\Models\Purchase;
+use App\Models\TeamLeaderProductListAssignment;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 
@@ -177,10 +178,15 @@ class AgentProductAssignmentService
      *
      * @param  array<int, int>  $productListIds
      */
-    public function returnDevicesToTeamLeader(User $agent, array $productListIds): int
+    public function returnDevicesToTeamLeader(User $agent, array $productListIds, ?int $teamLeaderId = null): int
     {
         if ($agent->role !== 'agent') {
             throw new \InvalidArgumentException('You are not an agent.');
+        }
+
+        $teamLeaderId = $teamLeaderId ?? (int) ($agent->team_leader_id ?? 0);
+        if ($teamLeaderId <= 0) {
+            throw new \InvalidArgumentException('You are not assigned to a team leader.');
         }
 
         $ids = array_values(array_unique(array_map('intval', $productListIds)));
@@ -188,7 +194,7 @@ class AgentProductAssignmentService
             throw new \InvalidArgumentException('Select at least one device.');
         }
 
-        return DB::transaction(function () use ($agent, $ids) {
+        return DB::transaction(function () use ($agent, $teamLeaderId, $ids) {
             $returned = 0;
             $byProduct = [];
 
@@ -201,8 +207,15 @@ class AgentProductAssignmentService
                 if (! $assign || (int) $assign->agent_id !== (int) $agent->id) {
                     throw new \InvalidArgumentException('One or more devices are not assigned to you.');
                 }
-                if (! $item->teamLeaderProductListAssignment) {
-                    throw new \InvalidArgumentException('One or more devices cannot be returned (no team leader custody).');
+
+                $tlAssign = $item->teamLeaderProductListAssignment;
+                if (! $tlAssign) {
+                    TeamLeaderProductListAssignment::create([
+                        'team_leader_id' => $teamLeaderId,
+                        'product_list_id' => $item->id,
+                    ]);
+                } elseif ((int) $tlAssign->team_leader_id !== $teamLeaderId) {
+                    throw new \InvalidArgumentException('One or more devices cannot be returned (wrong team leader custody).');
                 }
 
                 $pid = (int) $item->product_id;

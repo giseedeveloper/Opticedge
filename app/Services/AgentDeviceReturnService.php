@@ -94,7 +94,8 @@ class AgentDeviceReturnService
 
             app(DeviceHierarchyAssignmentService::class)->returnFromAgentToTeamLeader(
                 $return->fromAgent,
-                $ids
+                $ids,
+                (int) $recipient->id,
             );
 
             $return->update([

@@ -54,7 +54,6 @@ class AuthController extends Controller
             $slug = trim((string) ($user->tenant->slug ?? ''));
             if ($slug !== '') {
                 $payload['tenant_slug'] = $slug;
-                $payload['api_base_url'] = 'https://'.$slug.'.opticedgeafrica.net/api';
             }
         }
 

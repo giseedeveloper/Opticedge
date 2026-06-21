@@ -122,13 +122,13 @@ class DeviceHierarchyAssignmentService
      *
      * @param  array<int, int>  $productListIds
      */
-    public function returnFromAgentToTeamLeader(User $agent, array $productListIds): int
+    public function returnFromAgentToTeamLeader(User $agent, array $productListIds, ?int $teamLeaderId = null): int
     {
         if ($agent->role !== 'agent') {
             throw new \InvalidArgumentException('You are not an agent.');
         }
 
-        return app(AgentProductAssignmentService::class)->returnDevicesToTeamLeader($agent, $productListIds);
+        return app(AgentProductAssignmentService::class)->returnDevicesToTeamLeader($agent, $productListIds, $teamLeaderId);
     }
 
     /**
