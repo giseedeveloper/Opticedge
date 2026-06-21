@@ -217,4 +217,26 @@ class Purchase extends Model
     {
         return $this->hasMany(PurchasePayment::class)->latest('paid_date')->latest('created_at');
     }
+
+    /**
+     * Filter purchases by invoice, distributor, branch, or product name.
+     */
+    public function scopeListSearch(Builder $query, ?string $search): Builder
+    {
+        $search = trim((string) $search);
+
+        if ($search === '') {
+            return $query;
+        }
+
+        $like = '%'.$search.'%';
+
+        return $query->where(function (Builder $builder) use ($like) {
+            $builder->where('name', 'like', $like)
+                ->orWhere('distributor_name', 'like', $like)
+                ->orWhereHas('branch', fn (Builder $branch) => $branch->where('name', 'like', $like))
+                ->orWhereHas('product', fn (Builder $product) => $product->where('name', 'like', $like))
+                ->orWhereHas('lines.product', fn (Builder $product) => $product->where('name', 'like', $like));
+        });
+    }
 }

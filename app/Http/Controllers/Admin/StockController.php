@@ -256,84 +256,11 @@ class StockController extends Controller
 
     public function exportPurchasesCsv(Request $request)
     {
-        $query = Purchase::stockPurchases()->with(['product.category', 'branch', 'lines.product.category']);
-
-        if ($request->filled('date_from')) {
-            $query->whereDate('date', '>=', $request->input('date_from'));
-        }
-        if ($request->filled('date_to')) {
-            $query->whereDate('date', '<=', $request->input('date_to'));
-        }
-
-        $purchases = $query->latest('date')->get();
+        $params = $this->resolvePurchaseListParams($request, passthrough: false);
+        $purchases = $this->buildPurchaseListQuery($params)->latest('date')->get();
         $filename = 'purchases-' . now()->format('Ymd-His') . '.csv';
 
-        return response()->streamDownload(function () use ($purchases) {
-            $handle = fopen('php://output', 'w');
-            fputcsv($handle, [
-                'Invoice',
-                'Date',
-                'Branch',
-                'Distributor',
-                'Product',
-                'Quantity',
-                'Unit Price',
-                'Total Amount',
-                'Paid Date',
-                'Paid Amount',
-                'Pending Amount',
-                'Sell Price',
-                'Status',
-            ]);
-
-            foreach ($purchases as $purchase) {
-                $total = (float) ($purchase->total_amount ?? ($purchase->quantity * $purchase->unit_price));
-                $paid = (float) ($purchase->paid_amount ?? 0);
-                $pending = max(0, $total - $paid);
-
-                $productCell = '';
-                if ($purchase->lines->isNotEmpty()) {
-                    $productCell = $purchase->lines
-                        ->map(function ($line) {
-                            $p = $line->product;
-                            if (! $p) {
-                                return '';
-                            }
-
-                            return trim(($p->category?->name ? $p->category->name.' - ' : '').$p->name);
-                        })
-                        ->filter()
-                        ->unique()
-                        ->implode('; ');
-                } else {
-                    $productCell = trim(($purchase->product?->category?->name ? $purchase->product->category->name.' - ' : '').($purchase->product?->name ?? ''));
-                }
-
-                $sellCell = $purchase->sell_price !== null
-                    ? number_format((float) $purchase->sell_price, 2, '.', '')
-                    : ($purchase->lines->isNotEmpty()
-                        ? $purchase->lines->map(fn ($l) => $l->sell_price !== null ? number_format((float) $l->sell_price, 2, '.', '') : null)->filter()->unique()->implode('; ')
-                        : '');
-
-                fputcsv($handle, [
-                    $purchase->name ?? '',
-                    $purchase->date ?? '',
-                    $purchase->branch?->name ?? '',
-                    $purchase->distributor_name ?? '',
-                    $productCell,
-                    (int) ($purchase->quantity ?? 0),
-                    number_format((float) ($purchase->unit_price ?? 0), 2, '.', ''),
-                    number_format($total, 2, '.', ''),
-                    $purchase->paid_date ?? '',
-                    number_format($paid, 2, '.', ''),
-                    number_format($pending, 2, '.', ''),
-                    $sellCell,
-                    $purchase->payment_status ?? '',
-                ]);
-            }
-
-            fclose($handle);
-        }, $filename, ['Content-Type' => 'text/csv; charset=UTF-8']);
+        return $this->streamPurchaseListCsv($purchases, $filename);
     }
 
     /**
@@ -1531,84 +1458,11 @@ class StockController extends Controller
 
     public function exportPassthroughCsv(Request $request)
     {
-        $query = Purchase::passthrough()->with(['product.category', 'branch', 'lines.product.category']);
-
-        if ($request->filled('date_from')) {
-            $query->whereDate('date', '>=', $request->input('date_from'));
-        }
-        if ($request->filled('date_to')) {
-            $query->whereDate('date', '<=', $request->input('date_to'));
-        }
-
-        $purchases = $query->latest('date')->get();
+        $params = $this->resolvePurchaseListParams($request, passthrough: true);
+        $purchases = $this->buildPurchaseListQuery($params)->latest('date')->get();
         $filename = 'passthrough-' . now()->format('Ymd-His') . '.csv';
 
-        return response()->streamDownload(function () use ($purchases) {
-            $handle = fopen('php://output', 'w');
-            fputcsv($handle, [
-                'Invoice',
-                'Date',
-                'Branch',
-                'Distributor',
-                'Product',
-                'Quantity',
-                'Unit Price',
-                'Total Amount',
-                'Paid Date',
-                'Paid Amount',
-                'Pending Amount',
-                'Sell Price',
-                'Status',
-            ]);
-
-            foreach ($purchases as $purchase) {
-                $total = (float) ($purchase->total_amount ?? ($purchase->quantity * $purchase->unit_price));
-                $paid = (float) ($purchase->paid_amount ?? 0);
-                $pending = max(0, $total - $paid);
-
-                $productCell = '';
-                if ($purchase->lines->isNotEmpty()) {
-                    $productCell = $purchase->lines
-                        ->map(function ($line) {
-                            $p = $line->product;
-                            if (! $p) {
-                                return '';
-                            }
-
-                            return trim(($p->category?->name ? $p->category->name.' - ' : '').$p->name);
-                        })
-                        ->filter()
-                        ->unique()
-                        ->implode('; ');
-                } else {
-                    $productCell = trim(($purchase->product?->category?->name ? $purchase->product->category->name.' - ' : '').($purchase->product?->name ?? ''));
-                }
-
-                $sellCell = $purchase->sell_price !== null
-                    ? number_format((float) $purchase->sell_price, 2, '.', '')
-                    : ($purchase->lines->isNotEmpty()
-                        ? $purchase->lines->map(fn ($l) => $l->sell_price !== null ? number_format((float) $l->sell_price, 2, '.', '') : null)->filter()->unique()->implode('; ')
-                        : '');
-
-                fputcsv($handle, [
-                    $purchase->name ?? '',
-                    $purchase->date ?? '',
-                    $purchase->branch?->name ?? '',
-                    $purchase->distributor_name ?? '',
-                    $productCell,
-                    (int) ($purchase->quantity ?? 0),
-                    number_format((float) ($purchase->unit_price ?? 0), 2, '.', ''),
-                    number_format($total, 2, '.', ''),
-                    $purchase->paid_date ?? '',
-                    number_format($paid, 2, '.', ''),
-                    number_format($pending, 2, '.', ''),
-                    $sellCell,
-                    $purchase->payment_status ?? '',
-                ]);
-            }
-
-            fclose($handle);
-        }, $filename, ['Content-Type' => 'text/csv; charset=UTF-8']);
+        return $this->streamPurchaseListCsv($purchases, $filename);
     }
 
     public function viewPassthroughReceipts()
@@ -1682,13 +1536,58 @@ class StockController extends Controller
     }
 
     /**
-     * @return \Illuminate\View\View
+     * @return \Illuminate\View\View|\Illuminate\Http\JsonResponse
      */
     private function purchaseListForType(Request $request, bool $passthrough)
+    {
+        $params = $this->resolvePurchaseListParams($request, $passthrough);
+
+        if ($request->ajax()) {
+            $query = $this->buildPurchaseListQuery($params);
+            $purchases = (clone $query)->latest('date')->paginate(50)->withQueryString();
+            $purchaseDashboard = $this->computePurchaseDashboard($query);
+
+            return response()->json([
+                'tbody' => view('admin.stock.partials.purchases-tbody', [
+                    'purchases' => $purchases,
+                    'isPassthrough' => $passthrough,
+                ])->render(),
+                'pagination' => view('admin.partials.table-pagination', [
+                    'paginator' => $purchases,
+                    'label' => $passthrough ? 'entries' : 'purchases',
+                ])->render(),
+                'dashboard' => view('admin.stock.partials.purchases-dashboard', [
+                    'purchaseDashboard' => $purchaseDashboard,
+                    'isPassthrough' => $passthrough,
+                ])->render(),
+            ]);
+        }
+
+        return view('admin.stock.purchases', [
+            'purchases' => null,
+            'dateFrom' => $params['dateFrom'],
+            'dateTo' => $params['dateTo'],
+            'preset' => $params['preset'],
+            'search' => $params['search'],
+            'purchaseDashboard' => [
+                'count' => 0,
+                'total_value' => 0.0,
+                'pending_amount' => 0.0,
+            ],
+            'isPassthrough' => $passthrough,
+            'ajaxLoad' => true,
+        ]);
+    }
+
+    /**
+     * @return array{passthrough: bool, search: string, dateFrom: ?string, dateTo: ?string, preset: ?string}
+     */
+    private function resolvePurchaseListParams(Request $request, bool $passthrough): array
     {
         $dateFrom = $request->input('date_from');
         $dateTo = $request->input('date_to');
         $preset = $request->input('preset');
+        $search = $request->string('search')->trim()->toString();
 
         if ($request->filled('preset')) {
             $now = Carbon::now();
@@ -1708,16 +1607,38 @@ class StockController extends Controller
             }
         }
 
-        $query = $passthrough ? Purchase::passthrough() : Purchase::stockPurchases();
+        return [
+            'passthrough' => $passthrough,
+            'search' => $search,
+            'dateFrom' => $dateFrom,
+            'dateTo' => $dateTo,
+            'preset' => $preset,
+        ];
+    }
+
+    /**
+     * @param  array{passthrough: bool, search: string, dateFrom: ?string, dateTo: ?string}  $params
+     */
+    private function buildPurchaseListQuery(array $params)
+    {
+        $query = $params['passthrough'] ? Purchase::passthrough() : Purchase::stockPurchases();
         $query->with(['product', 'stock', 'branch', 'lines.product']);
 
-        if ($dateFrom) {
-            $query->where('date', '>=', $dateFrom);
+        if ($params['dateFrom']) {
+            $query->where('date', '>=', $params['dateFrom']);
         }
-        if ($dateTo) {
-            $query->where('date', '<=', $dateTo);
+        if ($params['dateTo']) {
+            $query->where('date', '<=', $params['dateTo']);
         }
 
+        return $query->listSearch($params['search']);
+    }
+
+    /**
+     * @return array{count: int, total_value: float, pending_amount: float}
+     */
+    private function computePurchaseDashboard($query): array
+    {
         $valueExpr = 'COALESCE(total_amount, quantity * unit_price)';
         $stats = (clone $query)->selectRaw("
             COUNT(*) as aggregate_count,
@@ -1725,17 +1646,81 @@ class StockController extends Controller
             COALESCE(SUM(GREATEST(0, {$valueExpr} - COALESCE(paid_amount, 0))), 0) as aggregate_pending
         ")->first();
 
-        $purchases = $query->latest('date')->paginate(50)->withQueryString();
-
-        $purchaseDashboard = [
+        return [
             'count' => (int) ($stats->aggregate_count ?? 0),
             'total_value' => (float) ($stats->aggregate_total ?? 0),
             'pending_amount' => (float) ($stats->aggregate_pending ?? 0),
         ];
+    }
 
-        $isPassthrough = $passthrough;
+    private function streamPurchaseListCsv($purchases, string $filename)
+    {
+        return response()->streamDownload(function () use ($purchases) {
+            $handle = fopen('php://output', 'w');
+            fputcsv($handle, [
+                'Invoice',
+                'Date',
+                'Branch',
+                'Distributor',
+                'Product',
+                'Quantity',
+                'Unit Price',
+                'Total Amount',
+                'Paid Date',
+                'Paid Amount',
+                'Pending Amount',
+                'Sell Price',
+                'Status',
+            ]);
 
-        return view('admin.stock.purchases', compact('purchases', 'dateFrom', 'dateTo', 'preset', 'purchaseDashboard', 'isPassthrough'));
+            foreach ($purchases as $purchase) {
+                $total = (float) ($purchase->total_amount ?? ($purchase->quantity * $purchase->unit_price));
+                $paid = (float) ($purchase->paid_amount ?? 0);
+                $pending = max(0, $total - $paid);
+
+                $productCell = '';
+                if ($purchase->lines->isNotEmpty()) {
+                    $productCell = $purchase->lines
+                        ->map(function ($line) {
+                            $p = $line->product;
+                            if (! $p) {
+                                return '';
+                            }
+
+                            return trim(($p->category?->name ? $p->category->name.' - ' : '').$p->name);
+                        })
+                        ->filter()
+                        ->unique()
+                        ->implode('; ');
+                } else {
+                    $productCell = trim(($purchase->product?->category?->name ? $purchase->product->category->name.' - ' : '').($purchase->product?->name ?? ''));
+                }
+
+                $sellCell = $purchase->sell_price !== null
+                    ? number_format((float) $purchase->sell_price, 2, '.', '')
+                    : ($purchase->lines->isNotEmpty()
+                        ? $purchase->lines->map(fn ($l) => $l->sell_price !== null ? number_format((float) $l->sell_price, 2, '.', '') : null)->filter()->unique()->implode('; ')
+                        : '');
+
+                fputcsv($handle, [
+                    $purchase->name ?? '',
+                    $purchase->date ?? '',
+                    $purchase->branch?->name ?? '',
+                    $purchase->distributor_name ?? '',
+                    $productCell,
+                    (int) ($purchase->quantity ?? 0),
+                    number_format((float) ($purchase->unit_price ?? 0), 2, '.', ''),
+                    number_format($total, 2, '.', ''),
+                    $purchase->paid_date ?? '',
+                    number_format($paid, 2, '.', ''),
+                    number_format($pending, 2, '.', ''),
+                    $sellCell,
+                    $purchase->payment_status ?? '',
+                ]);
+            }
+
+            fclose($handle);
+        }, $filename, ['Content-Type' => 'text/csv; charset=UTF-8']);
     }
 
     public function editPurchase($id)

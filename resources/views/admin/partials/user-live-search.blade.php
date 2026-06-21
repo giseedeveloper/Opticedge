@@ -4,6 +4,7 @@
     'hidden' => [],
     'placeholder' => 'Search by name, email, or phone…',
     'class' => 'mb-4',
+    'ajax' => false,
 ])
 
 <form method="GET" action="{{ $action }}"
@@ -31,6 +32,7 @@
     @endif
 </form>
 
+@if (! $ajax)
 @once('admin-user-live-search-script')
     <script>
         document.addEventListener('DOMContentLoaded', function () {
@@ -53,3 +55,4 @@
         });
     </script>
 @endonce
+@endif

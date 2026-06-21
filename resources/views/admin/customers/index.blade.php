@@ -128,6 +128,7 @@
         @include('admin.partials.user-live-search', [
             'action' => route('admin.customers.index'),
             'search' => $search ?? '',
+            'ajax' => true,
             'hidden' => [
                 'role' => request('role'),
                 'sort' => $sort ?? request('sort'),
@@ -135,83 +136,184 @@
             ],
         ])
 
-        <div class="admin-clay-panel overflow-hidden">
+        <div class="admin-clay-panel overflow-hidden" id="users-directory-panel">
             <div class="admin-prod-table-wrap admin-prod-table-wrap--flush overflow-x-auto">
                 <table class="min-w-[860px]" data-no-datatable>
-                    <thead>
-                        <tr>
-                            @include('admin.partials.user-sortable-th', ['column' => 'name', 'label' => 'Name', 'sort' => $sort, 'direction' => $direction])
-                            @include('admin.partials.user-sortable-th', ['column' => 'email', 'label' => 'Email', 'sort' => $sort, 'direction' => $direction])
-                            @if(\Illuminate\Support\Facades\Schema::hasColumn('users', 'team_leader_id'))
-                                <th scope="col" class="admin-prod-th">Team leader</th>
-                            @endif
-                            @include('admin.partials.user-sortable-th', ['column' => 'role', 'label' => 'Role', 'sort' => $sort, 'direction' => $direction])
-                            <th scope="col" class="admin-prod-th">Region</th>
-                            <th scope="col" class="admin-prod-th">Branch</th>
-                            @include('admin.partials.user-sortable-th', ['column' => 'status', 'label' => 'Status', 'sort' => $sort, 'direction' => $direction])
-                            @include('admin.partials.user-sortable-th', ['column' => 'created_at', 'label' => 'Joined', 'sort' => $sort, 'direction' => $direction])
-                            <th scope="col" class="admin-prod-th admin-prod-th--end">Actions</th>
-                        </tr>
+                    <thead id="users-directory-thead">
+                        @include('admin.customers.partials.directory-thead-row', [
+                            'sort' => $sort,
+                            'direction' => $direction,
+                            'hasTeamLeaderColumn' => $hasTeamLeaderColumn,
+                        ])
                     </thead>
-                    <tbody>
-                        @forelse($customers as $user)
-                            <tr>
-                                <td>
-                                    <div class="flex items-center gap-3">
-                                        <span class="admin-prod-avatar" aria-hidden="true">{{ strtoupper(substr($user->name, 0, 1)) }}</span>
-                                        <span class="font-semibold text-[#232f3e]">{{ $user->name }}</span>
-                                    </div>
-                                </td>
-                                <td class="text-slate-600">{{ $user->email }}</td>
-                                @if(\Illuminate\Support\Facades\Schema::hasColumn('users', 'team_leader_id'))
-                                    <td class="text-slate-600">{{ $user->teamLeader?->name ?? '—' }}</td>
-                                @endif
-                                <td>
-                                    @php
-                                        $role = $user->role ?? 'customer';
-                                        $roleClass = match ($role) {
-                                            'admin' => 'admin-prod-role-pill--admin',
-                                            'dealer' => 'admin-prod-role-pill--dealer',
-                                            'agent' => 'admin-prod-role-pill--agent',
-                                            'teamleader' => 'admin-prod-role-pill--teamleader',
-                                            'regional_manager' => 'admin-prod-role-pill--regional_manager',
-                                            default => 'admin-prod-role-pill--customer',
-                                        };
-                                        $roleLabel = match ($role) {
-                                            'regional_manager' => 'Regional manager',
-                                            'teamleader' => 'Team leader',
-                                            default => $role,
-                                        };
-                                    @endphp
-                                    <span class="admin-prod-role-pill {{ $roleClass }}">{{ $roleLabel }}</span>
-                                </td>
-                                <td class="text-slate-600">{{ $user->listRegionName() ?? '—' }}</td>
-                                <td class="text-slate-600">{{ $user->listBranchName() ?? '—' }}</td>
-                                <td>
-                                    @php
-                                        $isActive = ($user->status ?? 'active') === 'active';
-                                    @endphp
-                                    <span
-                                        class="admin-prod-user-status {{ $isActive ? 'admin-prod-user-status--active' : 'admin-prod-user-status--inactive' }}">
-                                        {{ ucfirst($user->status ?? 'active') }}
-                                    </span>
-                                </td>
-                                <td class="font-variant-numeric text-slate-600 text-sm">
-                                    {{ $user->created_at->format('M j, Y') }}
-                                </td>
-                                <x-admin-directory-user-actions :user="$user" :preserve-query="true" />
-                            </tr>
-                        @empty
-                            <tr>
-                                <td colspan="{{ \Illuminate\Support\Facades\Schema::hasColumn('users', 'team_leader_id') ? 9 : 8 }}" class="text-center text-slate-500 py-10">
-                                    No users found.
-                                </td>
-                            </tr>
-                        @endforelse
+                    <tbody id="users-directory-tbody">
+                        <tr>
+                            <td colspan="{{ $hasTeamLeaderColumn ? 9 : 8 }}" class="text-center text-slate-500 py-10">
+                                Loading users…
+                            </td>
+                        </tr>
                     </tbody>
                 </table>
             </div>
-            @include('admin.partials.table-pagination', ['paginator' => $customers, 'label' => 'users'])
+            <div id="users-directory-pagination"></div>
         </div>
     </div>
+
+    @push('styles')
+        <style>
+            #users-directory-panel.is-loading {
+                opacity: 0.65;
+                pointer-events: none;
+            }
+        </style>
+    @endpush
+
+    @push('scripts')
+        <script>
+            jQuery(function ($) {
+                var $panel = $('#users-directory-panel');
+                var $form = $('.js-user-live-search');
+                var endpoint = $form.attr('action');
+                var xhr = null;
+                var debounceTimer = null;
+
+                function collectParams(page) {
+                    var params = {};
+
+                    $form.find('input[name]').each(function () {
+                        var $input = $(this);
+                        var value = $.trim($input.val());
+
+                        if (value !== '') {
+                            params[$input.attr('name')] = value;
+                        }
+                    });
+
+                    if (page) {
+                        params.page = page;
+                    }
+
+                    return params;
+                }
+
+                function updateUrl(params) {
+                    var query = $.param(params);
+
+                    window.history.pushState(params, '', endpoint + (query ? '?' + query : ''));
+                }
+
+                function applyResults(data) {
+                    $('#users-directory-tbody').html(data.tbody);
+                    $('#users-directory-pagination').html(data.pagination);
+                    $('#users-directory-thead').html(data.thead);
+                }
+
+                function loadUsers(page, options) {
+                    options = options || {};
+                    var params = collectParams(page);
+
+                    if (xhr) {
+                        xhr.abort();
+                    }
+
+                    $panel.addClass('is-loading');
+
+                    xhr = $.ajax({
+                        url: endpoint,
+                        method: 'GET',
+                        data: params,
+                        dataType: 'json',
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'Accept': 'application/json',
+                        },
+                    })
+                        .done(function (data) {
+                            applyResults(data);
+
+                            if (options.pushState !== false) {
+                                updateUrl(params);
+                            }
+                        })
+                        .fail(function (jqXHR, textStatus) {
+                            if (textStatus === 'abort') {
+                                return;
+                            }
+
+                            $('#users-directory-tbody').html(
+                                '<tr><td colspan="{{ $hasTeamLeaderColumn ? 9 : 8 }}" class="text-center text-red-600 py-10">Could not load users. Please refresh the page.</td></tr>'
+                            );
+                            $('#users-directory-pagination').empty();
+                        })
+                        .always(function () {
+                            $panel.removeClass('is-loading');
+                            xhr = null;
+                        });
+                }
+
+                loadUsers(new URLSearchParams(window.location.search).get('page'), { pushState: false });
+
+                $form.on('submit', function (event) {
+                    event.preventDefault();
+                    loadUsers();
+                });
+
+                $form.find('input[name="search"]').on('input', function () {
+                    clearTimeout(debounceTimer);
+                    debounceTimer = setTimeout(function () {
+                        loadUsers();
+                    }, 300);
+                });
+
+                $panel.on('click', '.admin-prod-sort-link', function (event) {
+                    event.preventDefault();
+
+                    var url = new URL($(this).attr('href'), window.location.origin);
+                    var sort = url.searchParams.get('sort');
+                    var direction = url.searchParams.get('direction');
+
+                    $form.find('input[name="sort"]').remove();
+                    $form.find('input[name="direction"]').remove();
+
+                    if (sort) {
+                        $('<input>', { type: 'hidden', name: 'sort', value: sort }).appendTo($form);
+                    }
+
+                    if (direction) {
+                        $('<input>', { type: 'hidden', name: 'direction', value: direction }).appendTo($form);
+                    }
+
+                    loadUsers();
+                });
+
+                $panel.on('click', '#users-directory-pagination a', function (event) {
+                    event.preventDefault();
+
+                    var url = new URL($(this).attr('href'), window.location.origin);
+                    var page = url.searchParams.get('page');
+
+                    loadUsers(page || 1);
+                });
+
+                window.addEventListener('popstate', function () {
+                    var urlParams = new URLSearchParams(window.location.search);
+
+                    $form.find('input[name="search"]').val(urlParams.get('search') || '');
+                    $form.find('input[name="role"]').remove();
+                    $form.find('input[name="sort"]').remove();
+                    $form.find('input[name="direction"]').remove();
+
+                    ['role', 'sort', 'direction'].forEach(function (name) {
+                        var value = urlParams.get(name);
+
+                        if (value) {
+                            $('<input>', { type: 'hidden', name: name, value: value }).appendTo($form);
+                        }
+                    });
+
+                    loadUsers(urlParams.get('page'), { pushState: false });
+                });
+            });
+        </script>
+    @endpush
 </x-admin-layout>

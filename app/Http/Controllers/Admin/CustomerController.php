@@ -20,6 +20,43 @@ class CustomerController extends Controller
 {
     public function index(Request $request)
     {
+        $directoryParams = $this->resolveCustomersDirectoryParams($request);
+
+        if ($request->ajax()) {
+            $customers = $this->paginateCustomersDirectory($directoryParams);
+
+            return response()->json([
+                'tbody' => view('admin.customers.partials.directory-tbody', [
+                    'customers' => $customers,
+                    'hasTeamLeaderColumn' => $directoryParams['hasTeamLeaderColumn'],
+                ])->render(),
+                'pagination' => view('admin.partials.table-pagination', [
+                    'paginator' => $customers,
+                    'label' => 'users',
+                ])->render(),
+                'thead' => view('admin.customers.partials.directory-thead-row', [
+                    'sort' => $directoryParams['sort'],
+                    'direction' => $directoryParams['direction'],
+                    'hasTeamLeaderColumn' => $directoryParams['hasTeamLeaderColumn'],
+                ])->render(),
+            ]);
+        }
+
+        return view('admin.customers.index', [
+            'customers' => null,
+            'search' => $directoryParams['search'],
+            'sort' => $directoryParams['sort'],
+            'direction' => $directoryParams['direction'],
+            'hasTeamLeaderColumn' => $directoryParams['hasTeamLeaderColumn'],
+            'ajaxLoad' => true,
+        ]);
+    }
+
+    /**
+     * @return array{search: string, roleFilter: ?string, sort: string, direction: string, hasTeamLeaderColumn: bool}
+     */
+    private function resolveCustomersDirectoryParams(Request $request): array
+    {
         $search = $request->string('search')->trim()->toString();
         $roleFilter = $request->filled('role') && in_array($request->role, User::customerDirectoryRoleFilters(), true)
             ? $request->role
@@ -29,19 +66,32 @@ class CustomerController extends Controller
             $request->string('direction')->trim()->toString(),
             $roleFilter
         );
+
+        return [
+            'search' => $search,
+            'roleFilter' => $roleFilter,
+            'sort' => $sortParams['sort'],
+            'direction' => $sortParams['direction'],
+            'hasTeamLeaderColumn' => Schema::hasColumn('users', 'team_leader_id'),
+        ];
+    }
+
+    /**
+     * @param  array{search: string, roleFilter: ?string, sort: string, direction: string}  $params
+     */
+    private function paginateCustomersDirectory(array $params)
+    {
         $query = User::query();
 
-        if ($roleFilter !== null) {
-            $query->where('role', $roleFilter);
+        if ($params['roleFilter'] !== null) {
+            $query->where('role', $params['roleFilter']);
         }
 
-        $customers = $query->directorySearch($search)
-            ->directoryOrder($sortParams['sort'], $sortParams['direction'], $roleFilter)
+        return $query->directorySearch($params['search'])
+            ->directoryOrder($params['sort'], $params['direction'], $params['roleFilter'])
             ->withLocationRelations()
             ->paginate(50)
             ->withQueryString();
-
-        return view('admin.customers.index', compact('customers', 'search') + $sortParams);
     }
 
     public function show(User $user)
