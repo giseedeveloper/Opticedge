@@ -11,13 +11,21 @@ use Illuminate\Validation\Rule;
 
 class DealerController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
+        $search = $request->string('search')->trim()->toString();
+        $sortParams = User::resolveDirectorySort(
+            $request->string('sort')->trim()->toString(),
+            $request->string('direction')->trim()->toString(),
+            'dealer'
+        );
         $dealers = User::where('role', 'dealer')
-            ->orderBy('created_at', 'desc')
+            ->directorySearch($search)
+            ->directoryOrder($sortParams['sort'], $sortParams['direction'], 'dealer')
             ->paginate(50)
             ->withQueryString();
-        return view('admin.dealers.index', compact('dealers'));
+
+        return view('admin.dealers.index', compact('dealers', 'search') + $sortParams);
     }
 
     public function create()

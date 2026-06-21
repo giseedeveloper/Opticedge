@@ -23,10 +23,14 @@ class UserController extends Controller
         }
 
         $effectiveRole = ($role !== null && $role !== '' && $role !== 'all') ? $role : null;
+        $sortParams = User::resolveDirectorySort(
+            $request->string('sort')->trim()->toString(),
+            $request->string('direction')->trim()->toString(),
+            $effectiveRole
+        );
 
         $users = $query
-            ->orderBy(in_array($effectiveRole, ['agent', 'teamleader', 'regional_manager'], true) ? 'name' : 'created_at', 'asc')
-            ->orderByDesc('created_at')
+            ->directoryOrder($sortParams['sort'], $sortParams['direction'], $effectiveRole)
             ->take(200)
             ->get()
             ->map(fn (User $user) => $user->toDirectoryListArray());

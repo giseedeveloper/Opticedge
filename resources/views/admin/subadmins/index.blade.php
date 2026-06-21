@@ -23,16 +23,21 @@
             <div class="admin-prod-alert admin-prod-alert--error mb-4" role="alert">{{ $errors->first() }}</div>
         @endif
 
+        @include('admin.partials.user-live-search', [
+            'action' => route('admin.subadmins.index'),
+            'search' => $search ?? '',
+        ])
+
         <div class="admin-clay-panel overflow-hidden">
             <div class="admin-prod-table-wrap admin-prod-table-wrap--flush overflow-x-auto">
-                <table class="min-w-[980px]">
+                <table class="min-w-[980px]" data-no-datatable>
                     <thead>
                         <tr>
-                            <th scope="col" class="admin-prod-th">Name</th>
-                            <th scope="col" class="admin-prod-th">Email</th>
-                            <th scope="col" class="admin-prod-th">Phone</th>
+                            @include('admin.partials.user-sortable-th', ['column' => 'name', 'label' => 'Name', 'sort' => $sort, 'direction' => $direction])
+                            @include('admin.partials.user-sortable-th', ['column' => 'email', 'label' => 'Email', 'sort' => $sort, 'direction' => $direction])
+                            @include('admin.partials.user-sortable-th', ['column' => 'phone', 'label' => 'Phone', 'sort' => $sort, 'direction' => $direction])
                             <th scope="col" class="admin-prod-th">Role</th>
-                            <th scope="col" class="admin-prod-th">Status</th>
+                            @include('admin.partials.user-sortable-th', ['column' => 'status', 'label' => 'Status', 'sort' => $sort, 'direction' => $direction])
                             <th scope="col" class="admin-prod-th admin-prod-th--end">Actions</th>
                         </tr>
                     </thead>

@@ -20,18 +20,28 @@ class CustomerController extends Controller
 {
     public function index(Request $request)
     {
+        $search = $request->string('search')->trim()->toString();
+        $roleFilter = $request->filled('role') && in_array($request->role, User::customerDirectoryRoleFilters(), true)
+            ? $request->role
+            : null;
+        $sortParams = User::resolveDirectorySort(
+            $request->string('sort')->trim()->toString(),
+            $request->string('direction')->trim()->toString(),
+            $roleFilter
+        );
         $query = User::query();
 
-        if ($request->filled('role') && in_array($request->role, User::customerDirectoryRoleFilters(), true)) {
-            $query->where('role', $request->role);
+        if ($roleFilter !== null) {
+            $query->where('role', $roleFilter);
         }
 
-        $customers = $query->withLocationRelations()
-            ->latest()
+        $customers = $query->directorySearch($search)
+            ->directoryOrder($sortParams['sort'], $sortParams['direction'], $roleFilter)
+            ->withLocationRelations()
             ->paginate(50)
             ->withQueryString();
 
-        return view('admin.customers.index', compact('customers'));
+        return view('admin.customers.index', compact('customers', 'search') + $sortParams);
     }
 
     public function show(User $user)
@@ -79,11 +89,18 @@ class CustomerController extends Controller
         return view('admin.customers.show', compact('user'));
     }
 
-    public function regionalManagersIndex()
+    public function regionalManagersIndex(Request $request)
     {
+        $search = $request->string('search')->trim()->toString();
+        $sortParams = User::resolveDirectorySort(
+            $request->string('sort')->trim()->toString(),
+            $request->string('direction')->trim()->toString(),
+            'regional_manager'
+        );
         $query = User::query()
             ->where('role', 'regional_manager')
-            ->orderBy('name');
+            ->directorySearch($search)
+            ->directoryOrder($sortParams['sort'], $sortParams['direction'], 'regional_manager');
 
         if (Schema::hasColumn('users', 'region_id')) {
             $query->with('region:id,name');
@@ -91,14 +108,21 @@ class CustomerController extends Controller
 
         $managers = $query->withLocationRelations()->get();
 
-        return view('admin.customers.regional-managers.index', compact('managers'));
+        return view('admin.customers.regional-managers.index', compact('managers', 'search') + $sortParams);
     }
 
-    public function teamLeadersIndex()
+    public function teamLeadersIndex(Request $request)
     {
+        $search = $request->string('search')->trim()->toString();
+        $sortParams = User::resolveDirectorySort(
+            $request->string('sort')->trim()->toString(),
+            $request->string('direction')->trim()->toString(),
+            'teamleader'
+        );
         $query = User::query()
             ->where('role', 'teamleader')
-            ->orderBy('name');
+            ->directorySearch($search)
+            ->directoryOrder($sortParams['sort'], $sortParams['direction'], 'teamleader');
 
         if (Schema::hasColumn('users', 'region_id')) {
             $query->with('region:id,name');
@@ -114,7 +138,7 @@ class CustomerController extends Controller
 
         $teamLeaders = $query->withLocationRelations()->get();
 
-        return view('admin.customers.team-leaders.index', compact('teamLeaders'));
+        return view('admin.customers.team-leaders.index', compact('teamLeaders', 'search') + $sortParams);
     }
 
     public function createRegionalManager()

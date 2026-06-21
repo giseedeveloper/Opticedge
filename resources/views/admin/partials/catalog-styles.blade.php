@@ -230,6 +230,35 @@
                 width: 4.5rem;
             }
 
+            .admin-prod-sort-link {
+                display: inline-flex;
+                align-items: center;
+                gap: 0.35rem;
+                color: inherit;
+                text-decoration: none;
+                transition: color 0.15s ease;
+            }
+
+            .admin-prod-sort-link:hover {
+                color: #232f3e;
+            }
+
+            .admin-prod-sort-link--active {
+                color: #232f3e;
+            }
+
+            .admin-prod-sort-link__icon {
+                display: inline-flex;
+                width: 0.875rem;
+                height: 0.875rem;
+                opacity: 0.45;
+            }
+
+            .admin-prod-sort-link--active .admin-prod-sort-link__icon {
+                opacity: 1;
+                color: #c2410c;
+            }
+
             .admin-prod-table-wrap tbody tr {
                 transition: background 0.15s ease;
                 border-bottom: 1px solid rgba(241, 245, 249, 0.9);

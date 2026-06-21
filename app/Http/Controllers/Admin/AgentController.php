@@ -16,24 +16,41 @@ use Illuminate\Validation\Rule;
 
 class AgentController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
+        $search = $request->string('search')->trim()->toString();
+        $sortParams = User::resolveDirectorySort(
+            $request->string('sort')->trim()->toString(),
+            $request->string('direction')->trim()->toString(),
+            'agent'
+        );
         $agents = User::where('role', 'agent')
+            ->directorySearch($search)
+            ->directoryOrder($sortParams['sort'], $sortParams['direction'], 'agent')
             ->withLocationRelations()
-            ->orderBy('name')
             ->paginate(50)
             ->withQueryString();
 
         $teamLeaders = $this->teamLeadersForSelect();
 
-        return view('admin.agents.index', compact('agents', 'teamLeaders'));
+        return view('admin.agents.index', compact('agents', 'teamLeaders', 'search') + $sortParams);
     }
 
-    public function subadminsIndex()
+    public function subadminsIndex(Request $request)
     {
-        $subadmins = User::where('role', 'subadmin')->with('subadminRole')->orderBy('name')->get();
+        $search = $request->string('search')->trim()->toString();
+        $sortParams = User::resolveDirectorySort(
+            $request->string('sort')->trim()->toString(),
+            $request->string('direction')->trim()->toString(),
+            'subadmin'
+        );
+        $subadmins = User::where('role', 'subadmin')
+            ->directorySearch($search)
+            ->directoryOrder($sortParams['sort'], $sortParams['direction'], 'subadmin')
+            ->with('subadminRole')
+            ->get();
 
-        return view('admin.subadmins.index', compact('subadmins'));
+        return view('admin.subadmins.index', compact('subadmins', 'search') + $sortParams);
     }
 
     public function show(User $agent)

@@ -197,6 +197,98 @@ class User extends Authenticatable
     }
 
     /**
+     * Filter users by name, email, phone, or business name (admin directory search).
+     */
+    public function scopeDirectorySearch(Builder $query, ?string $search): Builder
+    {
+        $search = trim((string) $search);
+
+        if ($search === '') {
+            return $query;
+        }
+
+        $like = '%'.$search.'%';
+
+        return $query->where(function ($q) use ($like) {
+            $q->where('name', 'like', $like)
+                ->orWhere('email', 'like', $like)
+                ->orWhere('phone', 'like', $like);
+
+            if (Schema::hasColumn('users', 'business_name')) {
+                $q->orWhere('business_name', 'like', $like);
+            }
+        });
+    }
+
+    /**
+     * Columns allowed for admin directory sorting.
+     *
+     * @return list<string>
+     */
+    public static function directorySortColumns(): array
+    {
+        $columns = ['name', 'email', 'phone', 'role', 'status', 'created_at'];
+
+        if (Schema::hasColumn('users', 'business_name')) {
+            $columns[] = 'business_name';
+        }
+
+        return $columns;
+    }
+
+    /**
+     * Default sort for a directory list (optional role context).
+     *
+     * @return array{sort: string, direction: string}
+     */
+    public static function defaultDirectorySort(?string $role = null): array
+    {
+        if (in_array($role, ['agent', 'teamleader', 'regional_manager', 'subadmin'], true)) {
+            return ['sort' => 'name', 'direction' => 'asc'];
+        }
+
+        if ($role === 'dealer') {
+            return ['sort' => 'created_at', 'direction' => 'desc'];
+        }
+
+        return ['sort' => 'created_at', 'direction' => 'desc'];
+    }
+
+    /**
+     * Resolve validated sort params from a request.
+     *
+     * @return array{sort: string, direction: string}
+     */
+    public static function resolveDirectorySort(?string $sort, ?string $direction, ?string $role = null): array
+    {
+        $defaults = self::defaultDirectorySort($role);
+        $allowed = self::directorySortColumns();
+
+        if (! in_array($sort, $allowed, true) || ! Schema::hasColumn('users', $sort)) {
+            $sort = $defaults['sort'];
+        }
+
+        $direction = strtolower((string) $direction);
+        if (! in_array($direction, ['asc', 'desc'], true)) {
+            $direction = $defaults['direction'];
+        }
+
+        return ['sort' => $sort, 'direction' => $direction];
+    }
+
+    /**
+     * Apply validated sort order to a user directory query.
+     */
+    public function scopeDirectoryOrder(Builder $query, ?string $sort, ?string $direction, ?string $role = null): Builder
+    {
+        $resolved = self::resolveDirectorySort($sort, $direction, $role);
+
+        return $query
+            ->orderBy($resolved['sort'], $resolved['direction'])
+            ->orderBy('id', $resolved['direction']);
+    }
+
+    /**
      * @return array<string, mixed>
      */
     public function toDirectoryListArray(): array

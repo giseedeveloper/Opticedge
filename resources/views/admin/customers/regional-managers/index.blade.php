@@ -25,18 +25,24 @@
             <div class="admin-prod-alert admin-prod-alert--error mt-6" role="alert">{{ $errors->first() }}</div>
         @endif
 
+        @include('admin.partials.user-live-search', [
+            'action' => route('admin.customers.regional-managers.index'),
+            'search' => $search ?? '',
+            'class' => 'mt-6 mb-0',
+        ])
+
         <div class="mt-6 admin-clay-panel overflow-hidden">
             <div class="admin-prod-table-wrap admin-prod-table-wrap--flush overflow-x-auto">
-                <table class="min-w-[720px]">
+                <table class="min-w-[720px]" data-no-datatable>
                     <thead>
                         <tr>
-                            <th scope="col" class="admin-prod-th">Name</th>
-                            <th scope="col" class="admin-prod-th">Email</th>
-                            <th scope="col" class="admin-prod-th">Phone</th>
+                            @include('admin.partials.user-sortable-th', ['column' => 'name', 'label' => 'Name', 'sort' => $sort, 'direction' => $direction])
+                            @include('admin.partials.user-sortable-th', ['column' => 'email', 'label' => 'Email', 'sort' => $sort, 'direction' => $direction])
+                            @include('admin.partials.user-sortable-th', ['column' => 'phone', 'label' => 'Phone', 'sort' => $sort, 'direction' => $direction])
                             <th scope="col" class="admin-prod-th">Region</th>
                             <th scope="col" class="admin-prod-th">Branch</th>
-                            <th scope="col" class="admin-prod-th">Status</th>
-                            <th scope="col" class="admin-prod-th">Joined</th>
+                            @include('admin.partials.user-sortable-th', ['column' => 'status', 'label' => 'Status', 'sort' => $sort, 'direction' => $direction])
+                            @include('admin.partials.user-sortable-th', ['column' => 'created_at', 'label' => 'Joined', 'sort' => $sort, 'direction' => $direction])
                             <th scope="col" class="admin-prod-th admin-prod-th--end">Actions</th>
                         </tr>
                     </thead>

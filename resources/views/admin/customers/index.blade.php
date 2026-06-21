@@ -8,35 +8,44 @@
                 <h1 class="admin-prod-title">All users</h1>
             </div>
             @php
+                $searchQuery = request('search');
+                $sortQuery = $sort ?? request('sort');
+                $directionQuery = $direction ?? request('direction');
+                $tabQuery = fn (?string $role) => array_filter([
+                    'role' => $role,
+                    'search' => $searchQuery,
+                    'sort' => $sortQuery,
+                    'direction' => $directionQuery,
+                ]);
                 $roleFilters = [
                     [
                         'role' => null,
                         'label' => 'All',
-                        'href' => route('admin.customers.index'),
+                        'href' => route('admin.customers.index', $tabQuery(null)),
                         'add' => null,
                     ],
                     [
                         'role' => 'subadmin',
                         'label' => 'Admins',
-                        'href' => route('admin.customers.index', ['role' => 'subadmin']),
+                        'href' => route('admin.customers.index', $tabQuery('subadmin')),
                         'add' => ['label' => 'Add admin', 'route' => route('admin.subadmins.create')],
                     ],
                     [
                         'role' => 'agent',
                         'label' => 'Agents',
-                        'href' => route('admin.customers.index', ['role' => 'agent']),
+                        'href' => route('admin.customers.index', $tabQuery('agent')),
                         'add' => ['label' => 'Add agent', 'route' => route('admin.agents.create')],
                     ],
                     [
                         'role' => 'teamleader',
                         'label' => 'Team leaders',
-                        'href' => route('admin.customers.index', ['role' => 'teamleader']),
+                        'href' => route('admin.customers.index', $tabQuery('teamleader')),
                         'add' => ['label' => 'Add team leader', 'route' => route('admin.customers.team-leaders.create')],
                     ],
                     [
                         'role' => 'regional_manager',
                         'label' => 'Regional managers',
-                        'href' => route('admin.customers.index', ['role' => 'regional_manager']),
+                        'href' => route('admin.customers.index', $tabQuery('regional_manager')),
                         'add' => ['label' => 'Add regional manager', 'route' => route('admin.customers.regional-managers.create')],
                         'assign' => ['label' => 'Assign devices', 'route' => route('admin.customers.regional-managers.assign-devices')],
                     ],
@@ -116,21 +125,31 @@
             <div class="admin-prod-alert admin-prod-alert--error mb-4" role="alert">{{ $errors->first() }}</div>
         @endif
 
+        @include('admin.partials.user-live-search', [
+            'action' => route('admin.customers.index'),
+            'search' => $search ?? '',
+            'hidden' => [
+                'role' => request('role'),
+                'sort' => $sort ?? request('sort'),
+                'direction' => $direction ?? request('direction'),
+            ],
+        ])
+
         <div class="admin-clay-panel overflow-hidden">
             <div class="admin-prod-table-wrap admin-prod-table-wrap--flush overflow-x-auto">
                 <table class="min-w-[860px]" data-no-datatable>
                     <thead>
                         <tr>
-                            <th scope="col" class="admin-prod-th">Name</th>
-                            <th scope="col" class="admin-prod-th">Email</th>
+                            @include('admin.partials.user-sortable-th', ['column' => 'name', 'label' => 'Name', 'sort' => $sort, 'direction' => $direction])
+                            @include('admin.partials.user-sortable-th', ['column' => 'email', 'label' => 'Email', 'sort' => $sort, 'direction' => $direction])
                             @if(\Illuminate\Support\Facades\Schema::hasColumn('users', 'team_leader_id'))
                                 <th scope="col" class="admin-prod-th">Team leader</th>
                             @endif
-                            <th scope="col" class="admin-prod-th">Role</th>
+                            @include('admin.partials.user-sortable-th', ['column' => 'role', 'label' => 'Role', 'sort' => $sort, 'direction' => $direction])
                             <th scope="col" class="admin-prod-th">Region</th>
                             <th scope="col" class="admin-prod-th">Branch</th>
-                            <th scope="col" class="admin-prod-th">Status</th>
-                            <th scope="col" class="admin-prod-th">Joined</th>
+                            @include('admin.partials.user-sortable-th', ['column' => 'status', 'label' => 'Status', 'sort' => $sort, 'direction' => $direction])
+                            @include('admin.partials.user-sortable-th', ['column' => 'created_at', 'label' => 'Joined', 'sort' => $sort, 'direction' => $direction])
                             <th scope="col" class="admin-prod-th admin-prod-th--end">Actions</th>
                         </tr>
                     </thead>
