@@ -243,15 +243,7 @@ class User extends Authenticatable
      */
     public static function defaultDirectorySort(?string $role = null): array
     {
-        if (in_array($role, ['agent', 'teamleader', 'regional_manager', 'subadmin'], true)) {
-            return ['sort' => 'name', 'direction' => 'asc'];
-        }
-
-        if ($role === 'dealer') {
-            return ['sort' => 'created_at', 'direction' => 'desc'];
-        }
-
-        return ['sort' => 'created_at', 'direction' => 'desc'];
+        return ['sort' => 'name', 'direction' => 'asc'];
     }
 
     /**
