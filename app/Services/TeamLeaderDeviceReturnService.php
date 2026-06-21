@@ -94,7 +94,8 @@ class TeamLeaderDeviceReturnService
 
             app(DeviceHierarchyAssignmentService::class)->returnFromTeamLeaderToRegionalManager(
                 $return->fromTeamLeader,
-                $ids
+                $ids,
+                (int) $recipient->id,
             );
 
             $return->update([

@@ -627,32 +627,32 @@ class ProductListItem extends Model
         $chain = [];
 
         $regionalManager = $this->regionalManagerProductListAssignment?->regionalManager;
-        if ($regionalManager) {
+        if ($this->regionalManagerProductListAssignment) {
             $chain[] = [
                 'role' => 'regional_manager',
                 'label' => 'Regional manager',
-                'name' => $regionalManager->name,
-                'email' => $regionalManager->email,
+                'name' => $regionalManager?->name ?? 'Regional manager',
+                'email' => $regionalManager?->email,
             ];
         }
 
         $teamLeader = $this->teamLeaderProductListAssignment?->teamLeader;
-        if ($teamLeader) {
+        if ($this->teamLeaderProductListAssignment) {
             $chain[] = [
                 'role' => 'team_leader',
                 'label' => 'Team leader',
-                'name' => $teamLeader->name,
-                'email' => $teamLeader->email,
+                'name' => $teamLeader?->name ?? 'Team leader',
+                'email' => $teamLeader?->email,
             ];
         }
 
         $agent = $this->agentProductListAssignment?->agent;
-        if ($agent) {
+        if ($this->agentProductListAssignment) {
             $chain[] = [
                 'role' => 'agent',
                 'label' => 'Agent',
-                'name' => $agent->name,
-                'email' => $agent->email,
+                'name' => $agent?->name ?? 'Agent',
+                'email' => $agent?->email,
             ];
         }
 

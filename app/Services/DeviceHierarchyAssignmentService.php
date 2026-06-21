@@ -2,8 +2,11 @@
 
 namespace App\Services;
 
+use App\Models\AgentDeviceReturn;
+use App\Models\AgentProductListAssignment;
 use App\Models\ProductListItem;
 use App\Models\RegionalManagerProductListAssignment;
+use App\Models\TeamLeaderDeviceReturn;
 use App\Models\TeamLeaderProductListAssignment;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
@@ -132,14 +135,19 @@ class DeviceHierarchyAssignmentService
     }
 
     /**
-     * Team leader → regional manager (remove TL custody; RM row remains).
+     * Team leader → regional manager (remove TL custody; ensure RM custody).
      *
      * @param  array<int, int>  $productListIds
      */
-    public function returnFromTeamLeaderToRegionalManager(User $teamLeader, array $productListIds): int
+    public function returnFromTeamLeaderToRegionalManager(User $teamLeader, array $productListIds, ?int $regionalManagerId = null): int
     {
         if ($teamLeader->role !== 'teamleader') {
             throw new \InvalidArgumentException('You are not a team leader.');
+        }
+
+        $regionalManagerId = $regionalManagerId ?? (int) ($teamLeader->regional_manager_id ?? 0);
+        if ($regionalManagerId <= 0) {
+            throw new \InvalidArgumentException('You are not assigned to a regional manager.');
         }
 
         $ids = array_values(array_unique(array_map('intval', $productListIds)));
@@ -147,7 +155,7 @@ class DeviceHierarchyAssignmentService
             throw new \InvalidArgumentException('Select at least one device.');
         }
 
-        return DB::transaction(function () use ($teamLeader, $ids) {
+        return DB::transaction(function () use ($teamLeader, $regionalManagerId, $ids) {
             $returned = 0;
 
             foreach ($ids as $listId) {
@@ -163,11 +171,189 @@ class DeviceHierarchyAssignmentService
                     throw new \InvalidArgumentException('One or more devices are not assigned to you.');
                 }
                 $tlAssign->delete();
+                $this->ensureRegionalManagerAssignment((int) $item->id, $regionalManagerId);
                 $returned++;
             }
 
             return $returned;
         });
+    }
+
+    public function ensureRegionalManagerAssignment(int $productListId, int $regionalManagerId): void
+    {
+        if ($regionalManagerId <= 0) {
+            return;
+        }
+
+        $existing = RegionalManagerProductListAssignment::query()
+            ->where('product_list_id', $productListId)
+            ->first();
+
+        if ($existing) {
+            if ((int) $existing->regional_manager_id !== $regionalManagerId) {
+                $existing->update(['regional_manager_id' => $regionalManagerId]);
+            }
+
+            return;
+        }
+
+        RegionalManagerProductListAssignment::create([
+            'regional_manager_id' => $regionalManagerId,
+            'product_list_id' => $productListId,
+        ]);
+    }
+
+    public function ensureTeamLeaderAssignment(int $productListId, int $teamLeaderId): void
+    {
+        if ($teamLeaderId <= 0) {
+            return;
+        }
+
+        $existing = TeamLeaderProductListAssignment::query()
+            ->where('product_list_id', $productListId)
+            ->first();
+
+        if ($existing) {
+            if ((int) $existing->team_leader_id !== $teamLeaderId) {
+                $existing->update(['team_leader_id' => $teamLeaderId]);
+            }
+
+            return;
+        }
+
+        TeamLeaderProductListAssignment::create([
+            'team_leader_id' => $teamLeaderId,
+            'product_list_id' => $productListId,
+        ]);
+    }
+
+    /**
+     * Backfill missing hierarchy assignment rows for unsold devices.
+     *
+     * @return array{regional_manager: int, team_leader: int, from_returns: int}
+     */
+    public function repairMissingAssignments(): array
+    {
+        $counts = [
+            'regional_manager' => 0,
+            'team_leader' => 0,
+            'from_returns' => 0,
+        ];
+
+        ProductListItem::query()
+            ->whereNull('sold_at')
+            ->whereNull('agent_sale_id')
+            ->whereNull('pending_sale_id')
+            ->whereNull('agent_credit_id')
+            ->whereHas('teamLeaderProductListAssignment')
+            ->whereDoesntHave('regionalManagerProductListAssignment')
+            ->with('teamLeaderProductListAssignment.teamLeader:id,regional_manager_id')
+            ->orderBy('id')
+            ->chunkById(200, function ($items) use (&$counts) {
+                foreach ($items as $item) {
+                    $rmId = (int) ($item->teamLeaderProductListAssignment?->teamLeader?->regional_manager_id ?? 0);
+                    if ($rmId <= 0) {
+                        continue;
+                    }
+                    $this->ensureRegionalManagerAssignment((int) $item->id, $rmId);
+                    $counts['regional_manager']++;
+                }
+            });
+
+        ProductListItem::query()
+            ->whereNull('sold_at')
+            ->whereNull('agent_sale_id')
+            ->whereNull('pending_sale_id')
+            ->whereNull('agent_credit_id')
+            ->whereHas('agentProductListAssignment')
+            ->with([
+                'agentProductListAssignment.agent:id,team_leader_id',
+                'teamLeaderProductListAssignment.teamLeader:id,regional_manager_id',
+            ])
+            ->orderBy('id')
+            ->chunkById(200, function ($items) use (&$counts) {
+                foreach ($items as $item) {
+                    $agent = $item->agentProductListAssignment?->agent;
+                    $teamLeaderId = (int) ($agent?->team_leader_id ?? 0);
+                    if ($teamLeaderId <= 0) {
+                        continue;
+                    }
+
+                    if (! $item->teamLeaderProductListAssignment) {
+                        $this->ensureTeamLeaderAssignment((int) $item->id, $teamLeaderId);
+                        $counts['team_leader']++;
+                        $item->load('teamLeaderProductListAssignment.teamLeader:id,regional_manager_id');
+                    }
+
+                    if (! $item->regionalManagerProductListAssignment) {
+                        $rmId = (int) ($item->teamLeaderProductListAssignment?->teamLeader?->regional_manager_id ?? 0);
+                        if ($rmId <= 0) {
+                            continue;
+                        }
+                        $this->ensureRegionalManagerAssignment((int) $item->id, $rmId);
+                        $counts['regional_manager']++;
+                    }
+                }
+            });
+
+        ProductListItem::query()
+            ->whereNull('sold_at')
+            ->whereNull('agent_sale_id')
+            ->whereNull('pending_sale_id')
+            ->whereNull('agent_credit_id')
+            ->whereDoesntHave('regionalManagerProductListAssignment')
+            ->whereDoesntHave('teamLeaderProductListAssignment')
+            ->whereDoesntHave('agentProductListAssignment')
+            ->orderBy('id')
+            ->chunkById(200, function ($items) use (&$counts) {
+                foreach ($items as $item) {
+                    $rmId = $this->resolveRegionalManagerIdFromApprovedReturns((int) $item->id);
+                    if ($rmId <= 0) {
+                        continue;
+                    }
+                    $this->ensureRegionalManagerAssignment((int) $item->id, $rmId);
+                    $counts['from_returns']++;
+                }
+            });
+
+        return $counts;
+    }
+
+    private function resolveRegionalManagerIdFromApprovedReturns(int $productListId): int
+    {
+        $tlReturn = TeamLeaderDeviceReturn::query()
+            ->where('status', TeamLeaderDeviceReturn::STATUS_APPROVED)
+            ->whereHas('items', fn ($q) => $q->where('product_list_id', $productListId))
+            ->orderByDesc('decided_at')
+            ->orderByDesc('id')
+            ->value('to_regional_manager_id');
+
+        if ($tlReturn) {
+            return (int) $tlReturn;
+        }
+
+        $agentReturn = AgentDeviceReturn::query()
+            ->where('status', AgentDeviceReturn::STATUS_APPROVED)
+            ->whereHas('items', fn ($q) => $q->where('product_list_id', $productListId))
+            ->with('fromAgent:id,team_leader_id')
+            ->orderByDesc('decided_at')
+            ->orderByDesc('id')
+            ->first();
+
+        if (! $agentReturn) {
+            return 0;
+        }
+
+        $teamLeaderId = (int) ($agentReturn->fromAgent?->team_leader_id ?? 0);
+        if ($teamLeaderId <= 0) {
+            $teamLeaderId = (int) ($agentReturn->to_team_leader_id ?? 0);
+        }
+
+        if ($teamLeaderId <= 0) {
+            return 0;
+        }
+
+        return (int) (User::query()->whereKey($teamLeaderId)->value('regional_manager_id') ?? 0);
     }
 
     /**

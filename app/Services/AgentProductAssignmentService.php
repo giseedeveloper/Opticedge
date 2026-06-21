@@ -218,6 +218,15 @@ class AgentProductAssignmentService
                     throw new \InvalidArgumentException('One or more devices cannot be returned (wrong team leader custody).');
                 }
 
+                $teamLeader = User::query()->find($teamLeaderId);
+                $regionalManagerId = (int) ($teamLeader?->regional_manager_id ?? 0);
+                if ($regionalManagerId > 0) {
+                    app(DeviceHierarchyAssignmentService::class)->ensureRegionalManagerAssignment(
+                        (int) $item->id,
+                        $regionalManagerId
+                    );
+                }
+
                 $pid = (int) $item->product_id;
                 $byProduct[$pid] = ($byProduct[$pid] ?? 0) + 1;
                 $assign->delete();
