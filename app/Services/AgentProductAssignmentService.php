@@ -7,7 +7,6 @@ use App\Models\AgentProductListAssignment;
 use App\Models\Product;
 use App\Models\ProductListItem;
 use App\Models\Purchase;
-use App\Models\TeamLeaderProductListAssignment;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 
