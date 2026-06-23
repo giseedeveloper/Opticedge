@@ -208,15 +208,10 @@ class AgentProductAssignmentService
                     throw new \InvalidArgumentException('One or more devices are not assigned to you.');
                 }
 
-                $tlAssign = $item->teamLeaderProductListAssignment;
-                if (! $tlAssign) {
-                    TeamLeaderProductListAssignment::create([
-                        'team_leader_id' => $teamLeaderId,
-                        'product_list_id' => $item->id,
-                    ]);
-                } elseif ((int) $tlAssign->team_leader_id !== $teamLeaderId) {
-                    throw new \InvalidArgumentException('One or more devices cannot be returned (wrong team leader custody).');
-                }
+                app(DeviceHierarchyAssignmentService::class)->ensureTeamLeaderAssignment(
+                    (int) $item->id,
+                    $teamLeaderId
+                );
 
                 $teamLeader = User::query()->find($teamLeaderId);
                 $regionalManagerId = (int) ($teamLeader?->regional_manager_id ?? 0);
