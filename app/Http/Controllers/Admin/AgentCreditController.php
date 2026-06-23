@@ -178,6 +178,51 @@ class AgentCreditController extends Controller
             ->with('success', 'Payment recorded across ' . $creditsUpdated . ' credit(s) and totals updated.');
     }
 
+    public function destroyPayment(Request $request, int $paymentId)
+    {
+        $payment = AgentCreditPayment::with(['agentCredit', 'paymentOption'])->findOrFail($paymentId);
+        $credit = $payment->agentCredit;
+
+        if (! $credit) {
+            return redirect()
+                ->route('admin.stock.agent-credits', $request->query())
+                ->withErrors(['error' => 'Credit not found for this payment.']);
+        }
+
+        $amount = (float) $payment->amount;
+        $eps = 0.0001;
+
+        DB::transaction(function () use ($payment, $credit, $amount, $eps) {
+            if ($amount > $eps && $payment->paymentOption) {
+                $payment->paymentOption->decrement('balance', $amount);
+            }
+
+            $oldPaid = (float) ($credit->paid_amount ?? 0);
+            $newPaid = max(0, $oldPaid - $amount);
+            $total = (float) $credit->total_amount;
+            $status = $newPaid >= $total - $eps ? 'paid' : ($newPaid > $eps ? 'partial' : 'pending');
+
+            $latestRemaining = AgentCreditPayment::query()
+                ->where('agent_credit_id', $credit->id)
+                ->where('id', '!=', $payment->id)
+                ->orderByDesc('paid_date')
+                ->orderByDesc('id')
+                ->first();
+
+            $credit->update([
+                'paid_amount' => $newPaid,
+                'payment_status' => $status,
+                'paid_date' => $newPaid > $eps ? $latestRemaining?->paid_date : null,
+            ]);
+
+            $payment->delete();
+        });
+
+        return redirect()
+            ->route('admin.stock.agent-credits', $request->query())
+            ->with('success', 'Payment deleted. Credit balance and channel updated.');
+    }
+
     private function filteredAgentCreditsQuery(Request $request)
     {
         $query = AgentCredit::query();

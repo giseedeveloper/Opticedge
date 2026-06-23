@@ -181,6 +181,7 @@
                                     <th scope="col" class="admin-prod-th">Credit #</th>
                                     <th scope="col" class="admin-prod-th">Channel</th>
                                     <th scope="col" class="admin-prod-th">Amount</th>
+                                    <th scope="col" class="admin-prod-th w-24"></th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -190,10 +191,19 @@
                                         <td class="font-medium text-[#232f3e]">#{{ $payment->agent_credit_id }}</td>
                                         <td class="text-slate-700">{{ $payment->paymentOption?->name ?? '—' }}</td>
                                         <td class="font-variant-numeric font-semibold text-emerald-800">{{ number_format((float) $payment->amount, 2) }} TZS</td>
+                                        <td class="text-right">
+                                            <form action="{{ route('admin.stock.agent-credit-payment-destroy', ['paymentId' => $payment->id] + request()->query()) }}" method="POST"
+                                                class="inline-block"
+                                                onsubmit="return confirm('Delete this payment? The amount will be removed from the credit and payment channel.');">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button type="submit" class="text-red-600 hover:text-red-800 text-sm font-semibold">Delete</button>
+                                            </form>
+                                        </td>
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="4" class="text-center text-slate-500 py-10">No payment history for the selected filter.</td>
+                                        <td colspan="5" class="text-center text-slate-500 py-10">No payment history for the selected filter.</td>
                                     </tr>
                                 @endforelse
                             </tbody>

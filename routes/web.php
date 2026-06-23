@@ -432,6 +432,7 @@ Route::middleware(['auth', 'redirect.superadmin.from.admin', 'admin', 'tenant.su
             Route::patch('agent-credits/{id}/payment-channel', [App\Http\Controllers\Admin\AgentCreditController::class, 'updatePaymentChannel'])->name('agent-credit-payment-channel');
             Route::patch('agent-credits/{id}/commission', [App\Http\Controllers\Admin\AgentCreditController::class, 'updateCommission'])->name('agent-credits-update-commission');
             Route::post('agent-credits/pay', [App\Http\Controllers\Admin\AgentCreditController::class, 'pay'])->name('agent-credits-pay');
+            Route::delete('agent-credits/payments/{paymentId}', [App\Http\Controllers\Admin\AgentCreditController::class, 'destroyPayment'])->name('agent-credit-payment-destroy');
             Route::post('agent-credits/{id}/pay-remaining', [App\Http\Controllers\Admin\AgentCreditController::class, 'payRemaining'])->name('agent-credit-pay-remaining');
             Route::put('agent-credits/{id}', [App\Http\Controllers\Admin\AgentCreditController::class, 'update'])->name('update-agent-credit');
             Route::delete('agent-credits/{id}', [App\Http\Controllers\Admin\AgentCreditController::class, 'destroy'])->name('destroy-agent-credit');
