@@ -30,6 +30,39 @@
                 letter-spacing: 0.04em;
                 color: #64748b;
             }
+            .dist-line-sell-input {
+                width: 100%;
+                max-width: 8.5rem;
+                margin-left: auto;
+                display: block;
+                min-height: 2.25rem;
+                padding: 0.375rem 0.5rem;
+                font-size: 0.875rem;
+                font-variant-numeric: tabular-nums;
+                text-align: right;
+                border: 1px solid #cbd5e1;
+                border-radius: 0.5rem;
+                background: #fff;
+                color: #232f3e;
+                transition: border-color 120ms ease, box-shadow 120ms ease;
+            }
+            .dist-line-sell-input:hover {
+                border-color: #94a3b8;
+            }
+            .dist-line-sell-input:focus {
+                outline: none;
+                border-color: #f97316;
+                box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.15);
+            }
+            .dist-line-sell-input::-webkit-outer-spin-button,
+            .dist-line-sell-input::-webkit-inner-spin-button {
+                -webkit-appearance: none;
+                margin: 0;
+            }
+            .dist-line-sell-input {
+                -moz-appearance: textfield;
+                appearance: textfield;
+            }
             .dist-imei-tabs {
                 display: flex;
                 gap: 0.375rem;
@@ -557,7 +590,7 @@
                         <span id="dist-total-display" class="text-2xl font-bold text-slate-900">0.00 TZS</span>
                     </div>
                     <input type="hidden" id="total-amount" name="total_amount_meta" value="0">
-                    <p class="text-xs text-slate-600 mt-2">Sum of each line: selected IMEIs × unit sell price from that line’s purchase.</p>
+                    <p class="text-xs text-slate-600 mt-2">Sum of each line: selected IMEIs × unit sell price (editable per line).</p>
                 </div>
 
                 <div>
@@ -650,9 +683,21 @@
                 return tr.querySelectorAll('.line-imei-id').length;
             }
 
+            function lineSellPrice(tr) {
+                const inp = tr.querySelector('.line-sell-input');
+                if (inp && inp.value !== '') {
+                    const v = parseFloat(inp.value);
+                    if (!isNaN(v) && v >= 0) return v;
+                }
+                return parseFloat(tr.getAttribute('data-sell-price') || '0') || 0;
+            }
+
+            function syncRowSellPrice(tr) {
+                tr.setAttribute('data-sell-price', String(lineSellPrice(tr)));
+            }
+
             function lineTotalRow(tr) {
-                const sell = parseFloat(tr.getAttribute('data-sell-price') || '0') || 0;
-                return lineQty(tr) * sell;
+                return lineQty(tr) * lineSellPrice(tr);
             }
 
             function lineKey(productId, purchaseId) {
@@ -687,6 +732,8 @@
                     tr.querySelectorAll('.line-imei-id').forEach(inp => {
                         inp.name = 'lines[' + idx + '][product_list_ids][]';
                     });
+                    const sellInp = tr.querySelector('.line-sell-input');
+                    if (sellInp) sellInp.name = 'lines[' + idx + '][sell_price]';
                     const countEl = tr.querySelector('.line-imei-count');
                     const n = lineQty(tr);
                     if (countEl) countEl.textContent = n + ' device' + (n === 1 ? '' : 's');
@@ -850,7 +897,10 @@
                             '<input type="hidden" class="line-purchase-id" name="lines[' + idx + '][purchase_id]" value="' + purchaseIdStr + '">' +
                         '</td>' +
                         '<td class="px-3 py-3 align-top text-right font-variant-numeric text-slate-700 line-buy-cell">' + formatCurrency(buyPrice) + '</td>' +
-                        '<td class="px-3 py-3 align-top text-right font-variant-numeric text-slate-700 line-sell-cell">' + formatCurrency(sellPrice) + '</td>' +
+                        '<td class="px-3 py-3 align-top text-right line-sell-cell">' +
+                            '<input type="number" class="line-sell-input dist-line-sell-input" name="lines[' + idx + '][sell_price]" ' +
+                            'value="' + sellPrice + '" min="0" step="0.01" inputmode="decimal" aria-label="Unit sell price in TZS">' +
+                        '</td>' +
                         '<td class="px-3 py-3 align-top text-right font-variant-numeric font-semibold text-[#232f3e] line-line-total">0.00 TZS</td>' +
                         '<td class="px-2 py-3 align-top">' +
                             '<button type="button" class="text-red-600 hover:text-red-800 text-sm font-semibold remove-line">Remove</button>' +
@@ -1784,6 +1834,27 @@
                     });
             });
 
+            tbody.addEventListener('input', function (e) {
+                if (e.target.classList.contains('line-sell-input')) {
+                    const tr = e.target.closest('tr[data-line-row]');
+                    if (tr) {
+                        syncRowSellPrice(tr);
+                        recalcGrandTotal();
+                    }
+                }
+            });
+            tbody.addEventListener('change', function (e) {
+                if (e.target.classList.contains('line-sell-input')) {
+                    const tr = e.target.closest('tr[data-line-row]');
+                    if (!tr) return;
+                    if (e.target.value === '' || parseFloat(e.target.value) < 0) {
+                        e.target.value = '0';
+                    }
+                    syncRowSellPrice(tr);
+                    recalcGrandTotal();
+                }
+            });
+
             document.getElementById('dealer_id').addEventListener('change', recalcGrandTotal);
             function onPurchaseChanged() {
                 resetImeiPanel();
@@ -1806,12 +1877,19 @@
                     return false;
                 }
                 let missingImeis = false;
+                let invalidSell = false;
                 rows.forEach(tr => {
                     if (lineQty(tr) < 1) missingImeis = true;
+                    if (lineSellPrice(tr) <= 0) invalidSell = true;
                 });
                 if (missingImeis) {
                     e.preventDefault();
                     alert('Each line must have at least one IMEI selected.');
+                    return false;
+                }
+                if (invalidSell) {
+                    e.preventDefault();
+                    alert('Each line must have a unit sell price greater than zero.');
                     return false;
                 }
                 const paid = parseMoney(paidInput);

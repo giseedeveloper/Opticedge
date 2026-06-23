@@ -2324,6 +2324,7 @@ class StockController extends Controller
             'lines.*.product_id' => 'required|integer|exists:models,id',
             'lines.*.product_list_ids' => 'required|array|min:1',
             'lines.*.product_list_ids.*' => 'integer|distinct|exists:product_list,id',
+            'lines.*.sell_price' => 'nullable|numeric|min:0',
             'paid_amount' => 'nullable|numeric|min:0',
         ]);
 
@@ -2352,7 +2353,10 @@ class StockController extends Controller
             $product = Product::findOrFail($pid);
             $prices = $service->getPricesForProductOnPurchase($pid, $purchase);
             $buyPrice = $prices['buy'];
-            $sellUnit = $prices['sell'];
+            $formSellRaw = $line['sell_price'] ?? null;
+            $sellUnit = ($formSellRaw !== null && $formSellRaw !== '')
+                ? (float) $formSellRaw
+                : (float) $prices['sell'];
 
             // Fall back: use buy price as sell when no sell price is set (prevents blocking
             // legitimate sales where only unit_price was entered without an explicit sell_price).
