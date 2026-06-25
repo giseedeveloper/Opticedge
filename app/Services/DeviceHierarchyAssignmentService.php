@@ -278,7 +278,8 @@ class DeviceHierarchyAssignmentService
                         continue;
                     }
 
-                    if (! $item->teamLeaderProductListAssignment) {
+                    $tlAssign = $item->teamLeaderProductListAssignment;
+                    if (! $tlAssign || (int) $tlAssign->team_leader_id !== $teamLeaderId) {
                         $this->ensureTeamLeaderAssignment((int) $item->id, $teamLeaderId);
                         $counts['team_leader']++;
                         $item->load('teamLeaderProductListAssignment.teamLeader:id,regional_manager_id');

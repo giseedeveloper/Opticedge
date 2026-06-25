@@ -50,9 +50,15 @@ class AgentProductAssignmentService
                     throw new \InvalidArgumentException('One or more devices are already assigned to an agent.');
                 }
 
-                if (! $item->teamLeaderProductListAssignment) {
-                    throw new \InvalidArgumentException('One or more devices must be assigned to a team leader before assigning to an agent.');
+                $agentTeamLeaderId = (int) ($agent->team_leader_id ?? 0);
+                if ($agentTeamLeaderId <= 0) {
+                    throw new \InvalidArgumentException('Agent is not assigned to a team leader.');
                 }
+
+                app(DeviceHierarchyAssignmentService::class)->ensureTeamLeaderAssignment(
+                    (int) $item->id,
+                    $agentTeamLeaderId
+                );
 
                 AgentProductListAssignment::create([
                     'agent_id' => $agent->id,
