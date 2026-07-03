@@ -1111,6 +1111,18 @@ class StockController extends Controller
         return view('admin.stock.create-purchase', compact('vendors', 'fromStock', 'branches', 'productsForSelect', 'paymentOptions', 'isPassthrough'));
     }
 
+    /**
+     * When a payment channel is selected at purchase create, treat empty/zero paid amount as full total.
+     */
+    private function resolvePurchaseCreatePaidAmount(float $totalAmount, float $paidAmount, ?int $paymentOptionId): float
+    {
+        if ($paymentOptionId !== null && $paidAmount <= 0.0001 && $totalAmount > 0) {
+            return $totalAmount;
+        }
+
+        return $paidAmount;
+    }
+
     public function storePurchase(Request $request)
     {
         $passthrough = $request->boolean('_passthrough');
@@ -1188,8 +1200,12 @@ class StockController extends Controller
             $validated['stock_id'] = $stockId;
 
             $validated['total_amount'] = $quantity * (float) $validated['unit_price'];
-            $paidAmount = (float) ($validated['paid_amount'] ?? 0);
             $totalAmount = (float) $validated['total_amount'];
+            $paidAmount = $this->resolvePurchaseCreatePaidAmount(
+                $totalAmount,
+                (float) ($validated['paid_amount'] ?? 0),
+                $paymentOptionId !== null ? (int) $paymentOptionId : null
+            );
             $paymentStatus = $paidAmount >= $totalAmount ? 'paid' : ($paidAmount > 0 ? 'partial' : 'pending');
             $validated['payment_status'] = $paymentStatus;
             $validated['paid_amount'] = $paidAmount;
@@ -1326,7 +1342,11 @@ class StockController extends Controller
             $purchaseName = $nameInput;
         }
 
-        $paidAmount = (float) ($validated['paid_amount'] ?? 0);
+        $paidAmount = $this->resolvePurchaseCreatePaidAmount(
+            $totalAmount,
+            (float) ($validated['paid_amount'] ?? 0),
+            $paymentOptionId !== null ? (int) $paymentOptionId : null
+        );
         $paymentStatus = $paidAmount >= $totalAmount ? 'paid' : ($paidAmount > 0 ? 'partial' : 'pending');
 
         $header = [

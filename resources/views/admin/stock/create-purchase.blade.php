@@ -213,7 +213,7 @@
 
                         <div class="col-span-2 border-t border-slate-100 pt-4 mt-2">
                             <h3 class="text-lg font-medium text-slate-900 mb-2">Payment (optional)</h3>
-                            <p class="text-xs text-slate-500 mb-4">If you pay the supplier now, choose which <strong>channel</strong> (bank / mobile / cash) the money leaves from. Only channels shown under <strong>Channels</strong> (not hidden) appear here.</p>
+                            <p class="text-xs text-slate-500 mb-4">If you pay the supplier now, choose which <strong>channel</strong> (bank / mobile / cash) the money leaves from. When a channel is selected, the <strong>paid amount</strong> defaults to the purchase total and that amount is deducted from the channel. Leave both empty to record the purchase as unpaid.</p>
                         </div>
 
                         <div class="col-span-1">
@@ -286,6 +286,42 @@
                 });
             }
 
+            function getPurchaseTotalValue() {
+                if (purchaseFromStock) {
+                    const qty = parseFloat(document.getElementById('quantity')?.value) || 0;
+                    const price = parseFloat(document.getElementById('unit_price')?.value) || 0;
+                    return qty * price;
+                }
+
+                let total = 0;
+                document.querySelectorAll('#purchase_line_rows tr.purchase-line-row').forEach(function(tr) {
+                    const q = parseFloat(tr.querySelector('.line-qty')?.value) || 0;
+                    const u = parseFloat(tr.querySelector('.line-unit')?.value) || 0;
+                    total += q * u;
+                });
+                return total;
+            }
+
+            function syncPaidAmountWithChannel(forceFill) {
+                const channel = document.getElementById('payment_option_id')?.value || '';
+                const paidInput = document.getElementById('paid_amount');
+                if (!paidInput) return;
+
+                if (!channel) {
+                    return;
+                }
+
+                const total = getPurchaseTotalValue();
+                if (total <= 0) {
+                    return;
+                }
+
+                const currentPaid = parseFloat(paidInput.value);
+                if (forceFill || paidInput.value === '' || isNaN(currentPaid) || currentPaid <= 0) {
+                    paidInput.value = total.toFixed(2);
+                }
+            }
+
             function validatePurchaseForm() {
                 const branchId = document.getElementById('branch_id')?.value || '';
                 if (!branchId) {
@@ -295,13 +331,14 @@
                 }
 
                 const paid = parseFloat(document.getElementById('paid_amount')?.value) || 0;
-                if (paid > 0) {
-                    const channel = document.getElementById('payment_option_id')?.value || '';
-                    if (!channel) {
-                        alert('❌ Select a payment channel when paying an amount now (e.g. your bank account).');
-                        document.getElementById('payment_option_id')?.focus();
-                        return false;
-                    }
+                const channel = document.getElementById('payment_option_id')?.value || '';
+                if (paid > 0 && !channel) {
+                    alert('❌ Select a payment channel when paying an amount now (e.g. your bank account).');
+                    document.getElementById('payment_option_id')?.focus();
+                    return false;
+                }
+                if (channel && paid <= 0) {
+                    syncPaidAmountWithChannel(true);
                 }
 
                 if (purchaseFromStock) {
@@ -396,6 +433,8 @@
                     hiddenEl.value = total;
                 }
 
+                syncPaidAmountWithChannel(false);
+
                 const submitBtn = document.querySelector('form[action*="store-purchase"] [type="submit"]') || document.querySelector('[type="submit"]');
                 if (submitBtn) {
                     if (ok) {
@@ -410,6 +449,10 @@
 
             document.addEventListener('DOMContentLoaded', function() {
                 calculateTotal();
+
+                document.getElementById('payment_option_id')?.addEventListener('change', function() {
+                    syncPaidAmountWithChannel(true);
+                });
 
                 if (window.jQuery && jQuery.fn.select2) {
                     var $vendorSel = jQuery('#distributor_name');
