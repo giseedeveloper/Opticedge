@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Http\Controllers\Concerns\HandlesUserProfileImage;
 use App\Http\Controllers\Controller;
 use App\Models\AgentAssignment;
 use App\Models\Branch;
@@ -16,6 +17,7 @@ use Illuminate\Validation\Rule;
 
 class AgentController extends Controller
 {
+    use HandlesUserProfileImage;
     public function index(Request $request)
     {
         $search = $request->string('search')->trim()->toString();
@@ -83,13 +85,13 @@ class AgentController extends Controller
 
     public function store(Request $request)
     {
-        $rules = [
+        $rules = array_merge([
             'name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users',
             'password' => 'required|string|min:8|confirmed',
             'phone' => 'nullable|string|max:100',
             'branch_id' => 'nullable|exists:branches,id',
-        ];
+        ], $this->profileImageValidationRules());
 
         if (Schema::hasColumn('users', 'team_leader_id')) {
             $rules['team_leader_id'] = [
@@ -130,6 +132,8 @@ class AgentController extends Controller
             unset($validated['team_leader_id']);
         }
 
+        $validated = array_merge($validated, $this->profileImagePayloadFromRequest($request));
+
         $user = User::create($validated);
         $user->forceFill(['email_verified_at' => now()])->save();
 
@@ -142,13 +146,13 @@ class AgentController extends Controller
             abort(404);
         }
 
-        $validated = $request->validate([
+        $validated = $request->validate(array_merge([
             'name' => 'required|string|max:255',
             'email' => ['required', 'string', 'email', 'max:255', Rule::unique('users', 'email')->ignore($agent->id)],
             'phone' => 'nullable|string|max:100',
             'branch_id' => 'nullable|exists:branches,id',
             'password' => 'nullable|string|min:8|confirmed',
-        ]);
+        ], $this->profileImageValidationRules()));
 
         $branchId = $validated['branch_id'] ?? null;
         if ($branchId === '') {
@@ -174,6 +178,8 @@ class AgentController extends Controller
         if (! empty($validated['password'])) {
             $payload['password'] = $validated['password'];
         }
+
+        $payload = array_merge($payload, $this->profileImagePayloadFromRequest($request, $agent));
 
         $agent->update($payload);
 

@@ -61,9 +61,11 @@
             @else
                 <form method="POST"
                     action="{{ route('admin.customers.regional-managers.update', ['regionalManager' => $regionalManager] + $returnQuery) }}"
+                    enctype="multipart/form-data"
                     class="admin-prod-form-body space-y-6">
                     @csrf
                     @method('PATCH')
+                    @include('admin.partials.profile-photo-field', ['user' => $regionalManager])
                     <div>
                         <label for="rm_edit_name" class="admin-prod-label">Name</label>
                         <input type="text" id="rm_edit_name" name="name" value="{{ old('name', $regionalManager->name) }}"

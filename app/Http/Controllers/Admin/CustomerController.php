@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Http\Controllers\Concerns\HandlesUserProfileImage;
 use App\Http\Controllers\Controller;
 use App\Models\Product;
 use App\Models\ProductListItem;
@@ -18,6 +19,7 @@ use Illuminate\Validation\Rule;
 
 class CustomerController extends Controller
 {
+    use HandlesUserProfileImage;
     public function index(Request $request)
     {
         $directoryParams = $this->resolveCustomersDirectoryParams($request);
@@ -260,7 +262,7 @@ class CustomerController extends Controller
                 ->withErrors(['error' => 'Regions are not set up yet. Run migrations and seed regions first.']);
         }
 
-        $validated = $request->validate([
+        $validated = $request->validate(array_merge([
             'name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users,email',
             'phone' => 'nullable|string|max:100',
@@ -268,7 +270,7 @@ class CustomerController extends Controller
             'password' => 'required|string|min:8|confirmed',
             'business_name' => 'nullable|string|max:255',
             'notes' => 'nullable|string|max:10000',
-        ]);
+        ], $this->profileImageValidationRules()));
 
         $payload = [
             'name' => $validated['name'],
@@ -283,6 +285,8 @@ class CustomerController extends Controller
             'business_name' => $validated['business_name'] ?? null,
             'notes' => $validated['notes'] ?? null,
         ];
+
+        $payload = array_merge($payload, $this->profileImagePayloadFromRequest($request));
 
         if (! Schema::hasColumn('users', 'notes')) {
             unset($payload['notes']);
@@ -311,7 +315,7 @@ class CustomerController extends Controller
                 ->withErrors(['error' => 'Branches are not set up yet. Create a branch first.']);
         }
 
-        $validated = $request->validate([
+        $validated = $request->validate(array_merge([
             'name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users,email',
             'phone' => 'nullable|string|max:100',
@@ -326,7 +330,7 @@ class CustomerController extends Controller
             'password' => 'required|string|min:8|confirmed',
             'business_name' => 'nullable|string|max:255',
             'notes' => 'nullable|string|max:10000',
-        ]);
+        ], $this->profileImageValidationRules()));
 
         $managerRegionId = DB::table('users')
             ->where('id', $validated['regional_manager_id'])
@@ -353,6 +357,8 @@ class CustomerController extends Controller
             'business_name' => $validated['business_name'] ?? null,
             'notes' => $validated['notes'] ?? null,
         ];
+
+        $payload = array_merge($payload, $this->profileImagePayloadFromRequest($request));
 
         if (! Schema::hasColumn('users', 'notes')) {
             unset($payload['notes']);
@@ -425,7 +431,7 @@ class CustomerController extends Controller
             ))->withErrors(['error' => 'Branches are not set up yet.']);
         }
 
-        $rules = [
+        $rules = array_merge([
             'name' => 'required|string|max:255',
             'email' => ['required', 'string', 'email', 'max:255', Rule::unique('users', 'email')->ignore($teamLeader->id)],
             'phone' => 'nullable|string|max:100',
@@ -434,7 +440,7 @@ class CustomerController extends Controller
             'password' => 'nullable|string|min:8|confirmed',
             'business_name' => 'nullable|string|max:255',
             'notes' => 'nullable|string|max:10000',
-        ];
+        ], $this->profileImageValidationRules());
 
         if (Schema::hasColumn('users', 'regional_manager_id')) {
             $rules['regional_manager_id'] = [
@@ -483,6 +489,8 @@ class CustomerController extends Controller
         if (! empty($validated['password'])) {
             $payload['password'] = $validated['password'];
         }
+
+        $payload = array_merge($payload, $this->profileImagePayloadFromRequest($request, $teamLeader));
 
         $teamLeader->update($payload);
 
@@ -533,7 +541,7 @@ class CustomerController extends Controller
             ))->withErrors(['error' => 'Regions are not set up yet.']);
         }
 
-        $validated = $request->validate([
+        $validated = $request->validate(array_merge([
             'name' => 'required|string|max:255',
             'email' => ['required', 'string', 'email', 'max:255', Rule::unique('users', 'email')->ignore($regionalManager->id)],
             'phone' => 'nullable|string|max:100',
@@ -541,7 +549,7 @@ class CustomerController extends Controller
             'password' => 'nullable|string|min:8|confirmed',
             'business_name' => 'nullable|string|max:255',
             'notes' => 'nullable|string|max:10000',
-        ]);
+        ], $this->profileImageValidationRules()));
 
         $payload = [
             'name' => $validated['name'],
@@ -558,6 +566,8 @@ class CustomerController extends Controller
         if (! empty($validated['password'])) {
             $payload['password'] = $validated['password'];
         }
+
+        $payload = array_merge($payload, $this->profileImagePayloadFromRequest($request, $regionalManager));
 
         $regionalManager->update($payload);
 

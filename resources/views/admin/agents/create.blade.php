@@ -23,8 +23,9 @@
                 <h2 class="admin-prod-form-title">Account</h2>
                 <p class="admin-prod-form-hint">Name, email, phone, branch, optional team leader, and password for sign-in.</p>
             </div>
-            <form method="POST" action="{{ route('admin.agents.store') }}" class="admin-prod-form-body space-y-6">
+            <form method="POST" action="{{ route('admin.agents.store') }}" enctype="multipart/form-data" class="admin-prod-form-body space-y-6">
                 @csrf
+                @include('admin.partials.profile-photo-field')
                 <div>
                     <label for="name" class="admin-prod-label">Name</label>
                     <input type="text" id="name" name="name" value="{{ old('name') }}" required

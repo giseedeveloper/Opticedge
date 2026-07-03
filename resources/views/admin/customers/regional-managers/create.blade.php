@@ -32,8 +32,9 @@
                     <p class="text-sm text-slate-600">No regions found. Run migrations and seed Tanzanian regions first.</p>
                 </div>
             @else
-                <form method="POST" action="{{ route('admin.customers.regional-managers.store') }}" class="admin-prod-form-body space-y-6">
+                <form method="POST" action="{{ route('admin.customers.regional-managers.store') }}" enctype="multipart/form-data" class="admin-prod-form-body space-y-6">
                     @csrf
+                    @include('admin.partials.profile-photo-field')
                     <div>
                         <label for="name" class="admin-prod-label">Name</label>
                         <input type="text" id="name" name="name" value="{{ old('name') }}" required

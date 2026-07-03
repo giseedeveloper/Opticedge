@@ -71,9 +71,11 @@
             @else
                 <form method="POST"
                     action="{{ route('admin.customers.team-leaders.update', ['teamLeader' => $teamLeader] + $returnQuery) }}"
+                    enctype="multipart/form-data"
                     class="admin-prod-form-body space-y-6">
                     @csrf
                     @method('PATCH')
+                    @include('admin.partials.profile-photo-field', ['user' => $teamLeader])
                     <div>
                         <label for="tl_edit_name" class="admin-prod-label">Name</label>
                         <input type="text" id="tl_edit_name" name="name" value="{{ old('name', $teamLeader->name) }}" required

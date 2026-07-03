@@ -22,31 +22,37 @@ class AdminOrganizationApiController extends Controller
             $with[] = 'branch:id,name';
         }
 
+        $userColumns = ['id', 'name', 'email', 'status', 'branch_id', 'region_id'];
+        if (Schema::hasColumn('users', 'profile_image')) {
+            $userColumns[] = 'profile_image';
+        }
+
         $regionalManagers = User::query()
             ->where('role', 'regional_manager')
             ->when($with !== [], fn ($q) => $q->with($with))
             ->orderBy('name')
-            ->get(['id', 'name', 'email', 'status', 'branch_id', 'region_id']);
+            ->get($userColumns);
 
         $teamLeaders = User::query()
             ->where('role', 'teamleader')
             ->when($with !== [], fn ($q) => $q->with($with))
             ->when($hasManagerLink, fn ($q) => $q->with('regionalManager:id,name'))
             ->orderBy('name')
-            ->get(['id', 'name', 'email', 'status', 'branch_id', 'regional_manager_id']);
+            ->get(array_merge($userColumns, $hasManagerLink ? ['regional_manager_id'] : []));
 
         $agents = User::query()
             ->where('role', 'agent')
             ->when($with !== [], fn ($q) => $q->with($with))
             ->when($hasTeamLeaderLink, fn ($q) => $q->with('teamLeader:id,name'))
             ->orderBy('name')
-            ->get(['id', 'name', 'email', 'status', 'branch_id', 'team_leader_id']);
+            ->get(array_merge($userColumns, $hasTeamLeaderLink ? ['team_leader_id'] : []));
 
         $serializeUser = fn (User $u) => [
             'id' => $u->id,
             'name' => $u->name,
             'email' => $u->email,
             'status' => $u->status ?? 'active',
+            'profile_image_url' => Schema::hasColumn('users', 'profile_image') ? $u->profile_image_url : null,
             'branch_name' => $u->branch?->name,
             'region_name' => $u->region?->name ?? null,
             'regional_manager_id' => $hasManagerLink ? $u->regional_manager_id : null,

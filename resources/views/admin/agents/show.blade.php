@@ -52,9 +52,10 @@
                 <h2 class="admin-prod-form-title">Update agent information</h2>
                 <p class="admin-prod-form-hint">Edit name, email, phone, or branch. Leave password blank to keep the current one. If you change branch, it must match this agent’s team leader’s branch (or update the team leader below).</p>
             </div>
-            <form method="POST" action="{{ route('admin.agents.update', $agent) }}" class="admin-prod-form-body space-y-6">
+            <form method="POST" action="{{ route('admin.agents.update', $agent) }}" enctype="multipart/form-data" class="admin-prod-form-body space-y-6">
                 @csrf
                 @method('PATCH')
+                @include('admin.partials.profile-photo-field', ['user' => $agent])
                 <div>
                     <label for="agent_edit_name" class="admin-prod-label">Name</label>
                     <input type="text" id="agent_edit_name" name="name" value="{{ old('name', $agent->name) }}" required

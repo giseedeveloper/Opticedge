@@ -31,6 +31,7 @@ class User extends Authenticatable
         'subadmin_role_id',
         'business_name',
         'phone',
+        'profile_image',
         'branch_id',
         'region_id',
         'regional_manager_id',
@@ -74,6 +75,15 @@ class User extends Authenticatable
             'password' => 'hashed',
         ];
     }
+    public function getProfileImageUrlAttribute(): ?string
+    {
+        if (empty($this->profile_image)) {
+            return null;
+        }
+
+        return asset('storage/'.$this->profile_image);
+    }
+
     public function addresses()
     {
         return $this->hasMany(Address::class);
@@ -292,6 +302,8 @@ class User extends Authenticatable
             'role' => $this->role,
             'status' => $this->status ?? 'active',
             'phone' => $this->phone,
+            'profile_image' => $this->profile_image,
+            'profile_image_url' => $this->profile_image_url,
             'business_name' => $this->business_name,
             'branch_id' => $this->branch_id,
             'branch_name' => $this->listBranchName(),
