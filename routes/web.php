@@ -362,6 +362,7 @@ Route::middleware(['auth', 'redirect.superadmin.from.admin', 'admin', 'tenant.su
             Route::post('purchases', [App\Http\Controllers\Admin\StockController::class , 'storePurchase'])->name('store-purchase');
             Route::get('purchases/{id}/edit', [App\Http\Controllers\Admin\StockController::class , 'editPurchase'])->name('edit-purchase');
             Route::put('purchases/{id}', [App\Http\Controllers\Admin\StockController::class , 'updatePurchase'])->name('update-purchase');
+            Route::delete('purchases/{id}/payments/{paymentId}', [App\Http\Controllers\Admin\StockController::class, 'destroyPurchasePayment'])->name('purchase-payment-destroy');
             Route::delete('purchases/{id}', [App\Http\Controllers\Admin\StockController::class , 'destroyPurchase'])->name('destroy-purchase');
             Route::post('purchases/update-prices', [App\Http\Controllers\Admin\StockController::class , 'updateAllProductPrices'])->name('update-product-prices');
 
@@ -373,6 +374,7 @@ Route::middleware(['auth', 'redirect.superadmin.from.admin', 'admin', 'tenant.su
             Route::get('passthrough/{id}', [App\Http\Controllers\Admin\StockController::class, 'showPassthrough'])->name('passthrough.show');
             Route::get('passthrough/{id}/edit', [App\Http\Controllers\Admin\StockController::class, 'editPassthrough'])->name('edit-passthrough');
             Route::put('passthrough/{id}', [App\Http\Controllers\Admin\StockController::class, 'updatePassthrough'])->name('update-passthrough');
+            Route::delete('passthrough/{id}/payments/{paymentId}', [App\Http\Controllers\Admin\StockController::class, 'destroyPassthroughPayment'])->name('passthrough-payment-destroy');
             Route::delete('passthrough/{id}', [App\Http\Controllers\Admin\StockController::class, 'destroyPassthrough'])->name('destroy-passthrough');
             
             // Distribution Sales

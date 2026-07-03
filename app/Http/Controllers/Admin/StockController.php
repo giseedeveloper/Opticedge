@@ -1958,6 +1958,75 @@ class StockController extends Controller
             ->with('success', $successLabel);
     }
 
+    public function destroyPurchasePayment(Request $request, $id, int $paymentId)
+    {
+        return $this->destroyPurchasePaymentRecord($request, $id, $paymentId, passthrough: false);
+    }
+
+    public function destroyPassthroughPayment(Request $request, $id, int $paymentId)
+    {
+        return $this->destroyPurchasePaymentRecord($request, $id, $paymentId, passthrough: true);
+    }
+
+    private function destroyPurchasePaymentRecord(Request $request, $id, int $paymentId, bool $passthrough = false)
+    {
+        $purchase = ($passthrough ? Purchase::passthrough() : Purchase::stockPurchases())
+            ->findOrFail($id);
+
+        $payment = PurchasePayment::query()
+            ->where('purchase_id', $purchase->id)
+            ->with('paymentOption')
+            ->findOrFail($paymentId);
+
+        $amount = (float) $payment->amount;
+        $eps = 0.0001;
+        $totalAmount = (float) ($purchase->total_amount ?? ($purchase->quantity * $purchase->unit_price));
+
+        DB::transaction(function () use ($payment, $purchase, $amount, $eps, $totalAmount) {
+            if ($amount > $eps && $payment->paymentOption) {
+                $payment->paymentOption->increment('balance', $amount);
+            }
+
+            $oldPaid = (float) ($purchase->paid_amount ?? 0);
+            $newPaid = max(0, $oldPaid - $amount);
+            $status = $newPaid >= $totalAmount - $eps ? 'paid' : ($newPaid > $eps ? 'partial' : 'pending');
+
+            $latestRemaining = PurchasePayment::query()
+                ->where('purchase_id', $purchase->id)
+                ->where('id', '!=', $payment->id)
+                ->orderByDesc('paid_date')
+                ->orderByDesc('id')
+                ->first();
+
+            $updateData = [
+                'paid_amount' => $newPaid,
+                'payment_status' => $status,
+                'paid_date' => $newPaid > $eps ? $latestRemaining?->paid_date : null,
+            ];
+
+            try {
+                $columns = Schema::getColumnListing('purchases');
+                if (in_array('payment_option_id', $columns, true)) {
+                    $updateData['payment_option_id'] = $newPaid > $eps ? $latestRemaining?->payment_option_id : null;
+                }
+            } catch (\Exception $e) {
+                Log::warning('payment_option_id column not found in purchases table. Migration may need to be run.');
+            }
+
+            $purchase->update($updateData);
+            $payment->delete();
+        });
+
+        $editRoute = $passthrough ? 'admin.stock.edit-passthrough' : 'admin.stock.edit-purchase';
+        $successLabel = $passthrough
+            ? 'Payment deleted. Passthrough balance and channel updated.'
+            : 'Payment deleted. Purchase balance and channel updated.';
+
+        return redirect()
+            ->route($editRoute, $purchase->id)
+            ->with('success', $successLabel);
+    }
+
     public function destroyPurchase($id, bool $passthrough = false)
     {
         $purchase = ($passthrough ? Purchase::passthrough() : Purchase::stockPurchases())

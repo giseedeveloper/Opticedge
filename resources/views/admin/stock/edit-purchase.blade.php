@@ -2,6 +2,7 @@
     $isPassthrough = $isPassthrough ?? false;
     $listRoute = $isPassthrough ? 'admin.stock.passthrough' : 'admin.stock.purchases';
     $updateRoute = $isPassthrough ? 'admin.stock.update-passthrough' : 'admin.stock.update-purchase';
+    $destroyPaymentRoute = $isPassthrough ? 'admin.stock.passthrough-payment-destroy' : 'admin.stock.purchase-payment-destroy';
 @endphp
 <x-admin-layout>
     @include('admin.partials.catalog-styles')
@@ -189,6 +190,7 @@
                                                 <th class="px-4 py-2 text-left text-xs font-medium text-slate-700">Date</th>
                                                 <th class="px-4 py-2 text-left text-xs font-medium text-slate-700">Channel</th>
                                                 <th class="px-4 py-2 text-right text-xs font-medium text-slate-700">Amount</th>
+                                                <th class="px-4 py-2 text-right text-xs font-medium text-slate-700">Action</th>
                                             </tr>
                                         </thead>
                                         <tbody class="divide-y divide-slate-200">
@@ -197,6 +199,15 @@
                                                     <td class="px-4 py-2 text-slate-600">{{ $payment->paid_date ? $payment->paid_date->format('Y-m-d') : $payment->created_at->format('Y-m-d') }}</td>
                                                     <td class="px-4 py-2 text-slate-600">{{ $payment->paymentOption ? $payment->paymentOption->name : 'N/A' }}</td>
                                                     <td class="px-4 py-2 text-right font-medium text-slate-900">{{ number_format($payment->amount, 2) }}</td>
+                                                    <td class="px-4 py-2 text-right">
+                                                        <form action="{{ route($destroyPaymentRoute, ['id' => $purchase->id, 'paymentId' => $payment->id]) }}" method="POST"
+                                                            class="inline-block"
+                                                            onsubmit="return confirm('Delete this payment? The amount will be removed from the purchase and refunded to the payment channel.');">
+                                                            @csrf
+                                                            @method('DELETE')
+                                                            <button type="submit" class="text-red-600 hover:text-red-800 text-sm font-semibold">Delete</button>
+                                                        </form>
+                                                    </td>
                                                 </tr>
                                             @endforeach
                                         </tbody>
@@ -204,6 +215,7 @@
                                             <tr class="bg-slate-100 border-t-2 border-slate-300">
                                                 <td colspan="2" class="px-4 py-2 text-right font-semibold text-slate-700">Total Paid:</td>
                                                 <td class="px-4 py-2 text-right font-bold text-slate-900">{{ number_format($payments->sum('amount'), 2) }}</td>
+                                                <td class="px-4 py-2"></td>
                                             </tr>
                                         </tfoot>
                                     </table>
@@ -217,7 +229,7 @@
                     </div>
 
                     <div class="admin-prod-form-footer !mt-6">
-                        <a href="{{ route('admin.stock.purchases') }}" class="admin-prod-btn-ghost">Cancel</a>
+                        <a href="{{ route($listRoute) }}" class="admin-prod-btn-ghost">Cancel</a>
                         <button type="submit" id="edit_purchase_submit" class="admin-prod-btn-primary px-8">Update purchase</button>
                     </div>
                 </form>
