@@ -37,6 +37,11 @@ return Application::configure(basePath: dirname(__DIR__))
             \App\Http\Middleware\SetTenantFromAuthenticatedUser::class,
             \Illuminate\Routing\Middleware\SubstituteBindings::class,
         ]);
+        // Must run after auth:sanctum so $request->user() is available for tenant scoping.
+        $middleware->appendToPriorityList(
+            \Illuminate\Contracts\Auth\Middleware\AuthenticatesRequests::class,
+            \App\Http\Middleware\SetTenantFromAuthenticatedUser::class,
+        );
         $middleware->validateCsrfTokens(except: [
             'selcom/checkout-callback',
             'api/*',

@@ -12,12 +12,31 @@ use App\Services\DeviceHierarchyAssignmentService;
 use App\Services\TeamLeaderProductTransferService;
 use App\Support\AssignableImeiMatcher;
 use App\Support\ImeiListParser;
+use App\Support\TenantContext;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
 class RegionalManagerApiController extends Controller
 {
+    private function ensureTenantContext(): void
+    {
+        $user = Auth::user();
+        if ($user === null) {
+            return;
+        }
+
+        if ($user->isSuperadmin()) {
+            TenantContext::bypass();
+
+            return;
+        }
+
+        if ($user->tenant_id !== null) {
+            TenantContext::set((int) $user->tenant_id);
+        }
+    }
+
     /**
      * @return \Illuminate\Support\Collection<int, int>
      */
@@ -34,6 +53,8 @@ class RegionalManagerApiController extends Controller
      */
     public function regionInventory(Request $request)
     {
+        $this->ensureTenantContext();
+
         $manager = Auth::user();
         $teamLeaderIds = $this->scopedTeamLeaderIds((int) $manager->id);
 
@@ -175,6 +196,8 @@ class RegionalManagerApiController extends Controller
 
     public function assignTeamLeaderFormData()
     {
+        $this->ensureTenantContext();
+
         $teamLeaders = User::query()
             ->where('role', 'teamleader')
             ->where('regional_manager_id', Auth::id())
@@ -202,6 +225,8 @@ class RegionalManagerApiController extends Controller
 
     public function assignableImeisForTeamLeader(Request $request)
     {
+        $this->ensureTenantContext();
+
         $validated = $request->validate([
             'product_id' => 'required|exists:models,id',
         ]);
@@ -215,6 +240,8 @@ class RegionalManagerApiController extends Controller
 
     public function validateAssignTeamLeaderImei(Request $request)
     {
+        $this->ensureTenantContext();
+
         $validated = $request->validate([
             'product_id' => 'required|integer|exists:models,id',
             'imei' => 'required|string|max:512',
@@ -312,6 +339,8 @@ class RegionalManagerApiController extends Controller
 
     public function storeAssignTeamLeader(Request $request, TeamLeaderProductTransferService $transferService)
     {
+        $this->ensureTenantContext();
+
         $validated = $request->validate([
             'team_leader_id' => 'required|exists:users,id',
             'product_id' => 'required|exists:models,id',
@@ -345,6 +374,8 @@ class RegionalManagerApiController extends Controller
 
     public function returnDevicesFormData()
     {
+        $this->ensureTenantContext();
+
         $products = Product::returnableByRegionalManagerToAdmin((int) Auth::id())->get();
 
         return response()->json([
@@ -360,6 +391,8 @@ class RegionalManagerApiController extends Controller
 
     public function returnableImeis(Request $request)
     {
+        $this->ensureTenantContext();
+
         $validated = $request->validate([
             'product_id' => 'required|exists:models,id',
         ]);
@@ -373,6 +406,8 @@ class RegionalManagerApiController extends Controller
 
     public function storeReturnDevices(Request $request, \App\Services\RegionalManagerDeviceReturnService $returnService)
     {
+        $this->ensureTenantContext();
+
         $validated = $request->validate([
             'product_id' => 'required|exists:models,id',
             'product_list_ids' => 'required|array|min:1',

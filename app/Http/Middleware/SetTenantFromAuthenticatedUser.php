@@ -21,12 +21,8 @@ class SetTenantFromAuthenticatedUser
                 TenantContext::bypass();
             } elseif ($user->tenant_id !== null) {
                 TenantContext::set($user->tenant_id);
-            } elseif (in_array($user->role, ['admin', 'subadmin'], true)) {
-                // Legacy admin account created before tenant_id was added to users.
-                // On single-vendor installs the only tenant is the correct owner.
-                $tenantId = Schema::hasTable('tenants')
-                    ? Tenant::orderBy('id')->value('id')
-                    : null;
+            } else {
+                $tenantId = self::resolveTenantIdForHierarchyUser($user);
 
                 if ($tenantId !== null) {
                     TenantContext::set($tenantId);
@@ -35,5 +31,45 @@ class SetTenantFromAuthenticatedUser
         }
 
         return $next($request);
+    }
+
+    /**
+     * Resolve tenant for legacy accounts missing tenant_id (admin or field roles).
+     */
+    private static function resolveTenantIdForHierarchyUser($user): ?int
+    {
+        if (in_array($user->role, ['admin', 'subadmin'], true)) {
+            return Schema::hasTable('tenants')
+                ? Tenant::orderBy('id')->value('id')
+                : null;
+        }
+
+        if (! in_array($user->role, ['teamleader', 'regional_manager', 'agent'], true)) {
+            return null;
+        }
+
+        if ($user->role === 'agent' && $user->team_leader_id) {
+            $teamLeader = $user->teamLeader()->withoutGlobalScopes()->first(['id', 'tenant_id', 'regional_manager_id']);
+            if ($teamLeader?->tenant_id !== null) {
+                return (int) $teamLeader->tenant_id;
+            }
+            if ($teamLeader?->regional_manager_id) {
+                $regionalManager = $teamLeader->regionalManager()->withoutGlobalScopes()->first(['id', 'tenant_id']);
+                if ($regionalManager?->tenant_id !== null) {
+                    return (int) $regionalManager->tenant_id;
+                }
+            }
+        }
+
+        if ($user->role === 'teamleader' && $user->regional_manager_id) {
+            $regionalManager = $user->regionalManager()->withoutGlobalScopes()->first(['id', 'tenant_id']);
+            if ($regionalManager?->tenant_id !== null) {
+                return (int) $regionalManager->tenant_id;
+            }
+        }
+
+        return Schema::hasTable('tenants')
+            ? Tenant::orderBy('id')->value('id')
+            : null;
     }
 }

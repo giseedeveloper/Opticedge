@@ -20,7 +20,7 @@ class AgentProductAssignmentService
      *
      * @throws \InvalidArgumentException
      */
-    public function assignToAgent(User $agent, int $productId, array $productListIds): int
+    public function assignToAgent(User $agent, int $productId, array $productListIds, bool $requireEligiblePurchase = true): int
     {
         if ($agent->role !== 'agent') {
             throw new \InvalidArgumentException('Selected user is not an agent.');
@@ -28,7 +28,7 @@ class AgentProductAssignmentService
 
         $ids = array_values(array_unique(array_map('intval', $productListIds)));
 
-        return DB::transaction(function () use ($agent, $productId, $ids) {
+        return DB::transaction(function () use ($agent, $productId, $ids, $requireEligiblePurchase) {
             $added = 0;
 
             foreach ($ids as $listId) {
@@ -42,7 +42,7 @@ class AgentProductAssignmentService
                     throw new \InvalidArgumentException('One or more devices are already sold.');
                 }
 
-                if (! $item->isPurchasePaid()) {
+                if ($requireEligiblePurchase && ! $item->isPurchasePaid()) {
                     throw new \InvalidArgumentException('One or more devices are not from an eligible purchase (paid, partial, unpaid, or purchase still has IMEI limit remaining).');
                 }
 
@@ -174,7 +174,7 @@ class AgentProductAssignmentService
                 }
             }
 
-            return $this->assignToAgent($agent, $productId, $ids);
+            return $this->assignToAgent($agent, $productId, $ids, requireEligiblePurchase: false);
         });
     }
 

@@ -9,17 +9,37 @@ use App\Models\ProductListItem;
 use App\Models\User;
 use App\Services\DeviceHierarchyAssignmentService;
 use App\Support\AssignableImeiMatcher;
+use App\Support\TenantContext;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
 class TeamLeaderApiController extends Controller
 {
+    private function ensureTenantContext(): void
+    {
+        $user = Auth::user();
+        if ($user === null) {
+            return;
+        }
+
+        if ($user->isSuperadmin()) {
+            TenantContext::bypass();
+
+            return;
+        }
+
+        if ($user->tenant_id !== null) {
+            TenantContext::set((int) $user->tenant_id);
+        }
+    }
+
     /**
      * Team inventory / IMEI register (mirrors web team-inventory).
      */
     public function teamInventory(Request $request)
     {
+        $this->ensureTenantContext();
         $agents = User::query()
             ->where('role', 'agent')
             ->where('team_leader_id', Auth::id())
@@ -136,6 +156,8 @@ class TeamLeaderApiController extends Controller
 
     public function assignAgentFormData()
     {
+        $this->ensureTenantContext();
+
         $agents = User::query()
             ->where('role', 'agent')
             ->where('team_leader_id', Auth::id())
@@ -163,6 +185,8 @@ class TeamLeaderApiController extends Controller
 
     public function assignableImeisForAgent(Request $request)
     {
+        $this->ensureTenantContext();
+
         $validated = $request->validate([
             'product_id' => 'required|exists:models,id',
         ]);
@@ -176,6 +200,8 @@ class TeamLeaderApiController extends Controller
 
     public function validateAssignAgentImei(Request $request)
     {
+        $this->ensureTenantContext();
+
         $validated = $request->validate([
             'product_id' => 'required|integer|exists:models,id',
             'imei' => 'required|string|max:512',
@@ -209,6 +235,8 @@ class TeamLeaderApiController extends Controller
 
     public function storeAssignAgent(Request $request, DeviceHierarchyAssignmentService $hierarchyService)
     {
+        $this->ensureTenantContext();
+
         $validated = $request->validate([
             'agent_id' => 'required|exists:users,id',
             'product_id' => 'required|exists:models,id',
@@ -245,6 +273,8 @@ class TeamLeaderApiController extends Controller
 
     public function returnDevicesFormData()
     {
+        $this->ensureTenantContext();
+
         $products = Product::returnableByTeamLeaderToRegionalManager((int) Auth::id())->get();
 
         return response()->json([
@@ -260,6 +290,8 @@ class TeamLeaderApiController extends Controller
 
     public function returnableImeis(Request $request)
     {
+        $this->ensureTenantContext();
+
         $validated = $request->validate([
             'product_id' => 'required|exists:models,id',
         ]);
@@ -273,6 +305,8 @@ class TeamLeaderApiController extends Controller
 
     public function storeReturnDevices(Request $request, \App\Services\TeamLeaderDeviceReturnService $returnService)
     {
+        $this->ensureTenantContext();
+
         $validated = $request->validate([
             'product_id' => 'required|exists:models,id',
             'product_list_ids' => 'required|array|min:1',
