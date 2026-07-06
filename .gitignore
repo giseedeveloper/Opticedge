@@ -1,2 +1,4 @@
 # Environment files
 /.env
+/opticapp/build
+/opticapp/ios/build

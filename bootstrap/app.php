@@ -24,6 +24,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'tenant.subscription' => \App\Http\Middleware\RestrictSuspendedTenantAdmin::class,
             'customer.dealer' => \App\Http\Middleware\CustomerDealerMiddleware::class,
             'shop.buyer' => \App\Http\Middleware\ShopBuyerMiddleware::class,
+            'guest.portal' => \App\Http\Middleware\GuestPortalMiddleware::class,
         ]);
         // SetTenantFromAuthenticatedUser must run before SubstituteBindings so that
         // route model binding (e.g. {purchase}) can apply the correct tenant scope.

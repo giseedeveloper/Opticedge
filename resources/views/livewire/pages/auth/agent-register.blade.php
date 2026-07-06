@@ -1,87 +1,13 @@
 <?php
 
-use App\Models\User;
-use Illuminate\Auth\Events\Registered;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Validation\Rules;
 use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
 
 new #[Layout('layouts.guest')] class extends Component {
-    public string $name = '';
-    public string $email = '';
-    public string $password = '';
-    public string $password_confirmation = '';
-
-    public function register(): void
+    public function mount(): void
     {
-        $validated = $this->validate([
-            'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:' . User::class],
-            'password' => ['required', 'confirmed', Rules\Password::defaults()],
-        ]);
-
-        $user = User::create([
-            'name' => $validated['name'],
-            'email' => $validated['email'],
-            'password' => Hash::make($validated['password']),
-            'role' => 'agent',
-            'status' => 'active',
-        ]);
-
-        $user->forceFill(['email_verified_at' => now()])->save();
-
-        event(new Registered($user));
-
-        Auth::login($user);
-
-        $this->redirect(route('agent.dashboard'), navigate: true);
+        $this->redirect(route('auth.google'), navigate: true);
     }
 }; ?>
 
-<div>
-    <h2 class="text-2xl font-normal text-slate-900 mb-2">Register as Agent</h2>
-    <p class="text-sm text-slate-600 mb-6">Create an account to sell products assigned to you by admin.</p>
-
-    <form wire:submit="register" class="space-y-4">
-        <div>
-            <label for="name" class="block text-sm font-bold text-slate-900 mb-1">Name</label>
-            <input wire:model="name" id="name" type="text" required autofocus
-                class="w-full rounded-md border-slate-300 shadow-sm focus:border-[#fa8900] focus:ring focus:ring-[#fa8900] focus:ring-opacity-50 text-sm py-2">
-            <x-input-error :messages="$errors->get('name')" class="mt-1 text-red-600 text-xs" />
-        </div>
-
-        <div>
-            <label for="email" class="block text-sm font-bold text-slate-900 mb-1">Email</label>
-            <input wire:model="email" id="email" type="email" required
-                class="w-full rounded-md border-slate-300 shadow-sm focus:border-[#fa8900] focus:ring focus:ring-[#fa8900] focus:ring-opacity-50 text-sm py-2">
-            <x-input-error :messages="$errors->get('email')" class="mt-1 text-red-600 text-xs" />
-        </div>
-
-        <div>
-            <label for="password" class="block text-sm font-bold text-slate-900 mb-1">Password</label>
-            <input wire:model="password" id="password" type="password" required
-                class="w-full rounded-md border-slate-300 shadow-sm focus:border-[#fa8900] focus:ring focus:ring-[#fa8900] focus:ring-opacity-50 text-sm py-2">
-            <x-input-error :messages="$errors->get('password')" class="mt-1 text-red-600 text-xs" />
-        </div>
-
-        <div>
-            <label for="password_confirmation" class="block text-sm font-bold text-slate-900 mb-1">Confirm password</label>
-            <input wire:model="password_confirmation" id="password_confirmation" type="password" required
-                class="w-full rounded-md border-slate-300 shadow-sm focus:border-[#fa8900] focus:ring focus:ring-[#fa8900] focus:ring-opacity-50 text-sm py-2">
-        </div>
-
-        <div class="pt-2">
-            <button type="submit"
-                class="w-full bg-[#fa8900] hover:bg-[#e87b00] text-white font-medium py-2 px-4 rounded-md shadow-sm transition-colors text-sm">
-                Register as Agent
-            </button>
-        </div>
-    </form>
-
-    <p class="mt-6 text-center text-sm text-slate-600">
-        Already have an account?
-        <a href="{{ route('login') }}" wire:navigate class="text-[#fa8900] hover:underline font-medium">Sign in</a>
-    </p>
-</div>
+<div class="text-center text-sm text-slate-600">Redirecting to Google Sign-In…</div>

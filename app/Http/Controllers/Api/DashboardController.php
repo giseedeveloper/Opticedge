@@ -12,8 +12,10 @@ use App\Models\Payable;
 use App\Models\User;
 use App\Models\AgentProductListAssignment;
 use App\Services\DashboardFinancialService;
+use App\Support\TenantContext;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 
 class DashboardController extends Controller
 {
@@ -26,6 +28,13 @@ class DashboardController extends Controller
      */
     public function index(Request $request)
     {
+        $user = $request->user() ?? Auth::user();
+        if ($user?->isSuperadmin()) {
+            TenantContext::bypass();
+        } elseif ($user?->tenant_id !== null) {
+            TenantContext::set((int) $user->tenant_id);
+        }
+
         $totalCustomers = User::where('role', 'customer')->count();
         $totalOrders = Order::count();
         $totalProducts = Product::count();

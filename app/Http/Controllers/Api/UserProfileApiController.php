@@ -17,6 +17,7 @@ class UserProfileApiController extends Controller
     public function show()
     {
         $user = Auth::user();
+        $user->loadMissing('tenant:id,brand_name,name');
 
         return response()->json([
             'data' => [
@@ -25,6 +26,7 @@ class UserProfileApiController extends Controller
                 'email' => $user->email,
                 'role' => $user->role,
                 'email_verified' => $user->hasVerifiedEmail(),
+                'brand_name' => $user->tenant?->brand_name ?: $user->tenant?->name,
             ],
         ]);
     }
@@ -51,6 +53,7 @@ class UserProfileApiController extends Controller
         }
 
         $user->save();
+        $user->loadMissing('tenant:id,brand_name,name');
 
         return response()->json([
             'message' => 'Profile updated.',
@@ -60,6 +63,7 @@ class UserProfileApiController extends Controller
                 'email' => $user->email,
                 'role' => $user->role,
                 'email_verified' => $user->hasVerifiedEmail(),
+                'brand_name' => $user->tenant?->brand_name ?: $user->tenant?->name,
             ],
         ]);
     }

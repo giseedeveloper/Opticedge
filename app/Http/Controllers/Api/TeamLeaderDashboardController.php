@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Services\TeamLeaderDashboardService;
+use App\Support\TenantContext;
 use Illuminate\Support\Facades\Auth;
 
 class TeamLeaderDashboardController extends Controller
@@ -17,7 +18,12 @@ class TeamLeaderDashboardController extends Controller
      */
     public function index()
     {
-        $data = $this->dashboardService->build(Auth::user());
+        $user = Auth::user();
+        if ($user?->tenant_id !== null) {
+            TenantContext::set((int) $user->tenant_id);
+        }
+
+        $data = $this->dashboardService->build($user);
 
         return response()->json(['data' => $data]);
     }

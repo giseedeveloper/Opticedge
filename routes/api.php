@@ -48,6 +48,7 @@ use App\Http\Controllers\Api\AdminPayablesApiController;
 use App\Http\Controllers\Api\AdminShopRecordsApiController;
 use App\Http\Controllers\Api\AdminPayoutApiController;
 use App\Http\Controllers\Api\AdminProductApiController;
+use App\Http\Controllers\Api\AdminGuestUserApiController;
 use App\Http\Controllers\Api\AdminUserManagementApiController;
 use App\Http\Controllers\Api\AdminRegionalManagerAssignApiController;
 use App\Http\Controllers\Api\AdminVendorApiController;
@@ -67,10 +68,12 @@ use App\Http\Controllers\Api\ShopCommerceApiController;
 use App\Http\Controllers\Api\CustomerDashboardApiController;
 use App\Http\Controllers\Api\VendorSubscribeApiController;
 use App\Http\Controllers\Api\DeviceTokenApiController;
+use App\Http\Controllers\Api\GuestPortalApiController;
 use App\Http\Controllers\Api\NotificationApiController;
 use App\Http\Controllers\Api\PendingRequestCountsApiController;
 
 Route::post('/login', [AuthController::class, 'login']);
+Route::post('/auth/google', [AuthController::class, 'loginWithGoogle']);
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/register/agent', [AuthController::class, 'registerAgent']);
 Route::post('/register/dealer', [AuthController::class, 'registerDealer']);
@@ -129,6 +132,11 @@ Route::middleware(['auth:sanctum', 'tenant.context'])->group(function () {
         Route::get('profile', [UserProfileApiController::class, 'show']);
         Route::put('profile', [UserProfileApiController::class, 'update']);
         Route::put('profile/password', [UserProfileApiController::class, 'updatePassword']);
+    });
+
+    Route::middleware(['active', 'guest.portal'])->prefix('guest')->group(function () {
+        Route::get('dashboard', [GuestPortalApiController::class, 'dashboard']);
+        Route::get('profile', [UserProfileApiController::class, 'show']);
     });
 
     // Admin: stocks (with limit), create stock, add product to product_list
@@ -199,6 +207,9 @@ Route::middleware(['auth:sanctum', 'tenant.context'])->group(function () {
         Route::post('payout/bulk-selcom', [AdminPayoutApiController::class, 'bulkSelcom']);
         Route::get('payout/selcom/{selcompay}/status', [AdminPayoutApiController::class, 'selcomStatus']);
         Route::get('users', [ApiUserController::class, 'index']); // ?role=customer|dealer|agent|subadmin|all
+        Route::get('guest-users', [AdminGuestUserApiController::class, 'index']);
+        Route::get('guest-users/{guestUser}', [AdminGuestUserApiController::class, 'show']);
+        Route::post('guest-users/{guestUser}/assign', [AdminGuestUserApiController::class, 'assign']);
         Route::get('users/my-permissions', [AdminUserManagementApiController::class, 'myPermissions']);
         Route::get('users/create-form-data', [AdminUserManagementApiController::class, 'createFormData']);
         Route::get('users/{user}', [AdminUserManagementApiController::class, 'show']);

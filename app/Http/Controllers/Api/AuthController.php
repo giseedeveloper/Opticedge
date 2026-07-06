@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Services\GoogleAuthService;
 use App\Support\TenantSuspension;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -64,6 +65,44 @@ class AuthController extends Controller
     }
 
     /**
+     * Google Sign-In (mobile/web): exchange Google ID token for Sanctum session.
+     * Creates a guest account when the email is new.
+     */
+    public function loginWithGoogle(Request $request, GoogleAuthService $googleAuth)
+    {
+        $request->validate([
+            'id_token' => 'required|string',
+        ]);
+
+        try {
+            $googleUser = $googleAuth->userFromIdToken($request->string('id_token')->toString());
+        } catch (\Throwable) {
+            throw ValidationException::withMessages([
+                'id_token' => ['Invalid or expired Google token.'],
+            ]);
+        }
+
+        $user = $googleAuth->findOrCreateGuest($googleUser);
+
+        $blockedReason = TenantSuspension::blocksLoginForUser($user);
+        if ($blockedReason !== null) {
+            throw ValidationException::withMessages([
+                'id_token' => [$blockedReason],
+            ]);
+        }
+
+        $session = $googleAuth->issueSanctumSession($user);
+
+        return response()->json([
+            'token' => $session['token'],
+            'user' => $session['user'],
+            'message' => $user->isGuest()
+                ? 'Signed in. Waiting for a vendor administrator to assign your role.'
+                : 'Signed in.',
+        ]);
+    }
+
+    /**
      * Self-registration for customer role (mirrors web register when enabled).
      */
     public function register(Request $request)
@@ -94,27 +133,9 @@ class AuthController extends Controller
 
     public function registerAgent(Request $request)
     {
-        $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'email' => 'required|string|email|max:255|unique:users',
-            'password' => 'required|string|min:8|confirmed',
-            'phone' => 'nullable|string|max:100',
-        ]);
-
-        $user = \App\Models\User::create([
-            'name' => $validated['name'],
-            'email' => $validated['email'],
-            'password' => \Illuminate\Support\Facades\Hash::make($validated['password']),
-            'phone' => $validated['phone'] ?? null,
-            'role' => 'agent',
-            'status' => 'pending',
-        ]);
-
-        app(\App\Services\NotificationDispatchService::class)->registrationPending($user, 'agent');
-
         return response()->json([
-            'message' => 'Agent registration submitted. An administrator must activate your account before you can sign in.',
-        ], 201);
+            'message' => 'Agent self-registration has moved to Google Sign-In. Use POST /api/auth/google with your Google ID token to register as a guest, then wait for a vendor admin to assign you.',
+        ], 410);
     }
 
     public function registerDealer(Request $request)

@@ -7,6 +7,7 @@ use App\Models\AgentCredit;
 use App\Models\AgentCreditPayment;
 use App\Models\PaymentOption;
 use App\Support\PdfDownload;
+use App\Support\TenantContext;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -14,11 +15,31 @@ use Illuminate\Support\Facades\Schema;
 
 class AgentCreditApiController extends Controller
 {
+    private function ensureTenantContext(): void
+    {
+        $user = Auth::user();
+        if ($user === null) {
+            return;
+        }
+
+        if ($user->isSuperadmin()) {
+            TenantContext::bypass();
+
+            return;
+        }
+
+        if ($user->tenant_id !== null) {
+            TenantContext::set((int) $user->tenant_id);
+        }
+    }
+
     /**
      * Credits sold by the authenticated agent (newest first).
      */
     public function index(Request $request)
     {
+        $this->ensureTenantContext();
+
         $agentId = Auth::id();
 
         $query = AgentCredit::query()
@@ -80,6 +101,8 @@ class AgentCreditApiController extends Controller
      */
     public function payInstallment(Request $request, int $id)
     {
+        $this->ensureTenantContext();
+
         $rules = [
             'amount' => 'required|numeric|min:0.01',
             'paid_date' => 'nullable|date',
@@ -166,6 +189,8 @@ class AgentCreditApiController extends Controller
 
     public function show(int $id)
     {
+        $this->ensureTenantContext();
+
         $credit = AgentCredit::query()
             ->where('agent_id', Auth::id())
             ->with(['product.category', 'productListItem', 'paymentOption', 'payments.paymentOption'])
@@ -214,6 +239,8 @@ class AgentCreditApiController extends Controller
 
     public function downloadInvoice(int $id)
     {
+        $this->ensureTenantContext();
+
         $credit = AgentCredit::query()
             ->where('agent_id', Auth::id())
             ->with(['product.category', 'productListItem'])

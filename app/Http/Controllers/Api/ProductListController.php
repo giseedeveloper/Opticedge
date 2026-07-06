@@ -18,6 +18,7 @@ use App\Models\Purchase;
 use App\Services\AgentProductTransferService;
 use App\Services\DistributionSaleService;
 use App\Support\ImeiListParser;
+use App\Support\TenantContext;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -25,6 +26,24 @@ use Illuminate\Support\Facades\Schema;
 
 class ProductListController extends Controller
 {
+    private function ensureTenantContext(): void
+    {
+        $user = Auth::user();
+        if ($user === null) {
+            return;
+        }
+
+        if ($user->isSuperadmin()) {
+            TenantContext::bypass();
+
+            return;
+        }
+
+        if ($user->tenant_id !== null) {
+            TenantContext::set((int) $user->tenant_id);
+        }
+    }
+
     /**
      * Admin: Add a product to product_list.
      * Accepts either purchase_id + imei_number (category/model from purchase) or stock_id + category_id + model + imei_number.
@@ -398,6 +417,8 @@ class ProductListController extends Controller
      */
     public function available()
     {
+        $this->ensureTenantContext();
+
         $agentId = Auth::id();
         $assignedIds = AgentProductListAssignment::where('agent_id', $agentId)->pluck('product_list_id');
 
@@ -465,6 +486,8 @@ class ProductListController extends Controller
      */
     public function showByImei(string $imei)
     {
+        $this->ensureTenantContext();
+
         $agentId = Auth::id();
 
         $item = ProductListItem::with(['category', 'product', 'stock', 'purchase'])
@@ -552,6 +575,8 @@ class ProductListController extends Controller
      */
     public function sell(Request $request)
     {
+        $this->ensureTenantContext();
+
         $rules = [
             'product_list_id'   => 'required|exists:product_list,id',
             'customer_name'     => 'required|string|max:255',
@@ -653,6 +678,8 @@ class ProductListController extends Controller
      */
     public function sellCredit(Request $request)
     {
+        $this->ensureTenantContext();
+
         $rules = [
             'product_list_id' => 'required|exists:product_list,id',
             'customer_name' => 'required|string|max:255',
@@ -869,6 +896,8 @@ class ProductListController extends Controller
      */
     public function totalAssignments()
     {
+        $this->ensureTenantContext();
+
         $agentId = Auth::id();
 
         $rows = AgentAssignment::where('agent_id', $agentId)
@@ -923,6 +952,8 @@ class ProductListController extends Controller
      */
     public function totalAssignmentByImei(string $imei)
     {
+        $this->ensureTenantContext();
+
         $agent = Auth::user();
         $imei = trim($imei);
         if ($imei === '') {
@@ -985,6 +1016,8 @@ class ProductListController extends Controller
      */
     public function sellGiven(Request $request)
     {
+        $this->ensureTenantContext();
+
         $validated = $request->validate([
             'imei' => 'required|string|max:512',
         ]);

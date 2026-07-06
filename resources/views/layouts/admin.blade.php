@@ -204,6 +204,7 @@
                     'admin.customers.regional-managers.*',
                     'admin.customers.team-leaders.*',
                     'admin.customers.organization-tree',
+                    'admin.guest-users.*',
                     'admin.dealers.*',
                     'admin.agents.*',
                     'admin.subadmins.*',
@@ -363,6 +364,9 @@
                                 <a href="{{ route('admin.customers.index') }}"
                                     @if (request()->routeIs('admin.customers.index')) aria-current="page" @endif
                                     class="admin-sidebar-sublink {{ request()->routeIs('admin.customers.index') ? 'admin-sidebar-sublink-active' : '' }}">All users</a>
+                                <a href="{{ route('admin.guest-users.index') }}"
+                                    @if (request()->routeIs('admin.guest-users.*')) aria-current="page" @endif
+                                    class="admin-sidebar-sublink {{ request()->routeIs('admin.guest-users.*') ? 'admin-sidebar-sublink-active' : '' }}">Guest users</a>
                                 <a href="{{ route('admin.customers.organization-tree') }}"
                                     @if (request()->routeIs('admin.customers.organization-tree')) aria-current="page" @endif
                                     class="admin-sidebar-sublink {{ request()->routeIs('admin.customers.organization-tree') ? 'admin-sidebar-sublink-active' : '' }}">Organization tree</a>

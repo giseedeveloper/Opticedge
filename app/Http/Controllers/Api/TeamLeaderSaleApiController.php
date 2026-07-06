@@ -16,6 +16,7 @@ use App\Models\User;
 use App\Services\DistributionSaleService;
 use App\Services\TeamLeaderProductTransferService;
 use App\Support\PdfDownload;
+use App\Support\TenantContext;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -25,8 +26,28 @@ use Illuminate\Support\Facades\Schema;
 
 class TeamLeaderSaleApiController extends Controller
 {
+    private function ensureTenantContext(): void
+    {
+        $user = Auth::user();
+        if ($user === null) {
+            return;
+        }
+
+        if ($user->isSuperadmin()) {
+            TenantContext::bypass();
+
+            return;
+        }
+
+        if ($user->tenant_id !== null) {
+            TenantContext::set((int) $user->tenant_id);
+        }
+    }
+
     public function available(): JsonResponse
     {
+        $this->ensureTenantContext();
+
         $teamLeaderId = (int) Auth::id();
         $assignedIds = TeamLeaderProductListAssignment::query()
             ->where('team_leader_id', $teamLeaderId)
@@ -46,6 +67,8 @@ class TeamLeaderSaleApiController extends Controller
 
     public function showByImei(string $imei): JsonResponse
     {
+        $this->ensureTenantContext();
+
         $teamLeaderId = (int) Auth::id();
 
         $item = ProductListItem::with(['category', 'product', 'stock', 'purchase'])
@@ -70,6 +93,8 @@ class TeamLeaderSaleApiController extends Controller
 
     public function sellCredit(Request $request): JsonResponse
     {
+        $this->ensureTenantContext();
+
         $rules = [
             'product_list_id' => 'required|exists:product_list,id',
             'customer_name' => 'required|string|max:255',
@@ -253,6 +278,8 @@ class TeamLeaderSaleApiController extends Controller
 
     public function credits(): JsonResponse
     {
+        $this->ensureTenantContext();
+
         $teamLeaderId = (int) Auth::id();
 
         $query = AgentCredit::query()
@@ -298,6 +325,8 @@ class TeamLeaderSaleApiController extends Controller
 
     public function creditDetail(int $id): JsonResponse
     {
+        $this->ensureTenantContext();
+
         $credit = AgentCredit::query()
             ->where('team_leader_id', Auth::id())
             ->with(['product.category', 'productListItem', 'paymentOption'])
@@ -331,6 +360,8 @@ class TeamLeaderSaleApiController extends Controller
 
     public function downloadInvoice(int $id)
     {
+        $this->ensureTenantContext();
+
         $credit = AgentCredit::query()
             ->where('team_leader_id', Auth::id())
             ->with(['product.category', 'productListItem'])
@@ -350,6 +381,8 @@ class TeamLeaderSaleApiController extends Controller
 
     public function sales(): JsonResponse
     {
+        $this->ensureTenantContext();
+
         $teamLeaderId = (int) Auth::id();
 
         if (! Schema::hasColumn('agent_sales', 'team_leader_id')) {

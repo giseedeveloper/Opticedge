@@ -64,10 +64,16 @@ Route::get('dashboard', function () {
     if (auth()->user()->role === 'regional_manager') {
         return redirect()->route('regional-manager.dashboard');
     }
+    if (auth()->user()->role === 'guest') {
+        return redirect()->route('guest.dashboard');
+    }
     return view('dashboard');
 })->middleware(['auth', 'verified', 'active'])->name('dashboard');
 
 Route::middleware('guest')->group(function () {
+    Route::get('auth/google', [App\Http\Controllers\Auth\GoogleAuthController::class, 'redirect'])->name('auth.google');
+    Route::get('auth/google/callback', [App\Http\Controllers\Auth\GoogleAuthController::class, 'callback'])->name('auth.google.callback');
+
     Volt::route('register/dealer', 'pages.auth.dealer-register')->name('dealer.register');
     Route::get('register/dealer/pending', [App\Http\Controllers\DealerRegisterController::class , 'pending'])->name('dealer.pending');
     Volt::route('register/agent', 'pages.auth.agent-register')->name('agent.register');
@@ -76,6 +82,10 @@ Route::middleware('guest')->group(function () {
     Route::get('subscribe/intent/{intent}/processing', [App\Http\Controllers\VendorSubscribeController::class, 'processing'])->name('vendor.subscribe.processing');
     Route::get('subscribe/intent/{intent}/status', [App\Http\Controllers\VendorSubscribeController::class, 'status'])->name('vendor.subscribe.status');
     Route::get('subscribe/intent/{intent}/success', [App\Http\Controllers\VendorSubscribeController::class, 'success'])->name('vendor.subscribe.success');
+});
+
+Route::middleware(['auth', 'guest.portal'])->group(function () {
+    Route::view('guest/dashboard', 'guest.dashboard')->name('guest.dashboard');
 });
 
 Route::get('profile', function () {
@@ -292,6 +302,9 @@ Route::middleware(['auth', 'redirect.superadmin.from.admin', 'admin', 'tenant.su
         Route::patch('customers/{user}/deactivate', [App\Http\Controllers\Admin\CustomerController::class, 'deactivate'])->name('customers.deactivate');
         Route::delete('customers/{user}', [App\Http\Controllers\Admin\CustomerController::class, 'destroy'])->name('customers.destroy');
         Route::get('customers/{user}', [App\Http\Controllers\Admin\CustomerController::class, 'show'])->whereNumber('user')->name('customers.show');
+        Route::get('guest-users', [App\Http\Controllers\Admin\GuestUserController::class, 'index'])->name('guest-users.index');
+        Route::get('guest-users/{guestUser}/assign', [App\Http\Controllers\Admin\GuestUserController::class, 'assignForm'])->name('guest-users.assign');
+        Route::post('guest-users/{guestUser}/assign', [App\Http\Controllers\Admin\GuestUserController::class, 'assign'])->name('guest-users.assign.store');
         Route::post('users/{user}/reset-password', [App\Http\Controllers\Admin\UserPasswordController::class, 'reset'])
             ->name('users.reset-password');
 

@@ -39,6 +39,8 @@ class User extends Authenticatable
         'notes',
         'how_did_you_hear',
         'referred_by',
+        'google_id',
+        'avatar',
     ];
 
     /** Friend/referrer who made this user (dealer) join – gets commission on first dealer purchase */
@@ -146,6 +148,19 @@ class User extends Authenticatable
     public function isTenantAdmin(): bool
     {
         return in_array($this->role, ['admin', 'subadmin'], true) && $this->tenant_id !== null;
+    }
+
+    public function isGuest(): bool
+    {
+        return $this->role === 'guest';
+    }
+
+    /**
+     * Unassigned self-registered users waiting for a vendor admin to pick them up.
+     */
+    public function isUnassignedGuest(): bool
+    {
+        return $this->isGuest() && $this->tenant_id === null;
     }
 
     /**

@@ -10,6 +10,7 @@ use App\Models\AgentSale;
 use App\Models\PendingSale;
 use App\Models\ProductListItem;
 use App\Support\PdfDownload;
+use App\Support\TenantContext;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Schema;
@@ -17,12 +18,36 @@ use Illuminate\Support\Facades\Schema;
 class AgentDashboardController extends Controller
 {
     /**
+     * Ensure tenant-owned rows are visible for authenticated agents on multi-tenant installs.
+     */
+    private function ensureTenantContext(): void
+    {
+        $user = Auth::user();
+        if ($user === null) {
+            return;
+        }
+
+        if ($user->isSuperadmin()) {
+            TenantContext::bypass();
+
+            return;
+        }
+
+        if ($user->tenant_id !== null) {
+            TenantContext::set((int) $user->tenant_id);
+        }
+    }
+
+    /**
      * Get agent dashboard data: assignments, stats, and recent sales.
      */
     public function index()
     {
+        $this->ensureTenantContext();
+
         $agentId = Auth::id();
-        $agentName = Auth::user()?->name ?? '';
+        $user = Auth::user();
+        $agentName = $user?->name ?? '';
 
         // Get assignments
         $assignments = AgentAssignment::where('agent_id', $agentId)
@@ -43,26 +68,54 @@ class AgentDashboardController extends Controller
             ->values()
             ->all();
 
+        $inventoryData = $this->buildInventoryData($agentId, $user);
+
+        if ($assignments === [] && $inventoryData['assigned'] !== []) {
+            $assignments = collect($inventoryData['assigned'])
+                ->groupBy(fn ($row) => ($row['product_id'] ?? 0) . '|' . ($row['category_name'] ?? '') . '|' . ($row['product_name'] ?? ''))
+                ->map(function ($rows) {
+                    $first = $rows->first();
+                    $sold = $rows->where('state', 'sold')->count();
+                    $assigned = $rows->count();
+
+                    return [
+                        'id' => null,
+                        'product_id' => $first['product_id'] ?? null,
+                        'product_name' => $first['product_name'] ?? '–',
+                        'category_name' => $first['category_name'] ?? '–',
+                        'quantity_assigned' => $assigned,
+                        'quantity_sold' => $sold,
+                        'quantity_remaining' => max(0, $assigned - $sold),
+                    ];
+                })
+                ->values()
+                ->all();
+        }
+
         // Calculate stats
         $totalAssigned = AgentAssignment::where('agent_id', $agentId)->sum('quantity_assigned');
         $totalSold = AgentAssignment::where('agent_id', $agentId)->sum('quantity_sold');
         $totalRemaining = $totalAssigned - $totalSold;
 
-        $custodyItems = AgentProductListAssignment::query()
-            ->where('agent_id', $agentId)
-            ->whereHas('productListItem', fn ($q) => $q->whereNull('sold_at'))
-            ->with(['productListItem.product:id,name'])
-            ->get();
+        $today = Carbon::today();
+        $totalSalesValue = (float) AgentSale::where('agent_id', $agentId)->sum('total_selling_value');
+        $todaySalesValue = (float) AgentSale::where('agent_id', $agentId)->whereDate('date', $today)->sum('total_selling_value');
+        $todaySalesCount = (int) AgentSale::where('agent_id', $agentId)->whereDate('date', $today)->count();
+        $totalCreditSalesValue = (float) AgentCredit::where('agent_id', $agentId)->sum('total_amount');
 
-        $devicesInHandCount = $custodyItems->count();
-        $custodyProductStats = $custodyItems
-            ->groupBy(fn (AgentProductListAssignment $row) => $row->productListItem?->product_id ?? 0)
+        if ((int) $totalAssigned === 0 && $inventoryData['assigned'] !== []) {
+            $totalAssigned = count($inventoryData['assigned']);
+            $totalSold = count($inventoryData['sold']);
+            $totalRemaining = count($inventoryData['remaining']);
+        }
+
+        $devicesInHandCount = count($inventoryData['remaining']);
+        $custodyProductStats = collect($inventoryData['remaining'])
+            ->groupBy(fn ($row) => $row['product_id'] ?? 0)
             ->map(function ($group, $productId) {
-                $product = $group->first()->productListItem?->product;
-
                 return [
                     'product_id' => (int) $productId,
-                    'product_name' => $product?->name ?? '—',
+                    'product_name' => $group->first()['product_name'] ?? '—',
                     'device_count' => $group->count(),
                 ];
             })
@@ -147,6 +200,10 @@ class AgentDashboardController extends Controller
                     'total_sold' => (int) $totalSold,
                     'total_remaining' => (int) $totalRemaining,
                     'devices_in_hand_count' => $devicesInHandCount,
+                    'total_sales_value' => $totalSalesValue,
+                    'today_sales_value' => $todaySalesValue,
+                    'today_sales_count' => $todaySalesCount,
+                    'total_credit_sales_value' => $totalCreditSalesValue,
                 ],
                 'custody_product_stats' => $custodyProductStats,
                 'recent_sales' => $recentSales,
@@ -159,9 +216,18 @@ class AgentDashboardController extends Controller
      */
     public function inventory()
     {
+        $this->ensureTenantContext();
+
         $agentId = Auth::id();
         $user = Auth::user();
 
+        return response()->json([
+            'data' => $this->buildInventoryData($agentId, $user),
+        ]);
+    }
+
+    private function buildInventoryData(int $agentId, $user): array
+    {
         $remainingItems = AgentProductListAssignment::query()
             ->where('agent_id', $agentId)
             ->whereHas('productListItem', fn ($q) => $q->whereNull('sold_at'))
@@ -240,17 +306,17 @@ class AgentDashboardController extends Controller
             ->values()
             ->all();
 
-        return response()->json([
-            'data' => [
-                'remaining' => $remainingItems,
-                'sold' => $soldItems,
-                'assigned' => $assignedAll,
-            ],
-        ]);
+        return [
+            'remaining' => $remainingItems,
+            'sold' => $soldItems,
+            'assigned' => $assignedAll,
+        ];
     }
 
     public function downloadSaleInvoice(int $id)
     {
+        $this->ensureTenantContext();
+
         $sale = AgentSale::query()
             ->where('agent_id', Auth::id())
             ->with(['product.category', 'productListItem'])
@@ -266,6 +332,8 @@ class AgentDashboardController extends Controller
 
     public function sales()
     {
+        $this->ensureTenantContext();
+
         $agentId = Auth::id();
 
         $sales = AgentSale::query()
@@ -297,6 +365,8 @@ class AgentDashboardController extends Controller
 
     public function saleDetail(int $id)
     {
+        $this->ensureTenantContext();
+
         $sale = AgentSale::query()
             ->where('agent_id', Auth::id())
             ->with(['product.category', 'paymentOption', 'productListItem'])
@@ -338,6 +408,7 @@ class AgentDashboardController extends Controller
 
         $base = [
             'product_list_id' => $item->id,
+            'product_id' => $product?->id ?? $item->product_id,
             'imei_number' => $item->imei_number,
             'model' => $item->model,
             'product_name' => $product?->name ?? $item->model ?? '–',
