@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Services\GoogleAuthService;
+use App\Support\PlatformAuthSettings;
 use App\Support\TenantSuspension;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -42,6 +43,13 @@ class AuthController extends Controller
             throw ValidationException::withMessages([
                 'email' => [$blockedReason],
             ]);
+        }
+
+        try {
+            PlatformAuthSettings::ensureLoginAllowed($user);
+        } catch (ValidationException $e) {
+            Auth::logout();
+            throw $e;
         }
 
         $user->tokens()->where('name', 'optic-app')->delete();
@@ -91,6 +99,12 @@ class AuthController extends Controller
             ]);
         }
 
+        try {
+            PlatformAuthSettings::ensureLoginAllowed($user, 'id_token');
+        } catch (ValidationException $e) {
+            throw $e;
+        }
+
         $session = $googleAuth->issueSanctumSession($user);
 
         return response()->json([
@@ -120,7 +134,16 @@ class AuthController extends Controller
             'role' => 'customer',
             'status' => 'active',
         ]);
-        $user->forceFill(['email_verified_at' => now()])->save();
+
+        if (! PlatformAuthSettings::requiresEmailVerificationOnLogin()) {
+            $user->forceFill(['email_verified_at' => now()])->save();
+        } else {
+            $user->sendEmailVerificationNotification();
+
+            return response()->json([
+                'message' => 'Account created. Please verify your email before signing in.',
+            ], 201);
+        }
 
         $token = $user->createToken('optic-app')->plainTextToken;
 
@@ -134,8 +157,49 @@ class AuthController extends Controller
     public function registerAgent(Request $request)
     {
         return response()->json([
-            'message' => 'Agent self-registration has moved to Google Sign-In. Use POST /api/auth/google with your Google ID token to register as a guest, then wait for a vendor admin to assign you.',
+            'message' => 'Use POST /api/register/guest with email and password, or POST /api/auth/google for Google Sign-In.',
         ], 410);
+    }
+
+    /**
+     * Self-registration as an unassigned guest (email + password).
+     */
+    public function registerGuest(Request $request)
+    {
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => 'required|string|email|max:255|unique:users',
+            'password' => 'required|string|min:8|confirmed',
+            'phone' => 'nullable|string|max:100',
+        ]);
+
+        $user = \App\Models\User::withoutGlobalScopes()->create([
+            'name' => $validated['name'],
+            'email' => $validated['email'],
+            'password' => \Illuminate\Support\Facades\Hash::make($validated['password']),
+            'phone' => $validated['phone'] ?? null,
+            'role' => 'guest',
+            'status' => 'active',
+            'tenant_id' => null,
+            'email_verified_at' => PlatformAuthSettings::requiresEmailVerificationOnLogin() ? null : now(),
+        ]);
+
+        if (PlatformAuthSettings::requiresEmailVerificationOnLogin()) {
+            $user->sendEmailVerificationNotification();
+
+            return response()->json([
+                'message' => 'Account created. Please verify your email, then sign in with your email and password.',
+            ], 201);
+        }
+
+        $user->tokens()->where('name', 'optic-app')->delete();
+        $token = $user->createToken('optic-app')->plainTextToken;
+
+        return response()->json([
+            'token' => $token,
+            'user' => $user->only(['id', 'name', 'email', 'role', 'status']),
+            'message' => 'Account created. Waiting for a vendor administrator to assign your role.',
+        ], 201);
     }
 
     public function registerDealer(Request $request)

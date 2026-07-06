@@ -3,6 +3,7 @@
 namespace App\Livewire\Forms;
 
 use App\Models\User;
+use App\Support\PlatformAuthSettings;
 use App\Support\TenantSuspension;
 use Illuminate\Auth\Events\Lockout;
 use Illuminate\Support\Facades\Auth;
@@ -70,6 +71,13 @@ class LoginForm extends Form
             throw ValidationException::withMessages([
                 'form.email' => $blockedReason,
             ]);
+        }
+
+        try {
+            PlatformAuthSettings::ensureLoginAllowed(Auth::user(), 'form.email');
+        } catch (ValidationException $e) {
+            Auth::guard('web')->logout();
+            throw $e;
         }
 
         RateLimiter::clear($this->throttleKey());

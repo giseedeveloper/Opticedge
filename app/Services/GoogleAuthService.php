@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\User;
+use App\Support\PlatformAuthSettings;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Laravel\Socialite\Contracts\User as SocialiteUser;
@@ -46,7 +47,7 @@ class GoogleAuthService
             'role' => 'guest',
             'status' => 'active',
             'tenant_id' => null,
-            'email_verified_at' => now(),
+            'email_verified_at' => PlatformAuthSettings::requiresEmailVerificationOnLogin() ? null : now(),
         ]);
     }
 
@@ -62,7 +63,7 @@ class GoogleAuthService
             $updates['avatar'] = $googleUser->getAvatar();
         }
 
-        if (! $user->hasVerifiedEmail()) {
+        if (! $user->hasVerifiedEmail() && ! PlatformAuthSettings::requiresEmailVerificationOnLogin()) {
             $updates['email_verified_at'] = now();
         }
 

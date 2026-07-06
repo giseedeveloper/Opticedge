@@ -96,6 +96,8 @@ class _LoginScreenState extends State<LoginScreen> {
         Navigator.pushReplacementNamed(context, '/regional-manager/dashboard');
       } else if (role == 'teamleader') {
         Navigator.pushReplacementNamed(context, '/team-leader/dashboard');
+      } else if (role == 'guest') {
+        Navigator.pushReplacementNamed(context, '/guest/waiting');
       } else if (role == 'customer' || role == 'dealer') {
         final status = user?['status'] as String? ?? 'active';
         if (role == 'dealer' && status != 'active') {
@@ -566,7 +568,7 @@ class _LoginScreenState extends State<LoginScreen> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
-            isAgent ? 'Agent sign up' : 'Dealer sign up',
+            isAgent ? 'Join as guest' : 'Dealer sign up',
             style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                   fontWeight: FontWeight.w700,
                   color: _authTitle,
@@ -650,30 +652,35 @@ class _LoginScreenState extends State<LoginScreen> {
                       _error = null;
                     });
                     try {
-                      final msg = isAgent
-                          ? await registerAgent(
-                              name: _agentNameController.text.trim(),
-                              email: _agentEmailController.text.trim(),
-                              password: _agentPasswordController.text,
-                              passwordConfirmation: _agentPasswordController.text,
-                              phone: _agentPhoneController.text.trim(),
-                            )
-                          : await registerDealer(
-                              name: _dealerContactController.text.trim(),
-                              email: _dealerEmailController.text.trim(),
-                              password: _dealerPasswordController.text,
-                              passwordConfirmation: _dealerPasswordController.text,
-                              businessName: _dealerBusinessController.text.trim(),
-                              phone: _dealerPhoneController.text.trim(),
-                            );
-                      if (!mounted) return;
                       if (isAgent) {
-                        _snack(msg);
-                        setState(() {
-                          _view = _AuthView.signIn;
-                          _loading = false;
-                        });
+                        final result = await registerGuest(
+                          name: _agentNameController.text.trim(),
+                          email: _agentEmailController.text.trim(),
+                          password: _agentPasswordController.text,
+                          passwordConfirmation: _agentPasswordController.text,
+                          phone: _agentPhoneController.text.trim(),
+                        );
+                        if (!mounted) return;
+                        final token = result['token'] as String?;
+                        if (token != null) {
+                          Navigator.pushReplacementNamed(context, '/guest/waiting');
+                        } else {
+                          _snack(result['message']?.toString() ?? 'Account created. Sign in with your email and password.');
+                          setState(() {
+                            _view = _AuthView.signIn;
+                            _loading = false;
+                          });
+                        }
                       } else {
+                        await registerDealer(
+                          name: _dealerContactController.text.trim(),
+                          email: _dealerEmailController.text.trim(),
+                          password: _dealerPasswordController.text,
+                          passwordConfirmation: _dealerPasswordController.text,
+                          businessName: _dealerBusinessController.text.trim(),
+                          phone: _dealerPhoneController.text.trim(),
+                        );
+                        if (!mounted) return;
                         Navigator.pushReplacementNamed(context, '/shop/dealer-pending');
                       }
                     } catch (e) {

@@ -35,11 +35,15 @@ class PlatformSettingController extends Controller
         'mail_from_name',
     ];
 
+    public const AUTH_KEYS = [
+        \App\Support\PlatformAuthSettings::KEY_REQUIRE_EMAIL_VERIFICATION,
+    ];
+
     public function index(): View
     {
         $settings = Setting::query()
             ->whereNull('tenant_id')
-            ->whereIn('key', array_merge(self::PAYMENT_KEYS, self::SELCOM_KEYS, self::MAIL_KEYS))
+            ->whereIn('key', array_merge(self::PAYMENT_KEYS, self::SELCOM_KEYS, self::MAIL_KEYS, self::AUTH_KEYS))
             ->pluck('value', 'key');
 
         return view('superadmin.settings.index', compact('settings'));
@@ -61,7 +65,12 @@ class PlatformSettingController extends Controller
             'mail_encryption' => 'nullable|string|max:50',
             'mail_from_address' => 'nullable|email|max:255',
             'mail_from_name' => 'nullable|string|max:255',
+            'require_email_verification_on_login' => 'nullable|in:0,1',
         ]);
+
+        if (! array_key_exists('require_email_verification_on_login', $data)) {
+            $data['require_email_verification_on_login'] = '0';
+        }
 
         foreach ($data as $key => $value) {
             Setting::query()->withoutGlobalScopes()->updateOrCreate(

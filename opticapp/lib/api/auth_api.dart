@@ -35,7 +35,11 @@ Future<Map<String, dynamic>> login(String email, String password) async {
   final res = await apiPost('/login', {'email': email, 'password': password}, token: null);
   final data = decodeApiJsonMap(res)!;
   if (res.statusCode != 200) {
-    final msg = data['message'] ?? data['errors']?.toString() ?? 'Login failed';
+    final errors = data['errors'];
+    if (errors is Map && errors['email'] is List && (errors['email'] as List).isNotEmpty) {
+      throw Exception((errors['email'] as List).first.toString());
+    }
+    final msg = data['message'] ?? errors?.toString() ?? 'Login failed';
     throw Exception(msg.toString());
   }
   final token = data['token'] as String;
@@ -70,6 +74,35 @@ Future<void> registerCustomer({
     await setStoredToken(token);
     await setStoredUser(user);
   }
+}
+
+Future<Map<String, dynamic>> registerGuest({
+  required String name,
+  required String email,
+  required String password,
+  required String passwordConfirmation,
+  String? phone,
+}) async {
+  final res = await apiPost('/register/guest', {
+    'name': name,
+    'email': email,
+    'password': password,
+    'password_confirmation': passwordConfirmation,
+    if (phone != null && phone.isNotEmpty) 'phone': phone,
+  }, token: null);
+  final data = jsonDecode(res.body) as Map<String, dynamic>;
+  if (res.statusCode != 201 && res.statusCode != 200) {
+    throw Exception(data['message']?.toString() ?? 'Registration failed');
+  }
+  final token = data['token'] as String?;
+  final user = data['user'] as Map<String, dynamic>?;
+  if (token != null && user != null) {
+    await setStoredToken(token);
+    await setStoredUser(user);
+    await _clearLegacyTenantApiBaseUrlIfNeeded();
+    await PushNotificationService.syncTokenWithBackend();
+  }
+  return data;
 }
 
 Future<String> registerAgent({

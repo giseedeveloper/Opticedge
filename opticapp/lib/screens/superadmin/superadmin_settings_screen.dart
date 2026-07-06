@@ -30,6 +30,7 @@ class _SuperadminSettingsScreenState extends State<SuperadminSettingsScreen> {
 
   String _paymentMode = 'demo';
   String _selcomIsLive = '0';
+  bool _requireEmailVerification = false;
 
   @override
   void initState() {
@@ -63,6 +64,7 @@ class _SuperadminSettingsScreenState extends State<SuperadminSettingsScreen> {
     _mailPassword.text = s['mail_password']?.toString() ?? '';
     _mailFromAddress.text = s['mail_from_address']?.toString() ?? '';
     _mailFromName.text = s['mail_from_name']?.toString() ?? '';
+    _requireEmailVerification = s['require_email_verification_on_login']?.toString() == '1';
   }
 
   Future<void> _load() async {
@@ -102,6 +104,7 @@ class _SuperadminSettingsScreenState extends State<SuperadminSettingsScreen> {
         'mail_password': _mailPassword.text.trim(),
         'mail_from_address': _mailFromAddress.text.trim(),
         'mail_from_name': _mailFromName.text.trim(),
+        'require_email_verification_on_login': _requireEmailVerification ? '1' : '0',
       });
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Settings saved.')));
@@ -179,6 +182,18 @@ class _SuperadminSettingsScreenState extends State<SuperadminSettingsScreen> {
                           ),
                           const SizedBox(height: 8),
                           OutlinedButton(onPressed: _testSelcom, child: const Text('Test Selcom connection')),
+                          const SizedBox(height: 16),
+                          Text('Authentication', style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
+                          const SizedBox(height: 8),
+                          SwitchListTile(
+                            contentPadding: EdgeInsets.zero,
+                            title: const Text('Require email verification on login'),
+                            subtitle: const Text(
+                              'Users must verify their email before signing in. Off by default.',
+                            ),
+                            value: _requireEmailVerification,
+                            onChanged: (value) => setState(() => _requireEmailVerification = value),
+                          ),
                           const SizedBox(height: 16),
                           Text('Mail', style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
                           const SizedBox(height: 8),

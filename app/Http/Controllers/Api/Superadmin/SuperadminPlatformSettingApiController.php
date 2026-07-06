@@ -17,6 +17,7 @@ class SuperadminPlatformSettingApiController extends Controller
             PlatformSettingController::PAYMENT_KEYS,
             PlatformSettingController::SELCOM_KEYS,
             PlatformSettingController::MAIL_KEYS,
+            PlatformSettingController::AUTH_KEYS,
         );
 
         $settings = Setting::query()
@@ -43,7 +44,12 @@ class SuperadminPlatformSettingApiController extends Controller
             'mail_encryption' => 'nullable|string|max:50',
             'mail_from_address' => 'nullable|email|max:255',
             'mail_from_name' => 'nullable|string|max:255',
+            'require_email_verification_on_login' => 'nullable|in:0,1',
         ]);
+
+        if (! array_key_exists('require_email_verification_on_login', $data)) {
+            $data['require_email_verification_on_login'] = '0';
+        }
 
         foreach ($data as $key => $value) {
             Setting::query()->withoutGlobalScopes()->updateOrCreate(

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Services\GoogleAuthService;
+use App\Support\PlatformAuthSettings;
 use App\Support\TenantSuspension;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
@@ -28,6 +29,14 @@ class GoogleAuthController extends Controller
             return redirect()
                 ->route('login')
                 ->withErrors(['email' => $blockedReason]);
+        }
+
+        try {
+            PlatformAuthSettings::ensureLoginAllowed($user);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return redirect()
+                ->route('login')
+                ->withErrors($e->errors());
         }
 
         Auth::login($user, remember: true);

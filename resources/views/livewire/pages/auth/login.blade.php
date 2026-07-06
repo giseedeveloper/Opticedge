@@ -46,6 +46,12 @@ new #[Layout('layouts.guest')] class extends Component {
     <div class="text-center mb-8">
         <h2 class="text-2xl font-semibold tracking-tight text-[#232f3e]">Sign in</h2>
         <p class="mt-1.5 text-sm text-slate-500">Use your account email and password.</p>
+        @if (Route::has('agent.register'))
+            <p class="mt-2 text-center text-sm text-slate-600">
+                New here?
+                <a href="{{ route('agent.register') }}" wire:navigate class="text-[#fa8900] hover:underline font-medium">Create account</a>
+            </p>
+        @endif
     </div>
 
     <x-auth-session-status class="mb-5 rounded-xl border border-emerald-200/80 bg-emerald-50/90 px-4 py-3 text-sm text-emerald-900" :status="session('status')" />

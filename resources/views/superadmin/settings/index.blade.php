@@ -5,7 +5,7 @@
         <div class="mb-8">
             <p class="admin-prod-eyebrow">Platform</p>
             <h1 class="admin-prod-title">Platform settings</h1>
-            <p class="admin-prod-subtitle">Vendor signup payments (demo vs live), Selcom gateway, and system email.</p>
+            <p class="admin-prod-subtitle">Vendor signup payments, Selcom gateway, authentication, and system email.</p>
         </div>
 
         @include('superadmin.partials.flash')
@@ -20,6 +20,11 @@
                 :class="tab === 'email' ? 'bg-[#fa8900] text-white' : 'text-slate-600'"
                 class="px-4 py-2 rounded-lg text-sm font-semibold transition-colors duration-200">
                 Email
+            </button>
+            <button type="button" @click="tab = 'auth'"
+                :class="tab === 'auth' ? 'bg-[#fa8900] text-white' : 'text-slate-600'"
+                class="px-4 py-2 rounded-lg text-sm font-semibold transition-colors duration-200">
+                Authentication
             </button>
         </div>
 
@@ -150,6 +155,35 @@
                     <p class="text-xs text-slate-500 mt-4">
                         Values are applied at runtime for outgoing mail across the platform.
                     </p>
+                </div>
+            </div>
+
+            <div x-show="tab === 'auth'" x-cloak class="admin-clay-panel admin-prod-form-shell overflow-hidden">
+                <div class="admin-prod-form-head">
+                    <h2 class="admin-prod-form-title">Authentication</h2>
+                    <p class="admin-prod-form-hint">Control sign-in requirements for all users across the platform.</p>
+                </div>
+                <div class="admin-prod-form-body space-y-4">
+                    @php
+                        $emailVerificationRequired = ($settings['require_email_verification_on_login'] ?? '0') === '1';
+                    @endphp
+                    <input type="hidden" name="require_email_verification_on_login" value="0">
+                    <label class="flex items-start justify-between gap-4 cursor-pointer rounded-xl border border-slate-200/80 bg-white/60 px-4 py-4">
+                        <span class="min-w-0">
+                            <span class="block text-sm font-semibold text-slate-900">Require email verification on login</span>
+                            <span class="mt-1 block text-xs text-slate-500 leading-relaxed">
+                                When enabled, users must verify their email before they can sign in (email/password or Google).
+                                Email and password login continues to work normally when this is off.
+                            </span>
+                        </span>
+                        <span class="relative inline-flex h-7 w-12 shrink-0 items-center">
+                            <input type="checkbox" name="require_email_verification_on_login" value="1"
+                                @checked($emailVerificationRequired)
+                                class="peer sr-only">
+                            <span class="absolute inset-0 rounded-full bg-slate-300 transition-colors peer-checked:bg-[#fa8900]"></span>
+                            <span class="absolute left-0.5 h-6 w-6 rounded-full bg-white shadow transition-transform peer-checked:translate-x-5"></span>
+                        </span>
+                    </label>
                 </div>
             </div>
 
