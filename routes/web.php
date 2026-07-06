@@ -85,7 +85,12 @@ Route::middleware('guest')->group(function () {
 });
 
 Route::middleware(['auth', 'guest.portal'])->group(function () {
-    Route::view('guest/dashboard', 'guest.dashboard')->name('guest.dashboard');
+    Route::get('guest/dashboard', [App\Http\Controllers\GuestPortalController::class, 'dashboard'])->name('guest.dashboard');
+    Route::get('guest/requests', [App\Http\Controllers\GuestPortalController::class, 'requests'])->name('guest.requests');
+    Route::get('guest/profile', [App\Http\Controllers\GuestPortalController::class, 'profile'])->name('guest.profile');
+    Route::put('guest/profile', [App\Http\Controllers\GuestPortalController::class, 'updateProfile'])->name('guest.profile.update');
+    Route::post('guest/invitations/{invitation}/accept', [App\Http\Controllers\GuestPortalController::class, 'acceptInvitation'])->name('guest.invitations.accept');
+    Route::post('guest/invitations/{invitation}/decline', [App\Http\Controllers\GuestPortalController::class, 'declineInvitation'])->name('guest.invitations.decline');
 });
 
 Route::get('profile', function () {

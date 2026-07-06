@@ -137,7 +137,11 @@ Route::middleware(['auth:sanctum', 'tenant.context'])->group(function () {
 
     Route::middleware(['active', 'guest.portal'])->prefix('guest')->group(function () {
         Route::get('dashboard', [GuestPortalApiController::class, 'dashboard']);
-        Route::get('profile', [UserProfileApiController::class, 'show']);
+        Route::get('profile', [GuestPortalApiController::class, 'profile']);
+        Route::put('profile', [GuestPortalApiController::class, 'updateProfile']);
+        Route::get('invitations', [GuestPortalApiController::class, 'invitations']);
+        Route::post('invitations/{invitation}/accept', [GuestPortalApiController::class, 'acceptInvitation']);
+        Route::post('invitations/{invitation}/decline', [GuestPortalApiController::class, 'declineInvitation']);
     });
 
     // Admin: stocks (with limit), create stock, add product to product_list

@@ -47,7 +47,7 @@
                             <td class="px-4 py-3 text-slate-500">{{ $guest->created_at?->format('M j, Y') }}</td>
                             <td class="px-4 py-3">
                                 <a href="{{ route('admin.guest-users.assign', $guest) }}"
-                                    class="text-[#fa8900] hover:underline font-medium">Assign role</a>
+                                    class="text-[#fa8900] hover:underline font-medium">Send request</a>
                             </td>
                         </tr>
                     @empty

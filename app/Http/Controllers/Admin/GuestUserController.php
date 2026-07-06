@@ -5,7 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Branch;
 use App\Models\User;
-use App\Services\NotificationDispatchService;
+use App\Services\GuestVendorInvitationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -52,10 +52,11 @@ class GuestUserController extends Controller
         return view('admin.guest-users.assign', compact('guest', 'branches', 'regions', 'teamLeaders', 'regionalManagers'));
     }
 
-    public function assign(Request $request, int $guestUser): RedirectResponse
+    public function assign(Request $request, int $guestUser, GuestVendorInvitationService $invitations): RedirectResponse
     {
         $guest = $this->findGuest($guestUser);
-        $tenantId = $request->user()?->tenant_id;
+        $admin = $request->user();
+        $tenantId = $admin?->tenant_id;
 
         if ($tenantId === null) {
             return back()->withErrors(['error' => 'Your admin account is not linked to a vendor.']);
@@ -67,6 +68,7 @@ class GuestUserController extends Controller
             'phone' => 'nullable|string|max:100',
             'business_name' => 'nullable|string|max:255',
             'notes' => 'nullable|string|max:10000',
+            'message' => 'nullable|string|max:2000',
         ];
 
         if (in_array($role, ['agent', 'teamleader', 'regional_manager'], true)) {
@@ -91,50 +93,20 @@ class GuestUserController extends Controller
         }
 
         $validated = $request->validate($rules);
+        $payload = $invitations->buildAssignmentPayload($role, $validated, $guest);
 
-        $payload = [
-            'role' => $role,
-            'tenant_id' => $tenantId,
-            'status' => 'active',
-            'phone' => $validated['phone'] ?? $guest->phone,
-            'business_name' => $validated['business_name'] ?? null,
-        ];
-
-        if (isset($validated['branch_id'])) {
-            $payload['branch_id'] = $validated['branch_id'] ?: null;
-        }
-        if ($role === 'agent' && Schema::hasColumn('users', 'team_leader_id')) {
-            $payload['team_leader_id'] = $validated['team_leader_id'] ?? null;
-        }
-        if ($role === 'teamleader' && Schema::hasColumn('users', 'regional_manager_id')) {
-            $payload['regional_manager_id'] = $validated['regional_manager_id'] ?? null;
-        }
-        if ($role === 'regional_manager' && Schema::hasColumn('users', 'region_id')) {
-            $payload['region_id'] = (int) $validated['region_id'];
-            $payload['branch_id'] = null;
-            $payload['regional_manager_id'] = null;
-        }
-        if ($role === 'teamleader' && Schema::hasColumn('users', 'region_id') && isset($validated['region_id'])) {
-            $payload['region_id'] = (int) $validated['region_id'];
-        }
-        if ($role === 'teamleader' && Schema::hasColumn('users', 'notes') && array_key_exists('notes', $validated)) {
-            $payload['notes'] = $validated['notes'];
-        }
-        if (Schema::hasColumn('users', 'ability')) {
-            $payload['ability'] = 'fullaccess';
-        }
-
-        User::withoutGlobalScopes()->whereKey($guest->id)->update($payload);
-
-        $assigned = User::withoutGlobalScopes()->findOrFail($guest->id);
-
-        if ($assigned->role === 'agent') {
-            app(NotificationDispatchService::class)->userActivated($assigned);
-        }
+        $invitations->sendInvitation(
+            $guest,
+            $admin,
+            (int) $tenantId,
+            $role,
+            $payload,
+            $validated['message'] ?? null,
+        );
 
         return redirect()
             ->route('admin.guest-users.index')
-            ->with('success', "{$assigned->name} is now assigned as {$role} under your vendor.");
+            ->with('success', "Invitation sent to {$guest->name}. They must accept before joining your vendor.");
     }
 
     private function findGuest(int $id): User

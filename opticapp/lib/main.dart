@@ -98,7 +98,7 @@ import 'screens/guest/vendor_subscribe_screen.dart';
 import 'screens/guest/reset_password_screen.dart';
 import 'screens/guest/email_verification_screen.dart';
 import 'screens/guest/db_setup_screen.dart';
-import 'screens/guest/guest_waiting_screen.dart';
+import 'screens/guest/guest_shell_screen.dart';
 import 'screens/agent/agent_profile_screen.dart';
 import 'widgets/portal_badge_lifecycle_refresher.dart';
 
@@ -231,7 +231,7 @@ class OpticApp extends StatelessWidget {
         '/guest/reset-password': (context) => const ResetPasswordScreen(),
         '/guest/verify-email': (context) => const EmailVerificationScreen(),
         '/guest/db-setup': (context) => const DbSetupScreen(),
-        '/guest/waiting': (context) => const GuestWaitingScreen(),
+        '/guest/waiting': (context) => const GuestShellScreen(),
         '/agent/dashboard': (context) => const AgentDashboardScreen(),
         '/agent/sell': (context) => const SellScreen(),
         '/agent/credits': (context) => const AgentCreditsScreen(),
