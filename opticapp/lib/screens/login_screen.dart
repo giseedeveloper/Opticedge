@@ -123,12 +123,10 @@ class _LoginScreenState extends State<LoginScreen> {
       if (apiUrl != null && apiUrl.isNotEmpty) {
         return apiUrl;
       }
-      if (config['google_sign_in_enabled'] != true) {
-        return null;
-      }
     } catch (_) {}
 
     final webBase = await resolveWebBaseUrl();
+    if (webBase.isEmpty) return null;
     return '$webBase/auth/google?mobile=1';
   }
 

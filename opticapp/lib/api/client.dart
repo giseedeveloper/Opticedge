@@ -21,10 +21,11 @@ Future<http.Response> _guardAuthenticatedResponse(http.Response res) async {
 }
 
 /// Default API root when no custom URL is saved (full path including `/api`).
-const String kInternalApiBaseUrl = 'https://opticedgeafrica.net/api';
+/// Uses staging while production Google OAuth is still being rolled out.
+const String kInternalApiBaseUrl = 'https://stage.opticedgeafrica.net/api';
 
-/// Testing/staging API root (Google OAuth is enabled here before production deploy).
-const String kStagingApiBaseUrl = 'https://stage.opticedgeafrica.net/api';
+/// Production API root.
+const String kProductionApiBaseUrl = 'https://opticedgeafrica.net/api';
 
 /// Previous production host; auto-remapped to [kInternalApiBaseUrl].
 const String _previousProductionApiBaseUrl = 'https://optic.opticedgeafrica.net/api';
@@ -32,6 +33,7 @@ const String _previousProductionApiBaseUrl = 'https://optic.opticedgeafrica.net/
 const Set<String> _allowedProductionApiHosts = {
   'opticedgeafrica.net',
   'optic.opticedgeafrica.net',
+  'stage.opticedgeafrica.net',
 };
 
 const String _prefsKeyServerSettingsApiUrl = 'server_settings_api_url';
