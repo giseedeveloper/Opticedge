@@ -49,11 +49,14 @@ import 'screens/agent/agent_return_devices_screen.dart';
 import 'screens/agent/agent_return_requests_screen.dart';
 import 'screens/admin/admin_agent_transfers_screen.dart';
 import 'screens/admin/admin_device_returns_screen.dart';
+import 'screens/admin/admin_contract_terminations_screen.dart';
 import 'screens/admin/admin_branch_transfer_screen.dart';
 import 'screens/regional_manager/regional_manager_assign_team_leader_screen.dart';
 import 'screens/regional_manager/regional_manager_dashboard_screen.dart';
 import 'screens/regional_manager/regional_manager_imei_register_screen.dart';
 import 'screens/regional_manager/regional_manager_profile_screen.dart';
+import 'screens/regional_manager/regional_manager_vendor_requests_screen.dart';
+import 'screens/regional_manager/regional_manager_contract_termination_screen.dart';
 import 'screens/regional_manager/regional_manager_return_devices_screen.dart';
 import 'screens/regional_manager/regional_manager_return_requests_screen.dart';
 import 'screens/regional_manager/regional_manager_my_transfers_screen.dart';
@@ -62,6 +65,8 @@ import 'screens/team_leader/team_leader_assign_agent_screen.dart';
 import 'screens/team_leader/team_leader_dashboard_screen.dart';
 import 'screens/team_leader/team_leader_imei_register_screen.dart';
 import 'screens/team_leader/team_leader_profile_screen.dart';
+import 'screens/team_leader/team_leader_vendor_requests_screen.dart';
+import 'screens/team_leader/team_leader_contract_termination_screen.dart';
 import 'screens/team_leader/team_leader_return_devices_screen.dart';
 import 'screens/team_leader/team_leader_return_requests_screen.dart';
 import 'screens/team_leader/team_leader_my_transfers_screen.dart';
@@ -103,6 +108,8 @@ import 'screens/guest/email_verification_screen.dart';
 import 'screens/guest/db_setup_screen.dart';
 import 'screens/guest/guest_shell_screen.dart';
 import 'screens/agent/agent_profile_screen.dart';
+import 'screens/agent/agent_vendor_requests_screen.dart';
+import 'screens/agent/agent_contract_termination_screen.dart';
 import 'widgets/portal_badge_lifecycle_refresher.dart';
 
 void main() async {
@@ -185,6 +192,7 @@ class OpticApp extends StatelessWidget {
         '/admin/stock/pending-sales': (context) => const PendingSalesScreen(),
         '/admin/stock/agent-transfers': (context) => const AdminAgentTransfersScreen(),
         '/admin/stock/device-returns': (context) => const AdminDeviceReturnsScreen(),
+        '/admin/contract-terminations': (context) => const AdminContractTerminationsScreen(),
         '/admin/assign-agent-products': (context) => const AdminAssignAgentProductsScreen(),
         '/admin/stock/branch-transfer': (context) => const AdminBranchTransferScreen(),
         '/admin/reports': (context) => const ReportsScreen(),
@@ -255,6 +263,8 @@ class OpticApp extends StatelessWidget {
         '/agent/leads': (context) => const AgentLeadsScreen(),
         '/agent/leads/detail': (context) => const AgentLeadDetailScreen(),
         '/agent/profile': (context) => const AgentProfileScreen(),
+        '/agent/vendor-requests': (context) => const AgentVendorRequestsScreen(),
+        '/agent/contract-termination': (context) => const AgentContractTerminationScreen(),
         '/regional-manager/dashboard': (context) => const RegionalManagerDashboardScreen(),
         '/regional-manager/imei-register': (context) => const RegionalManagerImeiRegisterScreen(),
         '/regional-manager/transfers': (context) => const RegionalManagerMyTransfersScreen(),
@@ -263,6 +273,8 @@ class OpticApp extends StatelessWidget {
         '/regional-manager/return-devices': (context) => const RegionalManagerReturnDevicesScreen(),
         '/regional-manager/return-requests': (context) => const RegionalManagerReturnRequestsScreen(),
         '/regional-manager/profile': (context) => const RegionalManagerProfileScreen(),
+        '/regional-manager/vendor-requests': (context) => const RegionalManagerVendorRequestsScreen(),
+        '/regional-manager/contract-termination': (context) => const RegionalManagerContractTerminationScreen(),
         '/team-leader/dashboard': (context) => const TeamLeaderDashboardScreen(),
         '/team-leader/imei-register': (context) => const TeamLeaderImeiRegisterScreen(),
         '/team-leader/transfers': (context) => const TeamLeaderMyTransfersScreen(),
@@ -271,6 +283,8 @@ class OpticApp extends StatelessWidget {
         '/team-leader/return-devices': (context) => const TeamLeaderReturnDevicesScreen(),
         '/team-leader/return-requests': (context) => const TeamLeaderReturnRequestsScreen(),
         '/team-leader/profile': (context) => const TeamLeaderProfileScreen(),
+        '/team-leader/vendor-requests': (context) => const TeamLeaderVendorRequestsScreen(),
+        '/team-leader/contract-termination': (context) => const TeamLeaderContractTerminationScreen(),
         '/team-leader/sell': (context) => const SellScreen(apiPrefix: 'team-leader'),
         '/team-leader/credits': (context) => const AgentCreditsScreen(apiPrefix: 'team-leader'),
         '/team-leader/credits/detail': (context) => const AgentCreditDetailScreen(apiPrefix: 'team-leader'),

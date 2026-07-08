@@ -162,6 +162,16 @@ class _AgentDrawer extends StatelessWidget {
                   title: 'Account',
                   primary: primary,
                   items: const [
+                    PortalNavItem(
+                      icon: Icons.mail_outline_rounded,
+                      label: 'Vendor requests',
+                      route: '/agent/vendor-requests',
+                    ),
+                    PortalNavItem(
+                      icon: Icons.logout_rounded,
+                      label: 'End contract',
+                      route: '/agent/contract-termination',
+                    ),
                     PortalNavItem(icon: Icons.person_outline_rounded, label: 'Profile', route: '/agent/profile'),
                   ],
                   onNavigate: navigate,

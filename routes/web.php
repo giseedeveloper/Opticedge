@@ -314,6 +314,9 @@ Route::middleware(['auth', 'redirect.superadmin.from.admin', 'admin', 'tenant.su
         Route::get('guest-users', [App\Http\Controllers\Admin\GuestUserController::class, 'index'])->name('guest-users.index');
         Route::get('guest-users/{guestUser}/assign', [App\Http\Controllers\Admin\GuestUserController::class, 'assignForm'])->name('guest-users.assign');
         Route::post('guest-users/{guestUser}/assign', [App\Http\Controllers\Admin\GuestUserController::class, 'assign'])->name('guest-users.assign.store');
+        Route::get('contract-terminations', [App\Http\Controllers\Admin\ContractTerminationController::class, 'index'])->name('contract-terminations.index');
+        Route::post('contract-terminations/{contractTermination}/approve', [App\Http\Controllers\Admin\ContractTerminationController::class, 'approve'])->name('contract-terminations.approve');
+        Route::post('contract-terminations/{contractTermination}/reject', [App\Http\Controllers\Admin\ContractTerminationController::class, 'reject'])->name('contract-terminations.reject');
         Route::post('users/{user}/reset-password', [App\Http\Controllers\Admin\UserPasswordController::class, 'reset'])
             ->name('users.reset-password');
 

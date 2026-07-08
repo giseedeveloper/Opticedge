@@ -100,6 +100,37 @@ abstract final class PortalPendingNav {
         ),
       ];
 
+  static List<PortalNavItem> adminUsersItems(PendingRequestCounts counts) => [
+        const PortalNavItem(
+          icon: Icons.groups_2_rounded,
+          label: 'All users',
+          route: '/admin/users',
+        ),
+        const PortalNavItem(
+          icon: Icons.account_tree_rounded,
+          label: 'Organization tree',
+          route: '/admin/organization',
+        ),
+        const PortalNavItem(
+          icon: Icons.store_rounded,
+          label: 'Dealers',
+          route: '/admin/dealers',
+        ),
+        const PortalNavItem(
+          icon: Icons.local_shipping_rounded,
+          label: 'Vendors',
+          route: '/admin/vendors',
+        ),
+        PortalNavItem(
+          icon: Icons.logout_rounded,
+          label: 'Contract terminations',
+          route: '/admin/contract-terminations',
+          badgeCount: counts.pendingContractTerminations > 0
+              ? counts.pendingContractTerminations
+              : null,
+        ),
+      ];
+
   static List<PortalNavItem> adminStockItems(PendingRequestCounts counts) => [
         const PortalNavItem(
           icon: Icons.inventory_2_rounded,

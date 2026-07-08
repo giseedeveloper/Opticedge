@@ -71,6 +71,8 @@ use App\Http\Controllers\Api\DeviceTokenApiController;
 use App\Http\Controllers\Api\GuestPortalApiController;
 use App\Http\Controllers\Api\NotificationApiController;
 use App\Http\Controllers\Api\PendingRequestCountsApiController;
+use App\Http\Controllers\Api\ContractTerminationApiController;
+use App\Http\Controllers\Api\AdminContractTerminationApiController;
 
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/auth/google', [AuthController::class, 'loginWithGoogle']);
@@ -298,6 +300,11 @@ Route::middleware(['auth:sanctum', 'tenant.context'])->group(function () {
         Route::post('device-returns/{return}/accept', [AdminDeviceReturnApiController::class, 'accept']);
         Route::post('device-returns/{return}/decline', [AdminDeviceReturnApiController::class, 'decline']);
 
+        Route::get('contract-terminations', [AdminContractTerminationApiController::class, 'index']);
+        Route::get('contract-terminations/{contractTermination}', [AdminContractTerminationApiController::class, 'show']);
+        Route::post('contract-terminations/{contractTermination}/approve', [AdminContractTerminationApiController::class, 'approve']);
+        Route::post('contract-terminations/{contractTermination}/reject', [AdminContractTerminationApiController::class, 'reject']);
+
         Route::get('branch-transfer/items', [AdminBranchTransferApiController::class, 'items']);
         Route::post('branch-transfer', [AdminBranchTransferApiController::class, 'store']);
         Route::get('branch-transfer/logs', [AdminBranchTransferApiController::class, 'logs']);
@@ -350,6 +357,11 @@ Route::middleware(['auth:sanctum', 'tenant.context'])->group(function () {
         Route::get('return-requests/{return}', [AgentDeviceReturnApiController::class, 'show']);
         Route::post('return-requests/{return}/cancel', [AgentDeviceReturnApiController::class, 'cancel']);
 
+        Route::get('contract-termination', [ContractTerminationApiController::class, 'index']);
+        Route::post('contract-termination', [ContractTerminationApiController::class, 'store']);
+        Route::get('contract-termination/{contractTermination}', [ContractTerminationApiController::class, 'show']);
+        Route::post('contract-termination/{contractTermination}/cancel', [ContractTerminationApiController::class, 'cancel']);
+
         Route::get('profile', [UserProfileApiController::class, 'show']);
         Route::put('profile', [UserProfileApiController::class, 'update']);
         Route::put('profile/password', [UserProfileApiController::class, 'updatePassword']);
@@ -390,6 +402,10 @@ Route::middleware(['auth:sanctum', 'tenant.context'])->group(function () {
         Route::get('categories', [ShopCommerceApiController::class, 'categories']);
         Route::get('products', [ShopCommerceApiController::class, 'products']);
         Route::get('products/{product}', [ShopCommerceApiController::class, 'showProduct']);
+        Route::get('contract-termination', [ContractTerminationApiController::class, 'index']);
+        Route::post('contract-termination', [ContractTerminationApiController::class, 'store']);
+        Route::get('contract-termination/{contractTermination}', [ContractTerminationApiController::class, 'show']);
+        Route::post('contract-termination/{contractTermination}/cancel', [ContractTerminationApiController::class, 'cancel']);
         Route::get('profile', [UserProfileApiController::class, 'show']);
         Route::put('profile', [UserProfileApiController::class, 'update']);
         Route::put('profile/password', [UserProfileApiController::class, 'updatePassword']);
@@ -446,6 +462,10 @@ Route::middleware(['auth:sanctum', 'tenant.context'])->group(function () {
         Route::get('categories', [ShopCommerceApiController::class, 'categories']);
         Route::get('products', [ShopCommerceApiController::class, 'products']);
         Route::get('products/{product}', [ShopCommerceApiController::class, 'showProduct']);
+        Route::get('contract-termination', [ContractTerminationApiController::class, 'index']);
+        Route::post('contract-termination', [ContractTerminationApiController::class, 'store']);
+        Route::get('contract-termination/{contractTermination}', [ContractTerminationApiController::class, 'show']);
+        Route::post('contract-termination/{contractTermination}/cancel', [ContractTerminationApiController::class, 'cancel']);
         Route::get('profile', [UserProfileApiController::class, 'show']);
         Route::put('profile', [UserProfileApiController::class, 'update']);
         Route::put('profile/password', [UserProfileApiController::class, 'updatePassword']);

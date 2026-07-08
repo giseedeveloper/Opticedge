@@ -2,6 +2,7 @@
 
 namespace App\Support;
 
+use App\Models\ContractTerminationRequest;
 use App\Models\AgentDeviceReturn;
 use App\Models\AgentProductTransfer;
 use App\Models\RegionalManagerDeviceReturn;
@@ -14,13 +15,14 @@ use Illuminate\Support\Facades\Schema;
 class PortalPendingRequestCounts
 {
     /**
-     * @return array{pending_transfer_requests: int, pending_return_requests: int}
+     * @return array{pending_transfer_requests: int, pending_return_requests: int, pending_contract_terminations: int}
      */
     public static function forUser(?User $user): array
     {
         $empty = [
             'pending_transfer_requests' => 0,
             'pending_return_requests' => 0,
+            'pending_contract_terminations' => 0,
         ];
 
         if (! $user) {
@@ -44,6 +46,7 @@ class PortalPendingRequestCounts
                             ->where('status', AgentDeviceReturn::STATUS_PENDING)
                             ->count()
                         : 0,
+                    'pending_contract_terminations' => 0,
                 ],
                 'regional_manager' => [
                     'pending_transfer_requests' => self::tableExists('regional_manager_product_transfers')
@@ -58,6 +61,7 @@ class PortalPendingRequestCounts
                             ->where('status', TeamLeaderDeviceReturn::STATUS_PENDING)
                             ->count()
                         : 0,
+                    'pending_contract_terminations' => 0,
                 ],
                 'agent' => [
                     'pending_transfer_requests' => AgentProductTransfer::query()
@@ -70,10 +74,12 @@ class PortalPendingRequestCounts
                             ->where('status', AgentDeviceReturn::STATUS_PENDING)
                             ->count()
                         : 0,
+                    'pending_contract_terminations' => 0,
                 ],
                 'admin', 'superadmin' => [
                     'pending_transfer_requests' => self::countPendingTransfersForAdmin(),
                     'pending_return_requests' => self::countPendingReturnsForAdmin(),
+                    'pending_contract_terminations' => self::countPendingContractTerminationsForAdmin($user),
                 ],
                 default => $empty,
             };
@@ -135,5 +141,25 @@ class PortalPendingRequestCounts
         }
 
         return $total;
+    }
+
+    private static function countPendingContractTerminationsForAdmin(?User $user): int
+    {
+        if ($user === null || $user->tenant_id === null) {
+            return 0;
+        }
+
+        try {
+            if (! self::tableExists('contract_termination_requests')) {
+                return 0;
+            }
+
+            return ContractTerminationRequest::query()
+                ->where('tenant_id', $user->tenant_id)
+                ->where('status', ContractTerminationRequest::STATUS_PENDING)
+                ->count();
+        } catch (\Throwable) {
+            return 0;
+        }
     }
 }

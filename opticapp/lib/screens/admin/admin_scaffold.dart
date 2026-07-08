@@ -112,13 +112,6 @@ class _AdminDrawerState extends State<_AdminDrawer> {
   Map<String, dynamic>? _permissions;
   String? _siteUrl;
 
-  static const _usersItems = [
-    PortalNavItem(icon: Icons.groups_2_rounded, label: 'All users', route: '/admin/users'),
-    PortalNavItem(icon: Icons.account_tree_rounded, label: 'Organization tree', route: '/admin/organization'),
-    PortalNavItem(icon: Icons.store_rounded, label: 'Dealers', route: '/admin/dealers'),
-    PortalNavItem(icon: Icons.local_shipping_rounded, label: 'Vendors', route: '/admin/vendors'),
-  ];
-
   @override
   void initState() {
     super.initState();
@@ -195,10 +188,12 @@ class _AdminDrawerState extends State<_AdminDrawer> {
                   const SizedBox(height: PortalDrawerTheme.sectionSpacing),
                 ],
                 if (_canViewModule('customers') || _canViewModule('agents')) ...[
-                  PortalDrawerManagementSection(
-                    primary: primary,
-                    onNavigate: navigate,
-                    usersItems: _usersItems,
+                  Consumer<PendingRequestCountsProvider>(
+                    builder: (context, pending, _) => PortalDrawerManagementSection(
+                      primary: primary,
+                      onNavigate: navigate,
+                      usersItems: PortalPendingNav.adminUsersItems(pending.counts),
+                    ),
                   ),
                   const SizedBox(height: PortalDrawerTheme.sectionSpacing),
                 ],

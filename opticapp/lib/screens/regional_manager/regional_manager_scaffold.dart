@@ -151,6 +151,16 @@ class _RegionalManagerDrawer extends StatelessWidget {
                   primary: primary,
                   items: const [
                     PortalNavItem(
+                      icon: Icons.mail_outline_rounded,
+                      label: 'Vendor requests',
+                      route: '/regional-manager/vendor-requests',
+                    ),
+                    PortalNavItem(
+                      icon: Icons.logout_rounded,
+                      label: 'End contract',
+                      route: '/regional-manager/contract-termination',
+                    ),
+                    PortalNavItem(
                       icon: Icons.person_outline_rounded,
                       label: 'Profile',
                       route: '/regional-manager/profile',

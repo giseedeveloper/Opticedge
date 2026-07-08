@@ -174,6 +174,16 @@ class _TeamLeaderDrawer extends StatelessWidget {
                   primary: primary,
                   items: const [
                     PortalNavItem(
+                      icon: Icons.mail_outline_rounded,
+                      label: 'Vendor requests',
+                      route: '/team-leader/vendor-requests',
+                    ),
+                    PortalNavItem(
+                      icon: Icons.logout_rounded,
+                      label: 'End contract',
+                      route: '/team-leader/contract-termination',
+                    ),
+                    PortalNavItem(
                       icon: Icons.person_outline_rounded,
                       label: 'Profile',
                       route: '/team-leader/profile',

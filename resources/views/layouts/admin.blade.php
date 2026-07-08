@@ -205,6 +205,7 @@
                     'admin.customers.team-leaders.*',
                     'admin.customers.organization-tree',
                     'admin.guest-users.*',
+                    'admin.contract-terminations.*',
                     'admin.dealers.*',
                     'admin.agents.*',
                     'admin.subadmins.*',
@@ -367,6 +368,9 @@
                                 <a href="{{ route('admin.guest-users.index') }}"
                                     @if (request()->routeIs('admin.guest-users.*')) aria-current="page" @endif
                                     class="admin-sidebar-sublink {{ request()->routeIs('admin.guest-users.*') ? 'admin-sidebar-sublink-active' : '' }}">Guest users</a>
+                                <a href="{{ route('admin.contract-terminations.index') }}"
+                                    @if (request()->routeIs('admin.contract-terminations.*')) aria-current="page" @endif
+                                    class="admin-sidebar-sublink {{ request()->routeIs('admin.contract-terminations.*') ? 'admin-sidebar-sublink-active' : '' }}">Contract terminations</a>
                                 <a href="{{ route('admin.customers.organization-tree') }}"
                                     @if (request()->routeIs('admin.customers.organization-tree')) aria-current="page" @endif
                                     class="admin-sidebar-sublink {{ request()->routeIs('admin.customers.organization-tree') ? 'admin-sidebar-sublink-active' : '' }}">Organization tree</a>
