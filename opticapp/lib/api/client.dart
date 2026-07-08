@@ -81,7 +81,7 @@ String _canonicalizeProductionApiUrl(String url) {
   }
   final uri = Uri.tryParse(normalized);
   if (uri != null &&
-      uri.host == 'optic.opticedgeafrica.net' &&
+      _allowedProductionApiHosts.contains(uri.host) &&
       (uri.path == '/api' || uri.path.isEmpty)) {
     return kInternalApiBaseUrl;
   }

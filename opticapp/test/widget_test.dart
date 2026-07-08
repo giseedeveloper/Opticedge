@@ -13,6 +13,15 @@ void main() {
     expect(await resolveBaseUrl(), 'https://stage.opticedgeafrica.net/api');
   });
 
+  test('canonicalizes production API hosts to the stage default', () async {
+    SharedPreferences.setMockInitialValues({});
+
+    await setServerSettingsApiUrl('https://opticedgeafrica.net/api');
+
+    expect(await getServerSettingsApiUrl(), kInternalApiBaseUrl);
+    expect(await resolveBaseUrl(), kInternalApiBaseUrl);
+  });
+
   test('canonicalizes the previous production API host to the default', () async {
     SharedPreferences.setMockInitialValues({});
 
