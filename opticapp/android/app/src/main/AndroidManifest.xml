@@ -48,7 +48,7 @@
                 <action android:name="android.intent.action.VIEW"/>
                 <category android:name="android.intent.category.DEFAULT"/>
                 <category android:name="android.intent.category.BROWSABLE"/>
-                <data android:scheme="com.optic.opticapp" android:host="google-auth"/>
+                <data android:scheme="app.opticedgesales.com" android:host="google-auth"/>
             </intent-filter>
         </activity>
 

@@ -13,7 +13,7 @@ use Laravel\Socialite\Facades\Socialite;
 
 class GoogleAuthController extends Controller
 {
-    private const MOBILE_APP_SCHEME = 'com.optic.opticapp';
+    private const MOBILE_APP_SCHEME = 'app.opticedgesales.com';
 
     public function redirect(Request $request): RedirectResponse
     {

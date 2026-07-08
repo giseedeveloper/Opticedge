@@ -5,7 +5,7 @@ import 'package:flutter_web_auth_2/flutter_web_auth_2.dart';
 class WebsiteGoogleAuthService {
   WebsiteGoogleAuthService._();
 
-  static const String callbackScheme = 'com.optic.opticapp';
+  static const String callbackScheme = 'app.opticedgesales.com';
 
   /// Opens the website OAuth page and returns a Sanctum token, or null if cancelled.
   static Future<String?> signInViaWebsite(String authUrl) async {
