@@ -220,8 +220,8 @@
             </div>
 
             <div class="flex flex-wrap justify-center gap-4 text-xs text-slate-400 mt-4">
-                <a href="#" class="hover:underline">Conditions of Use</a>
-                <a href="#" class="hover:underline">Privacy Notice</a>
+                <a href="{{ route('terms') }}" class="hover:underline">Terms of Service</a>
+                <a href="{{ route('privacy') }}" class="hover:underline">Privacy Policy</a>
                 <a href="#" class="hover:underline">Consumer Health Data Privacy Disclosure</a>
                 <a href="#" class="hover:underline">Your Ads Privacy Choices</a>
             </div>

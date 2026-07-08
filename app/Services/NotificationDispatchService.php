@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\GuestVendorInvitation;
 use App\Models\Order;
 use App\Models\User;
 use App\Notifications\AppNotification;
@@ -27,17 +28,27 @@ class NotificationDispatchService
             $payload['web_url'] = NotificationRoutes::webForUser($user, $type, $payload);
         }
 
-        Log::info('Notification dispatched to user', [
-            'user_id' => $user->id,
+        $userId = $user->id;
+        $logContext = [
+            'user_id' => $userId,
             'user_email' => $user->email,
             'user_name' => $user->name,
             'user_role' => $user->role,
             'notification_type' => $type,
             'channels' => $channels,
             'title' => $title,
-        ]);
+        ];
 
-        $user->notify(new AppNotification($type, $title, $body, $payload, $channels));
+        dispatch(function () use ($userId, $type, $title, $body, $payload, $channels, $logContext) {
+            $recipient = User::withoutGlobalScopes()->find($userId);
+            if (! $recipient) {
+                return;
+            }
+
+            Log::info('Notification dispatched to user', $logContext);
+
+            $recipient->notify(new AppNotification($type, $title, $body, $payload, $channels));
+        })->afterResponse();
     }
 
     /**
@@ -445,6 +456,26 @@ class NotificationDispatchService
                     'entity_type' => 'assignment',
                     'entity_id' => $agent->id,
                     'meta' => ['count' => $count],
+                ],
+            );
+        });
+    }
+
+    public function guestInvitationReceived(User $guest, GuestVendorInvitation $invitation): void
+    {
+        $this->afterCommit(function () use ($guest, $invitation) {
+            $invitation->loadMissing(['tenant:id,name,brand_name', 'inviter:id,name']);
+            $vendorName = $invitation->tenant?->brand_name ?: $invitation->tenant?->name ?: 'A vendor';
+            $roleLabel = GuestVendorInvitation::roleLabel($invitation->proposed_role);
+
+            $this->notifyUser(
+                $guest,
+                NotificationType::GUEST_INVITATION,
+                'New vendor request',
+                "{$vendorName} invited you to join as {$roleLabel}.",
+                [
+                    'entity_type' => 'guest_invitation',
+                    'entity_id' => $invitation->id,
                 ],
             );
         });

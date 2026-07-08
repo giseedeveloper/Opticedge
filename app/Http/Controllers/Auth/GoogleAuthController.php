@@ -7,25 +7,36 @@ use App\Services\GoogleAuthService;
 use App\Support\PlatformAuthSettings;
 use App\Support\TenantSuspension;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Laravel\Socialite\Facades\Socialite;
 
 class GoogleAuthController extends Controller
 {
-    public function redirect(): RedirectResponse
+    private const MOBILE_APP_SCHEME = 'com.optic.opticapp';
+
+    public function redirect(Request $request): RedirectResponse
     {
+        if ($request->boolean('mobile')) {
+            session(['google_oauth_mobile' => true]);
+        }
+
         return Socialite::driver('google')
             ->scopes(['openid', 'profile', 'email'])
             ->redirect();
     }
 
-    public function callback(GoogleAuthService $googleAuth): RedirectResponse
+    public function callback(Request $request, GoogleAuthService $googleAuth): RedirectResponse
     {
         $googleUser = Socialite::driver('google')->user();
         $user = $googleAuth->findOrCreateGuest($googleUser);
 
         $blockedReason = TenantSuspension::blocksLoginForUser($user);
         if ($blockedReason !== null) {
+            if (session()->pull('google_oauth_mobile')) {
+                return $this->mobileRedirectWithError($blockedReason);
+            }
+
             return redirect()
                 ->route('login')
                 ->withErrors(['email' => $blockedReason]);
@@ -34,14 +45,35 @@ class GoogleAuthController extends Controller
         try {
             PlatformAuthSettings::ensureLoginAllowed($user);
         } catch (\Illuminate\Validation\ValidationException $e) {
+            $message = collect($e->errors())->flatten()->first() ?? 'Sign-in is not allowed.';
+
+            if (session()->pull('google_oauth_mobile')) {
+                return $this->mobileRedirectWithError($message);
+            }
+
             return redirect()
                 ->route('login')
                 ->withErrors($e->errors());
         }
 
+        if (session()->pull('google_oauth_mobile')) {
+            $session = $googleAuth->issueSanctumSession($user);
+
+            return redirect()->away(
+                self::MOBILE_APP_SCHEME.'://google-auth?token='.urlencode($session['token'])
+            );
+        }
+
         Auth::login($user, remember: true);
 
         return redirect()->to($this->postLoginRoute($user));
+    }
+
+    private function mobileRedirectWithError(string $message): RedirectResponse
+    {
+        return redirect()->away(
+            self::MOBILE_APP_SCHEME.'://google-auth?error='.urlencode($message)
+        );
     }
 
     private function postLoginRoute($user): string

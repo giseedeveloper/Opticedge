@@ -105,6 +105,37 @@ Future<Map<String, dynamic>> registerGuest({
   return data;
 }
 
+Future<Map<String, dynamic>> getPublicAuthConfig() async {
+  final res = await apiGet('/public/auth-config', token: null);
+  final data = decodeApiJsonMap(res);
+  if (res.statusCode != 200) {
+    return {
+      'google_sign_in_enabled': false,
+      'google_auth_url': null,
+    };
+  }
+  final payload = data?['data'] as Map<String, dynamic>? ?? {};
+  return {
+    'google_sign_in_enabled': payload['google_sign_in_enabled'] == true,
+    'google_auth_url': payload['google_auth_url']?.toString(),
+  };
+}
+
+Future<Map<String, dynamic>> completeGoogleWebAuth(String token) async {
+  await setStoredToken(token);
+  final res = await apiGet('/user', token: token);
+  final data = decodeApiJsonMap(res)!;
+  if (res.statusCode != 200) {
+    await clearStoredAuth();
+    throw Exception(data['message']?.toString() ?? 'Failed to load user profile after Google sign-in.');
+  }
+  final user = data as Map<String, dynamic>;
+  await setStoredUser(user);
+  await _clearLegacyTenantApiBaseUrlIfNeeded();
+  await PushNotificationService.syncTokenWithBackend();
+  return user;
+}
+
 Future<String> registerAgent({
   required String name,
   required String email,

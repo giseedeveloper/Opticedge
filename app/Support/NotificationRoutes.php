@@ -56,6 +56,10 @@ final class NotificationRoutes
             return $role === 'agent' ? '/agent/dashboard' : null;
         }
 
+        if (str_starts_with($type, 'guest.')) {
+            return $role === 'guest' ? '/guest/requests' : null;
+        }
+
         return null;
     }
 
@@ -116,6 +120,10 @@ final class NotificationRoutes
 
         if ($type === NotificationType::DEVICES_ASSIGNED) {
             return $role === 'agent' ? self::safeRoute('agent.dashboard') : null;
+        }
+
+        if (str_starts_with($type, 'guest.')) {
+            return $role === 'guest' ? self::safeRoute('guest.waiting') : null;
         }
 
         return null;

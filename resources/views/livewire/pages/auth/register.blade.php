@@ -96,9 +96,10 @@ new #[Layout('layouts.guest')] class extends Component {
         </div>
 
         <div class="mt-6 text-xs text-slate-600">
-            By creating an account, you agree to OpticEdgeAfrica's <a href="#"
-                class="text-blue-600 hover:text-[#fa8900] hover:underline">Conditions of Use</a> and <a href="#"
-                class="text-blue-600 hover:text-[#fa8900] hover:underline">Privacy Notice</a>.
+            By creating an account, you agree to OpticEdgeAfrica's <a href="{{ route('terms') }}"
+                class="text-blue-600 hover:text-[#fa8900] hover:underline">Terms of Service</a> and <a
+                href="{{ route('privacy') }}"
+                class="text-blue-600 hover:text-[#fa8900] hover:underline">Privacy Policy</a>.
         </div>
 
         <div class="mt-8 border-t border-slate-200 pt-6">

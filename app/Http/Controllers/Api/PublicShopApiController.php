@@ -83,4 +83,21 @@ class PublicShopApiController extends Controller
             ])->values(),
         ]);
     }
+
+    public function authConfig()
+    {
+        $clientId = config('services.google.client_id');
+        $enabled = filled($clientId);
+        $googleAuthUrl = $enabled
+            ? route('auth.google', ['mobile' => 1], absolute: true)
+            : null;
+
+        return response()->json([
+            'data' => [
+                'google_sign_in_enabled' => $enabled,
+                'google_web_client_id' => $clientId,
+                'google_auth_url' => $googleAuthUrl,
+            ],
+        ]);
+    }
 }

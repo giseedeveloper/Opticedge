@@ -39,4 +39,6 @@ final class NotificationType
     public const RETURN_CANCELLED = 'return.cancelled';
 
     public const DEVICES_ASSIGNED = 'devices.assigned';
+
+    public const GUEST_INVITATION = 'guest.invitation';
 }

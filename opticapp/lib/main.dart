@@ -6,6 +6,8 @@ import 'providers/notifications_provider.dart';
 import 'providers/pending_request_counts_provider.dart';
 import 'services/push_notification_service.dart';
 import 'screens/common/notifications_screen.dart';
+import 'screens/common/privacy_policy_screen.dart';
+import 'screens/common/terms_of_service_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/admin/admin_dashboard_screen.dart';
 import 'screens/admin/stocks_screen.dart';
@@ -139,6 +141,8 @@ class OpticApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       routes: {
         '/notifications': (context) => const NotificationsScreen(),
+        '/privacy': (context) => const PrivacyPolicyScreen(),
+        '/terms': (context) => const TermsOfServiceScreen(),
         '/login': (context) => const LoginScreen(),
         '/admin/dashboard': (context) => const AdminDashboardScreen(),
         '/admin/stocks': (context) => const StocksScreen(pageTitle: 'Stocks'),
@@ -231,7 +235,12 @@ class OpticApp extends StatelessWidget {
         '/guest/reset-password': (context) => const ResetPasswordScreen(),
         '/guest/verify-email': (context) => const EmailVerificationScreen(),
         '/guest/db-setup': (context) => const DbSetupScreen(),
-        '/guest/waiting': (context) => const GuestShellScreen(),
+        '/guest/waiting': (context) {
+          final args = ModalRoute.of(context)?.settings.arguments;
+          final initialTab = args is Map ? (args['tab'] as int?) ?? 0 : 0;
+          return GuestShellScreen(initialTab: initialTab);
+        },
+        '/guest/requests': (context) => const GuestShellScreen(initialTab: 1),
         '/agent/dashboard': (context) => const AgentDashboardScreen(),
         '/agent/sell': (context) => const SellScreen(),
         '/agent/credits': (context) => const AgentCreditsScreen(),

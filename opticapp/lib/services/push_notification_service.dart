@@ -262,9 +262,27 @@ class PushNotificationService {
   static void _navigateToRoute(String route, {int? entityId}) {
     final nav = appNavigatorKey.currentState;
     if (nav == null) return;
+    if (route == '/guest/requests' || route == '/guest/waiting') {
+      _logFcm('Navigating to guest route=$route');
+      nav.pushReplacementNamed(route);
+      return;
+    }
     final args = entityId != null ? {'id': entityId} : null;
     _logFcm('Navigating to route=$route entityId=$entityId');
     nav.pushNamed(route, arguments: args);
+  }
+
+  static Future<void> showLocalAlert({
+    required String title,
+    required String body,
+    required String route,
+    String type = 'alert',
+  }) async {
+    if (!_initialized) return;
+    await _showLocalNotification(title, body, {
+      'route': route,
+      'type': type,
+    });
   }
 
   static Future<void> _showLocalNotification(

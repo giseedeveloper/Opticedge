@@ -125,6 +125,8 @@ class FcmPushService
 
                 $response = Http::withToken($accessToken)
                     ->acceptJson()
+                    ->timeout(10)
+                    ->connectTimeout(5)
                     ->post("https://fcm.googleapis.com/v1/projects/{$projectId}/messages:send", $payload);
 
                 if ($response->successful()) {
@@ -205,10 +207,13 @@ class FcmPushService
         openssl_sign($unsigned, $signature, $key, OPENSSL_ALGO_SHA256);
         $jwt = $unsigned.'.'.$this->base64UrlEncode($signature);
 
-        $response = Http::asForm()->post('https://oauth2.googleapis.com/token', [
-            'grant_type' => 'urn:ietf:params:oauth:grant-type:jwt-bearer',
-            'assertion' => $jwt,
-        ]);
+        $response = Http::asForm()
+            ->timeout(10)
+            ->connectTimeout(5)
+            ->post('https://oauth2.googleapis.com/token', [
+                'grant_type' => 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+                'assertion' => $jwt,
+            ]);
 
         if (! $response->successful()) {
             throw new \RuntimeException('Unable to obtain Firebase access token.');

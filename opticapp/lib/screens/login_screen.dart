@@ -4,7 +4,10 @@ import '../api/auth_api.dart';
 import '../api/client.dart';
 import '../providers/notifications_provider.dart';
 import '../providers/pending_request_counts_provider.dart';
+import '../api/guest_api.dart';
+import '../services/website_google_auth_service.dart';
 import '../theme/app_theme.dart';
+import '../utils/auth_navigation.dart';
 
 /// Auth-only accent (mock used blue; app uses yellow here without changing global admin theme).
 const Color _authYellow = Color(0xFFE5B800);
@@ -60,17 +63,38 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _obscureSignUpPassword = true;
   bool _obscureAgentPassword = true;
   bool _obscureDealerPassword = true;
+  bool _googleSignInEnabled = false;
+  String? _googleAuthUrl;
 
   @override
   void initState() {
     super.initState();
     _loadActiveApiBaseUrl();
+    _loadAuthConfig();
+  }
+
+  Future<void> _loadAuthConfig() async {
+    try {
+      final config = await getPublicAuthConfig();
+      if (!mounted) return;
+      setState(() {
+        _googleSignInEnabled = config['google_sign_in_enabled'] == true;
+        _googleAuthUrl = config['google_auth_url'] as String?;
+      });
+    } catch (_) {}
   }
 
   Future<void> _loadActiveApiBaseUrl() async {
     final base = await resolveBaseUrl();
     if (!mounted) return;
     setState(() => _activeApiBaseUrl = base);
+  }
+
+  Future<void> _completeAuthSuccess() async {
+    if (!mounted) return;
+    context.read<NotificationsProvider>().refreshSilently();
+    context.read<PendingRequestCountsProvider>().refreshSilently();
+    await navigateForStoredUser(context);
   }
 
   Future<void> _submitSignIn() async {
@@ -81,33 +105,7 @@ class _LoginScreenState extends State<LoginScreen> {
     try {
       await login(_signInEmailController.text.trim(), _signInPasswordController.text);
       if (!mounted) return;
-      context.read<NotificationsProvider>().refreshSilently();
-      context.read<PendingRequestCountsProvider>().refreshSilently();
-      final user = await getStoredUser();
-      if (!mounted) return;
-      final role = user?['role'] as String?;
-      if (role == 'admin' || role == 'subadmin') {
-        Navigator.pushReplacementNamed(context, '/admin/dashboard');
-      } else if (role == 'superadmin') {
-        Navigator.pushReplacementNamed(context, '/superadmin/dashboard');
-      } else if (role == 'agent') {
-        Navigator.pushReplacementNamed(context, '/agent/dashboard');
-      } else if (role == 'regional_manager') {
-        Navigator.pushReplacementNamed(context, '/regional-manager/dashboard');
-      } else if (role == 'teamleader') {
-        Navigator.pushReplacementNamed(context, '/team-leader/dashboard');
-      } else if (role == 'guest') {
-        Navigator.pushReplacementNamed(context, '/guest/waiting');
-      } else if (role == 'customer' || role == 'dealer') {
-        final status = user?['status'] as String? ?? 'active';
-        if (role == 'dealer' && status != 'active') {
-          Navigator.pushReplacementNamed(context, '/shop/dealer-pending');
-        } else {
-          Navigator.pushReplacementNamed(context, '/shop/dashboard');
-        }
-      } else {
-        Navigator.pushReplacementNamed(context, '/home');
-      }
+      await _completeAuthSuccess();
     } catch (e) {
       if (!mounted) return;
       final base = await resolveBaseUrl();
@@ -115,6 +113,46 @@ class _LoginScreenState extends State<LoginScreen> {
       setState(() {
         _activeApiBaseUrl = base;
         _error = 'Server: $base\n$message';
+        _loading = false;
+      });
+    }
+  }
+
+  Future<String?> _resolveGoogleAuthUrl() async {
+    if (_googleAuthUrl != null && _googleAuthUrl!.isNotEmpty) {
+      return _googleAuthUrl;
+    }
+    if (!_googleSignInEnabled) return null;
+    final webBase = await resolveWebBaseUrl();
+    return '$webBase/auth/google?mobile=1';
+  }
+
+  Future<void> _submitGoogleSignIn() async {
+    final authUrl = await _resolveGoogleAuthUrl();
+    if (authUrl == null || authUrl.isEmpty) {
+      _snack('Google Sign-In is not configured on this server.');
+      return;
+    }
+
+    setState(() {
+      _error = null;
+      _loading = true;
+    });
+
+    try {
+      final token = await WebsiteGoogleAuthService.signInViaWebsite(authUrl);
+      if (!mounted) return;
+      if (token == null) {
+        setState(() => _loading = false);
+        return;
+      }
+      await completeGoogleWebAuth(token);
+      if (!mounted) return;
+      await _completeAuthSuccess();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = e.toString().replaceFirst('Exception: ', '');
         _loading = false;
       });
     }
@@ -138,6 +176,7 @@ class _LoginScreenState extends State<LoginScreen> {
     );
     if (!mounted || outcome == null) return;
     await _loadActiveApiBaseUrl();
+    await _loadAuthConfig();
     if (!mounted) return;
     switch (outcome) {
       case _ApiSettingsOutcome.saved:
@@ -239,7 +278,7 @@ class _LoginScreenState extends State<LoginScreen> {
           return null;
         }),
       ),
-      child: _loading && _view == _AuthView.signIn
+      child: _loading
           ? const SizedBox(
               height: 24,
               width: 24,
@@ -247,6 +286,82 @@ class _LoginScreenState extends State<LoginScreen> {
             )
           : Text(label),
     );
+  }
+
+  Widget _orDivider() {
+    return Row(
+      children: [
+        Expanded(child: Divider(color: Colors.grey.shade300)),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+          child: Text('or', style: TextStyle(color: _authMuted, fontSize: 13)),
+        ),
+        Expanded(child: Divider(color: Colors.grey.shade300)),
+      ],
+    );
+  }
+
+  Widget _googleSignInButton() {
+    if (!_googleSignInEnabled) return const SizedBox.shrink();
+
+    return OutlinedButton(
+      onPressed: _loading ? null : _submitGoogleSignIn,
+      style: OutlinedButton.styleFrom(
+        foregroundColor: _authTitle,
+        backgroundColor: Colors.white,
+        minimumSize: const Size.fromHeight(50),
+        side: BorderSide(color: Colors.grey.shade300),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          _googleLogo(),
+          const SizedBox(width: 12),
+          const Text('Continue with Google'),
+        ],
+      ),
+    );
+  }
+
+  Widget _googleLogo() {
+    return SizedBox(
+      width: 20,
+      height: 20,
+      child: CustomPaint(painter: _GoogleLogoPainter()),
+    );
+  }
+
+  Widget _googleSignInHint() {
+    if (!_googleSignInEnabled) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(top: 12),
+      child: Text(
+        'New users register as guests and wait for a vendor admin to assign a role.',
+        textAlign: TextAlign.center,
+        style: TextStyle(color: _authMuted, fontSize: 12, height: 1.4),
+      ),
+    );
+  }
+
+  Widget _googleSignInLink() {
+    if (!_googleSignInEnabled) return const SizedBox.shrink();
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Text('Or ', style: TextStyle(color: _authMuted, fontSize: 14)),
+        _linkButton(text: 'continue with Google', onTap: _loading ? () {} : _submitGoogleSignIn),
+      ],
+    );
+  }
+
+  void _openPrivacyPolicy() {
+    Navigator.pushNamed(context, '/privacy');
+  }
+
+  void _openTermsOfService() {
+    Navigator.pushNamed(context, '/terms');
   }
 
   Widget _legalBlurb() {
@@ -259,7 +374,7 @@ class _LoginScreenState extends State<LoginScreen> {
             alignment: PlaceholderAlignment.baseline,
             baseline: TextBaseline.alphabetic,
             child: GestureDetector(
-              onTap: () => _snack('Terms open in browser is not wired yet.'),
+              onTap: _openTermsOfService,
               child: const Text(
                 'Terms & Conditions',
                 style: TextStyle(color: _authYellow, fontWeight: FontWeight.w600, fontSize: 12),
@@ -271,7 +386,7 @@ class _LoginScreenState extends State<LoginScreen> {
             alignment: PlaceholderAlignment.baseline,
             baseline: TextBaseline.alphabetic,
             child: GestureDetector(
-              onTap: () => _snack('Privacy policy is not wired yet.'),
+              onTap: _openPrivacyPolicy,
               child: const Text(
                 'Privacy Policy',
                 style: TextStyle(color: _authYellow, fontWeight: FontWeight.w600, fontSize: 12),
@@ -348,8 +463,22 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            'Enter valid email and password to continue',
+            'Use your account email and password.',
             style: TextStyle(color: _authMuted, fontSize: 14, height: 1.35),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text('New here? ', style: TextStyle(color: _authMuted, fontSize: 14)),
+              _linkButton(
+                text: 'Create account',
+                onTap: () => setState(() {
+                  _view = _AuthView.signUpAgent;
+                  _error = null;
+                }),
+              ),
+            ],
           ),
           const SizedBox(height: 8),
           Text(
@@ -413,13 +542,20 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
           const SizedBox(height: 8),
           _primaryButton(
-            label: 'Login',
+            label: 'Sign in',
             onPressed: _loading
                 ? null
                 : () {
                     if (_signInFormKey.currentState!.validate()) _submitSignIn();
                   },
           ),
+          if (_googleSignInEnabled) ...[
+            const SizedBox(height: 16),
+            _orDivider(),
+            const SizedBox(height: 16),
+            _googleSignInButton(),
+            _googleSignInHint(),
+          ],
         ],
       ),
     );
@@ -492,7 +628,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   alignment: PlaceholderAlignment.baseline,
                   baseline: TextBaseline.alphabetic,
                   child: GestureDetector(
-                    onTap: () => _snack('Terms open in browser is not wired yet.'),
+                    onTap: _openTermsOfService,
                     child: const Text(
                       'Terms & Conditions',
                       style: TextStyle(color: _authYellow, fontWeight: FontWeight.w600, fontSize: 12),
@@ -504,7 +640,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   alignment: PlaceholderAlignment.baseline,
                   baseline: TextBaseline.alphabetic,
                   child: GestureDetector(
-                    onTap: () => _snack('Privacy policy is not wired yet.'),
+                    onTap: _openPrivacyPolicy,
                     child: const Text(
                       'Privacy Policy',
                       style: TextStyle(color: _authYellow, fontWeight: FontWeight.w600, fontSize: 12),
@@ -568,11 +704,18 @@ class _LoginScreenState extends State<LoginScreen> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
-            isAgent ? 'Join as guest' : 'Dealer sign up',
+            isAgent ? 'Create account' : 'Dealer sign up',
             style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                   fontWeight: FontWeight.w700,
                   color: _authTitle,
                 ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            isAgent
+                ? 'Register with your email and password. A vendor admin will assign you as agent, team leader, or regional manager.'
+                : 'Create a dealer account for admin approval.',
+            style: TextStyle(color: _authMuted, fontSize: 14, height: 1.35),
           ),
           const SizedBox(height: 16),
           if (isAgent) ...[
@@ -641,7 +784,7 @@ class _LoginScreenState extends State<LoginScreen> {
           ],
           const SizedBox(height: 20),
           _primaryButton(
-            label: 'Submit',
+            label: 'Create account',
             onPressed: _loading
                 ? null
                 : () async {
@@ -663,7 +806,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         if (!mounted) return;
                         final token = result['token'] as String?;
                         if (token != null) {
-                          Navigator.pushReplacementNamed(context, '/guest/waiting');
+                          await _completeAuthSuccess();
                         } else {
                           _snack(result['message']?.toString() ?? 'Account created. Sign in with your email and password.');
                           setState(() {
@@ -693,11 +836,14 @@ class _LoginScreenState extends State<LoginScreen> {
                   },
           ),
           const SizedBox(height: 16),
+          if (isAgent) _googleSignInLink(),
+          const SizedBox(height: 16),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
+              Text('Already have an account? ', style: TextStyle(color: _authMuted, fontSize: 14)),
               _linkButton(
-                text: 'Back to sign in',
+                text: 'Sign in',
                 onTap: () => setState(() {
                   _view = _AuthView.signIn;
                   _error = null;
@@ -999,4 +1145,33 @@ class _ApiServerSettingsDialogState extends State<_ApiServerSettingsDialog> {
       ],
     );
   }
+}
+
+class _GoogleLogoPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()..style = PaintingStyle.fill;
+    final w = size.width;
+    final h = size.height;
+
+    paint.color = const Color(0xFF4285F4);
+    canvas.drawArc(Rect.fromLTWH(0, 0, w, h), 3.14, 1.57, true, paint);
+
+    paint.color = const Color(0xFF34A853);
+    canvas.drawArc(Rect.fromLTWH(0, 0, w, h), 1.57, 1.57, true, paint);
+
+    paint.color = const Color(0xFFFBBC05);
+    canvas.drawArc(Rect.fromLTWH(0, 0, w, h), 0.78, 1.57, true, paint);
+
+    paint.color = const Color(0xFFEA4335);
+    canvas.drawArc(Rect.fromLTWH(0, 0, w, h), -0.78, 1.57, true, paint);
+
+    paint.color = Colors.white;
+    canvas.drawCircle(Offset(w * 0.52, h * 0.52), w * 0.28, paint);
+    paint.color = const Color(0xFF4285F4);
+    canvas.drawRect(Rect.fromLTWH(w * 0.48, h * 0.48, w * 0.42, h * 0.16), paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

@@ -43,10 +43,13 @@ class GuestVendorInvitationService
                 'message' => $message,
             ]);
 
-            return $existing->fresh();
+            $invitation = $existing->fresh();
+            app(NotificationDispatchService::class)->guestInvitationReceived($guest, $invitation);
+
+            return $invitation;
         }
 
-        return GuestVendorInvitation::create([
+        $invitation = GuestVendorInvitation::create([
             'guest_user_id' => $guest->id,
             'tenant_id' => $tenantId,
             'invited_by' => $admin->id,
@@ -55,6 +58,10 @@ class GuestVendorInvitationService
             'assignment_payload' => $assignmentPayload,
             'message' => $message,
         ]);
+
+        app(NotificationDispatchService::class)->guestInvitationReceived($guest, $invitation);
+
+        return $invitation;
     }
 
     public function accept(GuestVendorInvitation $invitation, User $guest): User
@@ -71,7 +78,7 @@ class GuestVendorInvitationService
             ]);
         }
 
-        return DB::transaction(function () use ($invitation, $guest) {
+        $assigned = DB::transaction(function () use ($invitation, $guest) {
             $locked = GuestVendorInvitation::query()->lockForUpdate()->findOrFail($invitation->id);
 
             if (! $locked->isPending()) {
@@ -109,14 +116,14 @@ class GuestVendorInvitationService
                     'responded_at' => now(),
                 ]);
 
-            $assigned = User::withoutGlobalScopes()->findOrFail($guestFresh->id);
-
-            if ($assigned->role === 'agent') {
-                app(NotificationDispatchService::class)->userActivated($assigned);
-            }
-
-            return $assigned;
+            return User::withoutGlobalScopes()->findOrFail($guestFresh->id);
         });
+
+        if ($assigned->role === 'agent') {
+            app(NotificationDispatchService::class)->userActivated($assigned);
+        }
+
+        return $assigned;
     }
 
     public function decline(GuestVendorInvitation $invitation, User $guest): void

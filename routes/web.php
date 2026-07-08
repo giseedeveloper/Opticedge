@@ -18,6 +18,8 @@ Route::bind('model', fn (string $value) => Product::query()->findOrFail($value))
 Route::get('/', WelcomeController::class)->name('welcome');
 Route::redirect('/welcome', '/');
 Route::view('/shop', 'shop')->name('shop');
+Route::view('/privacy', 'privacy')->name('privacy');
+Route::view('/terms', 'terms')->name('terms');
 
 // Selcom Checkout webhook (no auth; CSRF excluded in bootstrap/app.php)
 $selcomPrefix = config('selcom.prefix', 'selcom');

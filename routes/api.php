@@ -85,6 +85,7 @@ Route::get('/public/categories', [PublicShopApiController::class, 'categories'])
 Route::get('/public/products', [PublicShopApiController::class, 'products']);
 Route::get('/public/products/{product}', [PublicShopApiController::class, 'showProduct']);
 Route::get('/public/packages', [PublicShopApiController::class, 'packages']);
+Route::get('/public/auth-config', [PublicShopApiController::class, 'authConfig']);
 Route::post('/public/vendor-subscribe/intent', [VendorSubscribeApiController::class, 'storeIntent']);
 Route::post('/public/vendor-subscribe/intent/{intent}/pay', [VendorSubscribeApiController::class, 'startPayment']);
 Route::get('/public/vendor-subscribe/intent/{intent}/status', [VendorSubscribeApiController::class, 'status']);
