@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../../api/contract_termination_api.dart';
+import '../../theme/app_theme.dart';
 import '../admin/widgets/admin_page_ui.dart';
 
 class ContractTerminationContent extends StatefulWidget {

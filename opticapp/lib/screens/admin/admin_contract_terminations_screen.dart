@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../../api/admin_contract_terminations_api.dart';
+import '../../theme/app_theme.dart';
 import 'admin_scaffold.dart';
 import 'widgets/admin_page_ui.dart';
 
@@ -140,7 +141,10 @@ class _AdminContractTerminationsScreenState extends State<AdminContractTerminati
                         ],
                       )
                     : _list.isEmpty
-                        ? const AdminPageEmpty(title: 'No contract termination requests')
+                        ? const AdminPageEmpty(
+                            icon: Icons.gavel_outlined,
+                            title: 'No contract termination requests',
+                          )
                         : RefreshIndicator(
                             onRefresh: _load,
                             child: ListView.separated(

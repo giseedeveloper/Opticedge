@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../api/client.dart';
 import '../../api/guest_api.dart';
+import '../../theme/app_theme.dart';
 import '../admin/widgets/admin_page_ui.dart';
 
 /// Pending vendor invitations (accept / decline).
