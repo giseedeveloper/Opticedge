@@ -39,6 +39,16 @@
         @endif
         @yield('content')
     </main>
+
+    <footer class="border-t border-slate-200 bg-white">
+        <div class="max-w-3xl mx-auto px-4 py-6 text-center text-xs text-slate-500 space-y-2">
+            <div class="flex flex-wrap items-center justify-center gap-x-4 gap-y-1">
+                <a href="{{ route('privacy') }}" class="hover:text-[#fa8900] hover:underline">Privacy Policy</a>
+                <a href="{{ route('terms') }}" class="hover:text-[#fa8900] hover:underline">Terms of Service</a>
+            </div>
+            <p>&copy; {{ date('Y') }} OpticEdge Africa. All rights reserved.</p>
+        </div>
+    </footer>
     @livewireScripts
 </body>
 </html>

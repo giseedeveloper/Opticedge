@@ -65,8 +65,12 @@
             {{ $slot }}
         </div>
 
-        <div class="mt-6 text-center text-xs text-slate-500">
-            <p>&copy; 2026 OpticEdgeAfrica, Inc. All rights reserved.</p>
+        <div class="mt-6 text-center text-xs text-slate-500 space-y-2">
+            <div class="flex flex-wrap items-center justify-center gap-x-4 gap-y-1">
+                <a href="{{ route('privacy') }}" class="hover:text-[#fa8900] hover:underline">Privacy Policy</a>
+                <a href="{{ route('terms') }}" class="hover:text-[#fa8900] hover:underline">Terms of Service</a>
+            </div>
+            <p>&copy; {{ date('Y') }} OpticEdgeAfrica, Inc. All rights reserved.</p>
         </div>
     </div>
     @livewireScripts

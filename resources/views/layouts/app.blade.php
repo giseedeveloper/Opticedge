@@ -220,10 +220,8 @@
             </div>
 
             <div class="flex flex-wrap justify-center gap-4 text-xs text-slate-400 mt-4">
-                <a href="{{ route('terms') }}" class="hover:underline">Terms of Service</a>
-                <a href="{{ route('privacy') }}" class="hover:underline">Privacy Policy</a>
-                <a href="#" class="hover:underline">Consumer Health Data Privacy Disclosure</a>
-                <a href="#" class="hover:underline">Your Ads Privacy Choices</a>
+                <a href="{{ route('terms') }}" class="hover:underline hover:text-white">Terms of Service</a>
+                <a href="{{ route('privacy') }}" class="hover:underline hover:text-white">Privacy Policy</a>
             </div>
             <p class="text-[10px] text-slate-500">© 2026 OpticEdgeAfrica, Inc. All rights reserved.</p>
         </div>
