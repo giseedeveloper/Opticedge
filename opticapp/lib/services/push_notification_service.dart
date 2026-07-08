@@ -7,12 +7,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:permission_handler/permission_handler.dart';
 
+import '../app_navigator.dart';
 import '../api/client.dart';
 import '../api/notifications_api.dart';
 import '../providers/notifications_provider.dart';
 import '../providers/pending_request_counts_provider.dart';
-
-final GlobalKey<NavigatorState> appNavigatorKey = GlobalKey<NavigatorState>();
 
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {

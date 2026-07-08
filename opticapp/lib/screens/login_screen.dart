@@ -63,7 +63,6 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _obscureSignUpPassword = true;
   bool _obscureAgentPassword = true;
   bool _obscureDealerPassword = true;
-  bool _googleSignInEnabled = false;
   String? _googleAuthUrl;
 
   @override
@@ -75,10 +74,9 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<void> _loadAuthConfig() async {
     try {
-      final config = await getPublicAuthConfig();
+      final config = await getPublicAuthConfig(mobile: true);
       if (!mounted) return;
       setState(() {
-        _googleSignInEnabled = config['google_sign_in_enabled'] == true;
         _googleAuthUrl = config['google_auth_url'] as String?;
       });
     } catch (_) {}
@@ -119,10 +117,17 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<String?> _resolveGoogleAuthUrl() async {
-    if (_googleAuthUrl != null && _googleAuthUrl!.isNotEmpty) {
-      return _googleAuthUrl;
-    }
-    if (!_googleSignInEnabled) return null;
+    try {
+      final config = await getPublicAuthConfig(mobile: true);
+      final apiUrl = config['google_auth_url']?.toString().trim();
+      if (apiUrl != null && apiUrl.isNotEmpty) {
+        return apiUrl;
+      }
+      if (config['google_sign_in_enabled'] != true) {
+        return null;
+      }
+    } catch (_) {}
+
     final webBase = await resolveWebBaseUrl();
     return '$webBase/auth/google?mobile=1';
   }
@@ -151,8 +156,15 @@ class _LoginScreenState extends State<LoginScreen> {
       await _completeAuthSuccess();
     } catch (e) {
       if (!mounted) return;
+      final msg = e.toString().replaceFirst('Exception: ', '');
       setState(() {
-        _error = e.toString().replaceFirst('Exception: ', '');
+        if (msg.contains('404') || msg.toLowerCase().contains('not found')) {
+          _error =
+              'Google sign-in is not available on the current API server ($_activeApiBaseUrl). '
+              'Open Server settings (top right) and set the API URL to the same server where website Google login works.';
+        } else {
+          _error = msg;
+        }
         _loading = false;
       });
     }
@@ -302,8 +314,6 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Widget _googleSignInButton() {
-    if (!_googleSignInEnabled) return const SizedBox.shrink();
-
     return OutlinedButton(
       onPressed: _loading ? null : _submitGoogleSignIn,
       style: OutlinedButton.styleFrom(
@@ -334,7 +344,6 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Widget _googleSignInHint() {
-    if (!_googleSignInEnabled) return const SizedBox.shrink();
     return Padding(
       padding: const EdgeInsets.only(top: 12),
       child: Text(
@@ -342,17 +351,6 @@ class _LoginScreenState extends State<LoginScreen> {
         textAlign: TextAlign.center,
         style: TextStyle(color: _authMuted, fontSize: 12, height: 1.4),
       ),
-    );
-  }
-
-  Widget _googleSignInLink() {
-    if (!_googleSignInEnabled) return const SizedBox.shrink();
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Text('Or ', style: TextStyle(color: _authMuted, fontSize: 14)),
-        _linkButton(text: 'continue with Google', onTap: _loading ? () {} : _submitGoogleSignIn),
-      ],
     );
   }
 
@@ -549,13 +547,11 @@ class _LoginScreenState extends State<LoginScreen> {
                     if (_signInFormKey.currentState!.validate()) _submitSignIn();
                   },
           ),
-          if (_googleSignInEnabled) ...[
-            const SizedBox(height: 16),
-            _orDivider(),
-            const SizedBox(height: 16),
-            _googleSignInButton(),
-            _googleSignInHint(),
-          ],
+          const SizedBox(height: 16),
+          _orDivider(),
+          const SizedBox(height: 16),
+          _googleSignInButton(),
+          _googleSignInHint(),
         ],
       ),
     );
@@ -680,6 +676,11 @@ class _LoginScreenState extends State<LoginScreen> {
                     }
                   },
           ),
+          const SizedBox(height: 16),
+          _orDivider(),
+          const SizedBox(height: 16),
+          _googleSignInButton(),
+          _googleSignInHint(),
           const SizedBox(height: 24),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -836,7 +837,12 @@ class _LoginScreenState extends State<LoginScreen> {
                   },
           ),
           const SizedBox(height: 16),
-          if (isAgent) _googleSignInLink(),
+          if (isAgent) ...[
+            _orDivider(),
+            const SizedBox(height: 16),
+            _googleSignInButton(),
+            _googleSignInHint(),
+          ],
           const SizedBox(height: 16),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,

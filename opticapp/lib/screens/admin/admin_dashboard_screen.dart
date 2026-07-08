@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../api/dashboard_api.dart';
+import '../../api/client.dart';
 import '../../api/product_list_api.dart';
 import '../../api/agent_sales_api.dart';
 import '../../theme/app_theme.dart';
@@ -86,7 +87,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         _loading = false;
       });
     } catch (e) {
-      if (!mounted) return;
+      if (!mounted || isSessionExpiredError(e)) return;
       setState(() {
         _error = e.toString().replaceFirst('Exception: ', '');
         _loading = false;

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../api/auth_api.dart';
+import '../../api/client.dart';
 import '../../api/guest_api.dart';
 import '../../providers/notifications_provider.dart';
 import '../../services/push_notification_service.dart';
@@ -210,7 +211,7 @@ class _GuestHomeTabState extends State<_GuestHomeTab> {
         _loading = false;
       });
     } catch (e) {
-      if (!mounted) return;
+      if (!mounted || isSessionExpiredError(e)) return;
       setState(() {
         _error = e.toString().replaceFirst('Exception: ', '');
         _loading = false;
@@ -374,7 +375,7 @@ class _GuestRequestsTabState extends State<_GuestRequestsTab> {
         _loading = false;
       });
     } catch (e) {
-      if (!mounted) return;
+      if (!mounted || isSessionExpiredError(e)) return;
       setState(() {
         _error = e.toString().replaceFirst('Exception: ', '');
         _loading = false;

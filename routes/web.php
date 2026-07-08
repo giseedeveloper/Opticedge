@@ -7,6 +7,7 @@ use App\Http\Controllers\Admin\CommandCenterController;
 use App\Http\Controllers\Admin\ProductController;
 use App\Http\Controllers\SelcomWebhookController;
 use App\Http\Controllers\WelcomeController;
+use App\Http\Controllers\Auth\GoogleAuthController;
 use Livewire\Volt\Volt;
 
 // API routes (for Flutter app) – loaded here so /api/* is always available
@@ -20,6 +21,10 @@ Route::redirect('/welcome', '/');
 Route::view('/shop', 'shop')->name('shop');
 Route::view('/privacy', 'privacy')->name('privacy');
 Route::view('/terms', 'terms')->name('terms');
+
+// Google OAuth (web + mobile app). Must stay on web routes for Socialite session state.
+Route::get('auth/google', [GoogleAuthController::class, 'redirect'])->name('auth.google');
+Route::get('auth/google/callback', [GoogleAuthController::class, 'callback'])->name('auth.google.callback');
 
 // Selcom Checkout webhook (no auth; CSRF excluded in bootstrap/app.php)
 $selcomPrefix = config('selcom.prefix', 'selcom');
@@ -73,9 +78,6 @@ Route::get('dashboard', function () {
 })->middleware(['auth', 'verified', 'active'])->name('dashboard');
 
 Route::middleware('guest')->group(function () {
-    Route::get('auth/google', [App\Http\Controllers\Auth\GoogleAuthController::class, 'redirect'])->name('auth.google');
-    Route::get('auth/google/callback', [App\Http\Controllers\Auth\GoogleAuthController::class, 'callback'])->name('auth.google.callback');
-
     Volt::route('register/dealer', 'pages.auth.dealer-register')->name('dealer.register');
     Route::get('register/dealer/pending', [App\Http\Controllers\DealerRegisterController::class , 'pending'])->name('dealer.pending');
     Volt::route('register/agent', 'pages.auth.agent-register')->name('agent.register');

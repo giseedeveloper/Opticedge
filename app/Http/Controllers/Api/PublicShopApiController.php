@@ -84,13 +84,17 @@ class PublicShopApiController extends Controller
         ]);
     }
 
-    public function authConfig()
+    public function authConfig(Request $request)
     {
         $clientId = config('services.google.client_id');
         $enabled = filled($clientId);
-        $googleAuthUrl = $enabled
-            ? route('auth.google', ['mobile' => 1], absolute: true)
-            : null;
+        $googleAuthUrl = null;
+        if ($enabled) {
+            $googleAuthUrl = rtrim($request->getSchemeAndHttpHost(), '/').'/auth/google';
+            if ($request->boolean('mobile')) {
+                $googleAuthUrl .= (str_contains($googleAuthUrl, '?') ? '&' : '?').'mobile=1';
+            }
+        }
 
         return response()->json([
             'data' => [

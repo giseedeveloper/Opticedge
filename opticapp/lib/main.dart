@@ -4,6 +4,7 @@ import 'api/client.dart';
 import 'theme/app_theme.dart';
 import 'providers/notifications_provider.dart';
 import 'providers/pending_request_counts_provider.dart';
+import 'app_navigator.dart';
 import 'services/push_notification_service.dart';
 import 'screens/common/notifications_screen.dart';
 import 'screens/common/privacy_policy_screen.dart';

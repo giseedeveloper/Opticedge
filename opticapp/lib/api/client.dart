@@ -2,8 +2,29 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../app_navigator.dart';
+
+/// Thrown when an authenticated API call returns 401 and the app redirects to login.
+class SessionExpiredException implements Exception {
+  const SessionExpiredException();
+}
+
+bool isSessionExpiredError(Object error) => error is SessionExpiredException;
+
+Future<http.Response> _guardAuthenticatedResponse(http.Response res) async {
+  if (res.statusCode != 401) return res;
+  if (await getStoredToken() == null) return res;
+
+  await clearStoredAuth();
+  appNavigatorKey.currentState?.pushNamedAndRemoveUntil('/login', (route) => false);
+  throw const SessionExpiredException();
+}
+
 /// Default API root when no custom URL is saved (full path including `/api`).
 const String kInternalApiBaseUrl = 'https://opticedgeafrica.net/api';
+
+/// Testing/staging API root (Google OAuth is enabled here before production deploy).
+const String kStagingApiBaseUrl = 'https://stage.opticedgeafrica.net/api';
 
 /// Previous production host; auto-remapped to [kInternalApiBaseUrl].
 const String _previousProductionApiBaseUrl = 'https://optic.opticedgeafrica.net/api';
@@ -210,19 +231,20 @@ Future<void> setStoredUser(Map<String, dynamic> user) async {
 Future<http.Response> apiGet(String path, {String? token}) async {
   final base = await resolveBaseUrl();
   final t = token ?? await getStoredToken();
-  return http.get(
+  final res = await http.get(
     Uri.parse('$base$path'),
     headers: {
       'Accept': 'application/json',
       if (t != null) 'Authorization': 'Bearer $t',
     },
   );
+  return _guardAuthenticatedResponse(res);
 }
 
 Future<http.Response> apiPost(String path, Map<String, dynamic> body, {String? token}) async {
   final base = await resolveBaseUrl();
   final t = token ?? await getStoredToken();
-  return http.post(
+  final res = await http.post(
     Uri.parse('$base$path'),
     headers: {
       'Accept': 'application/json',
@@ -231,12 +253,13 @@ Future<http.Response> apiPost(String path, Map<String, dynamic> body, {String? t
     },
     body: jsonEncode(body),
   );
+  return _guardAuthenticatedResponse(res);
 }
 
 Future<http.Response> apiPut(String path, Map<String, dynamic> body, {String? token}) async {
   final base = await resolveBaseUrl();
   final t = token ?? await getStoredToken();
-  return http.put(
+  final res = await http.put(
     Uri.parse('$base$path'),
     headers: {
       'Accept': 'application/json',
@@ -245,24 +268,26 @@ Future<http.Response> apiPut(String path, Map<String, dynamic> body, {String? to
     },
     body: jsonEncode(body),
   );
+  return _guardAuthenticatedResponse(res);
 }
 
 Future<http.Response> apiDelete(String path, {String? token}) async {
   final base = await resolveBaseUrl();
   final t = token ?? await getStoredToken();
-  return http.delete(
+  final res = await http.delete(
     Uri.parse('$base$path'),
     headers: {
       'Accept': 'application/json',
       if (t != null) 'Authorization': 'Bearer $t',
     },
   );
+  return _guardAuthenticatedResponse(res);
 }
 
 Future<http.Response> apiPatch(String path, Map<String, dynamic> body, {String? token}) async {
   final base = await resolveBaseUrl();
   final t = token ?? await getStoredToken();
-  return http.patch(
+  final res = await http.patch(
     Uri.parse('$base$path'),
     headers: {
       'Accept': 'application/json',
@@ -271,4 +296,5 @@ Future<http.Response> apiPatch(String path, Map<String, dynamic> body, {String? 
     },
     body: jsonEncode(body),
   );
+  return _guardAuthenticatedResponse(res);
 }

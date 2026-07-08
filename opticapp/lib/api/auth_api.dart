@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'client.dart';
+import '../app_navigator.dart';
 import '../services/push_notification_service.dart';
 
 /// Clears a saved tenant subdomain API URL so requests use [kInternalApiBaseUrl].
@@ -105,8 +106,9 @@ Future<Map<String, dynamic>> registerGuest({
   return data;
 }
 
-Future<Map<String, dynamic>> getPublicAuthConfig() async {
-  final res = await apiGet('/public/auth-config', token: null);
+Future<Map<String, dynamic>> getPublicAuthConfig({bool mobile = false}) async {
+  final suffix = mobile ? '?mobile=1' : '';
+  final res = await apiGet('/public/auth-config$suffix', token: null);
   final data = decodeApiJsonMap(res);
   if (res.statusCode != 200) {
     return {
