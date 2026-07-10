@@ -21,6 +21,10 @@ Route::redirect('/welcome', '/');
 Route::view('/shop', 'shop')->name('shop');
 Route::view('/privacy', 'privacy')->name('privacy');
 Route::view('/terms', 'terms')->name('terms');
+Route::get('/delete-account', [App\Http\Controllers\DeleteAccountController::class, 'show'])->name('delete-account');
+Route::post('/delete-account', [App\Http\Controllers\DeleteAccountController::class, 'store'])
+    ->middleware('throttle:6,1')
+    ->name('delete-account.store');
 
 // Google OAuth (web + mobile app). Must stay on web routes for Socialite session state.
 Route::get('auth/google', [GoogleAuthController::class, 'redirect'])->name('auth.google');

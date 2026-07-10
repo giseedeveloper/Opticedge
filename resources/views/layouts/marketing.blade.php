@@ -126,6 +126,8 @@
                     class="cursor-pointer hover:text-white transition-colors duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#fa8900] rounded">Privacy Policy</a>
                 <a href="{{ route('terms') }}"
                     class="cursor-pointer hover:text-white transition-colors duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#fa8900] rounded">Terms of Service</a>
+                <a href="{{ route('delete-account') }}"
+                    class="cursor-pointer hover:text-white transition-colors duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#fa8900] rounded">Delete account</a>
             </nav>
         </div>
         <p class="text-center text-xs text-slate-500 pb-6">&copy; {{ date('Y') }} OpticEdge Africa. All rights reserved.</p>
