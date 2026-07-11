@@ -2,3 +2,8 @@
 /.env
 /opticapp/build
 /opticapp/ios/build
+
+# Firebase / Google client credentials (keep local + VPS only)
+opticapp/android/app/google-services.json
+opticapp/ios/Runner/GoogleService-Info.plist
+storage/app/firebase-credentials.json
