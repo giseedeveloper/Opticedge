@@ -116,12 +116,6 @@
                     class="cursor-pointer hover:text-white transition-colors duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#fa8900] rounded">About</a>
                 <a href="{{ route('welcome') }}#packages"
                     class="cursor-pointer hover:text-white transition-colors duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#fa8900] rounded">Packages</a>
-                <a href="{{ route('shop') }}"
-                    class="cursor-pointer hover:text-white transition-colors duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#fa8900] rounded">Browse shop</a>
-                <a href="{{ route('login') }}"
-                    class="cursor-pointer hover:text-white transition-colors duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#fa8900] rounded">Sign in</a>
-                <a href="{{ route('dealer.register') }}"
-                    class="cursor-pointer hover:text-white transition-colors duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#fa8900] rounded">Register as dealer</a>
                 <a href="{{ route('privacy') }}"
                     class="cursor-pointer hover:text-white transition-colors duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#fa8900] rounded">Privacy Policy</a>
                 <a href="{{ route('terms') }}"
