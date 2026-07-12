@@ -3166,7 +3166,125 @@ class StockController extends Controller
             'distributionSale',
         ]);
 
-        return view('admin.stock.imei-detail', compact('item'));
+        $canRemoveLost = $this->lostImeiRemovalBlocker($item) === null;
+
+        return view('admin.stock.imei-detail', compact('item', 'canRemoveLost'));
+    }
+
+    /**
+     * Remove a lost unsold IMEI from inventory (hard delete).
+     * Allowed even if still assigned to RM/TL/agent; blocked if sold or in an open transfer/return.
+     */
+    public function destroyLostImei(ProductListItem $productListItem)
+    {
+        $blocker = $this->lostImeiRemovalBlocker($productListItem);
+        if ($blocker !== null) {
+            return redirect()
+                ->route('admin.stock.imei-item', $productListItem)
+                ->withErrors(['error' => $blocker]);
+        }
+
+        $imei = $productListItem->imei_number ?? ('#'.$productListItem->id);
+        $redirectSearch = $productListItem->imei_number;
+
+        $this->hardDeleteProductListItem($productListItem);
+
+        return redirect()
+            ->route('admin.stock.imei-search', array_filter(['q' => $redirectSearch]))
+            ->with('success', 'Lost IMEI '.$imei.' removed from the system.');
+    }
+
+    /**
+     * @return string|null Error message when removal is not allowed.
+     */
+    private function lostImeiRemovalBlocker(ProductListItem $item): ?string
+    {
+        if ($item->sold_at || $item->agent_sale_id || $item->agent_credit_id || $item->pending_sale_id) {
+            return 'Cannot remove IMEI that is linked to a sale, pending sale, or credit.';
+        }
+
+        if (Schema::hasColumn('product_list', 'distribution_sale_id') && $item->distribution_sale_id) {
+            return 'Cannot remove IMEI that is linked to a distribution sale.';
+        }
+
+        if ($item->agentProductTransferItems()
+            ->whereHas('transfer', fn ($t) => $t->where('status', \App\Models\AgentProductTransfer::STATUS_PENDING))
+            ->exists()) {
+            return 'Cannot remove IMEI while an agent transfer is pending. Resolve the transfer first.';
+        }
+
+        if ($item->regionalManagerProductTransferItems()
+            ->whereHas('transfer', fn ($t) => $t->where('status', \App\Models\RegionalManagerProductTransfer::STATUS_PENDING))
+            ->exists()) {
+            return 'Cannot remove IMEI while a regional manager transfer is pending. Resolve the transfer first.';
+        }
+
+        if ($item->teamLeaderProductTransferItems()
+            ->whereHas('transfer', fn ($t) => $t->where('status', \App\Models\TeamLeaderProductTransfer::STATUS_PENDING))
+            ->exists()) {
+            return 'Cannot remove IMEI while a team leader transfer is pending. Resolve the transfer first.';
+        }
+
+        if ($item->agentDeviceReturnItems()
+            ->whereHas('returnRequest', fn ($r) => $r->where('status', \App\Models\AgentDeviceReturn::STATUS_PENDING))
+            ->exists()) {
+            return 'Cannot remove IMEI while an agent return is pending. Resolve the return first.';
+        }
+
+        if ($item->teamLeaderDeviceReturnItems()
+            ->whereHas('returnRequest', fn ($r) => $r->where('status', \App\Models\TeamLeaderDeviceReturn::STATUS_PENDING))
+            ->exists()) {
+            return 'Cannot remove IMEI while a team leader return is pending. Resolve the return first.';
+        }
+
+        if ($item->regionalManagerDeviceReturnItems()
+            ->whereHas('returnRequest', fn ($r) => $r->where('status', \App\Models\RegionalManagerDeviceReturn::STATUS_PENDING))
+            ->exists()) {
+            return 'Cannot remove IMEI while a regional manager return is pending. Resolve the return first.';
+        }
+
+        return null;
+    }
+
+    /**
+     * Hard-delete a product_list row, clear hierarchy assignments, and restore purchase slot.
+     */
+    private function hardDeleteProductListItem(ProductListItem $productListItem): void
+    {
+        DB::transaction(function () use ($productListItem) {
+            $purchase = $productListItem->purchase_id
+                ? Purchase::find($productListItem->purchase_id)
+                : null;
+            $productId = $productListItem->product_id;
+
+            $productListItem->agentProductListAssignment()->delete();
+            $productListItem->teamLeaderProductListAssignment()->delete();
+            $productListItem->regionalManagerProductListAssignment()->delete();
+
+            DB::table('product_list')->where('id', $productListItem->id)->delete();
+
+            if ($purchase && Schema::hasColumn('purchases', 'limit_remaining')) {
+                if ($purchase->lines()->exists()) {
+                    $line = $purchase->lines()->where('product_id', $productId)->first();
+                    if ($line) {
+                        $next = min((int) $line->quantity, (int) $line->limit_remaining + 1);
+                        $line->update(['limit_remaining' => $next]);
+                    }
+                    $purchase->syncAggregatesFromLines();
+                } else {
+                    $currentRemaining = (int) ($purchase->limit_remaining ?? 0);
+                    $maxLimit = (int) ($purchase->quantity ?? 0);
+                    $nextRemaining = $maxLimit > 0
+                        ? min($maxLimit, $currentRemaining + 1)
+                        : ($currentRemaining + 1);
+                    $update = ['limit_remaining' => $nextRemaining];
+                    if (Schema::hasColumn('purchases', 'limit_status')) {
+                        $update['limit_status'] = $nextRemaining > 0 ? 'pending' : 'complete';
+                    }
+                    $purchase->update($update);
+                }
+            }
+        });
     }
 
     /**

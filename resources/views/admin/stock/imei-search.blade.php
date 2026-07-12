@@ -17,6 +17,13 @@
             </div>
         </div>
 
+        @if(session('success'))
+            <div class="admin-prod-alert admin-prod-alert--success mb-4" role="status">{{ session('success') }}</div>
+        @endif
+        @if($errors->any())
+            <div class="admin-prod-alert admin-prod-alert--error mb-4" role="alert">{{ $errors->first() }}</div>
+        @endif
+
         <div class="admin-clay-panel p-6 mb-6">
             <form method="get" action="{{ route('admin.stock.imei-search') }}" class="flex flex-col sm:flex-row gap-3 sm:items-end">
                 <div class="flex-1 min-w-0">

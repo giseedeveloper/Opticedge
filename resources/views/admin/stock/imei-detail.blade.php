@@ -21,6 +21,13 @@
             Back to IMEI search
         </a>
 
+        @if(session('success'))
+            <div class="admin-prod-alert admin-prod-alert--success mb-4" role="status">{{ session('success') }}</div>
+        @endif
+        @if($errors->any())
+            <div class="admin-prod-alert admin-prod-alert--error mb-4" role="alert">{{ $errors->first() }}</div>
+        @endif
+
         <div class="admin-prod-toolbar !mb-6">
             <div>
                 <p class="admin-prod-eyebrow">Device</p>
@@ -87,6 +94,34 @@
                 <p class="text-xs text-slate-500 mt-0.5">Assignment, sales, and credits linked to this IMEI.</p>
             </div>
             @include('admin.stock.partials.imei-full-info', ['item' => $item])
+        </div>
+
+        <div class="admin-clay-panel overflow-hidden mt-6 border border-rose-200/70">
+            <div class="px-6 py-4 border-b border-rose-100/80 bg-rose-50/40">
+                <h2 class="text-sm font-semibold text-rose-900">Remove lost IMEI</h2>
+                <p class="text-xs text-rose-700/90 mt-0.5">
+                    Permanently delete this device from inventory if it was lost. Sold or in-flight transfer/return devices cannot be removed.
+                </p>
+            </div>
+            <div class="px-6 py-4">
+                @if($canRemoveLost ?? false)
+                    <form method="POST" action="{{ route('admin.stock.imei-item.destroy', $item) }}"
+                        onsubmit="return confirm('Remove lost IMEI {{ $item->imei_number }} from the system? This cannot be undone.');">
+                        @csrf
+                        @method('DELETE')
+                        <button type="submit" class="admin-prod-btn-ghost text-sm text-rose-700 border-rose-200 hover:bg-rose-50">
+                            Remove lost IMEI
+                        </button>
+                    </form>
+                    @if($item->agentProductListAssignment || $item->teamLeaderProductListAssignment || $item->regionalManagerProductListAssignment)
+                        <p class="mt-2 text-xs text-slate-500">This IMEI is still assigned in the hierarchy. Removing it will also clear that assignment.</p>
+                    @endif
+                @else
+                    <p class="text-sm text-slate-600">
+                        This IMEI cannot be removed because it is sold, linked to a sale/credit, or part of a pending transfer/return.
+                    </p>
+                @endif
+            </div>
         </div>
     </div>
 </x-admin-layout>

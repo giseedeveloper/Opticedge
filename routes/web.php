@@ -374,6 +374,7 @@ Route::middleware(['auth', 'redirect.superadmin.from.admin', 'admin', 'tenant.su
         Route::prefix('stock')->name('stock.')->group(function () {
             Route::get('imei-search', [App\Http\Controllers\Admin\StockController::class, 'imeiSearch'])->name('imei-search');
             Route::get('imei/{productListItem}', [App\Http\Controllers\Admin\StockController::class, 'showImeiItem'])->name('imei-item');
+            Route::delete('imei/{productListItem}', [App\Http\Controllers\Admin\StockController::class, 'destroyLostImei'])->name('imei-item.destroy');
             Route::get('stocks', [App\Http\Controllers\Admin\StockController::class, 'stocks'])->name('stocks');
             Route::get('agent-stock-alerts', [App\Http\Controllers\Admin\StockController::class, 'agentStockAlerts'])->name('agent-stock-alerts');
             Route::get('add-product/purchases/{purchase}/models', [App\Http\Controllers\Admin\StockController::class, 'modelsForPurchaseAddProduct'])->name('add-product.purchase.models');

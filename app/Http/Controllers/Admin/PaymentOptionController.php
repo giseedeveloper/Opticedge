@@ -14,7 +14,14 @@ class PaymentOptionController extends Controller
     public function index()
     {
         $paymentOptions = PaymentOption::latest()->get();
-        return view('admin.payment-options.index', compact('paymentOptions'));
+        $channelsSummary = [
+            'total_balance' => (float) $paymentOptions->sum(fn ($o) => (float) ($o->balance ?? 0)),
+            'visible_balance' => (float) $paymentOptions->where('is_hidden', false)->sum(fn ($o) => (float) ($o->balance ?? 0)),
+            'hidden_balance' => (float) $paymentOptions->where('is_hidden', true)->sum(fn ($o) => (float) ($o->balance ?? 0)),
+            'count' => $paymentOptions->count(),
+        ];
+
+        return view('admin.payment-options.index', compact('paymentOptions', 'channelsSummary'));
     }
 
     /**

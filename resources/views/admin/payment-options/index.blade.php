@@ -34,6 +34,36 @@
             <div class="admin-prod-alert admin-prod-alert--success mb-4" role="status">{{ session('success') }}</div>
         @endif
 
+        @php
+            $summary = $channelsSummary ?? [
+                'total_balance' => 0,
+                'visible_balance' => 0,
+                'hidden_balance' => 0,
+                'count' => 0,
+            ];
+        @endphp
+
+        <x-admin-page-dashboard label="Summary" class="mb-6">
+            <dl class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div>
+                    <dt class="text-xs uppercase text-slate-500">Total in all channels</dt>
+                    <dd class="text-lg font-semibold text-slate-900 tabular-nums">{{ number_format($summary['total_balance'], 0) }} <span class="text-sm font-medium text-slate-500">TZS</span></dd>
+                </div>
+                <div>
+                    <dt class="text-xs uppercase text-slate-500">Visible channels</dt>
+                    <dd class="text-lg font-semibold text-green-700 tabular-nums">{{ number_format($summary['visible_balance'], 0) }} <span class="text-sm font-medium text-slate-500">TZS</span></dd>
+                </div>
+                <div>
+                    <dt class="text-xs uppercase text-slate-500">Hidden channels</dt>
+                    <dd class="text-lg font-semibold text-slate-500 tabular-nums">{{ number_format($summary['hidden_balance'], 0) }} <span class="text-sm font-medium text-slate-500">TZS</span></dd>
+                </div>
+                <div>
+                    <dt class="text-xs uppercase text-slate-500">Channels</dt>
+                    <dd class="text-lg font-semibold text-slate-900 tabular-nums">{{ number_format($summary['count']) }}</dd>
+                </div>
+            </dl>
+        </x-admin-page-dashboard>
+
         <div class="admin-clay-panel overflow-hidden">
             <div class="admin-prod-table-wrap admin-prod-table-wrap--flush overflow-x-auto">
                 <table>
