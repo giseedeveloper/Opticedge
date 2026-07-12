@@ -56,9 +56,14 @@ class SettingController extends Controller
         ]);
 
         foreach ($data as $key => $value) {
+            // `settings.key` is globally unique; match by key only so legacy NULL-tenant
+            // rows are updated instead of creating a conflicting insert.
             Setting::query()->withoutGlobalScopes()->updateOrCreate(
-                ['key' => $key, 'tenant_id' => auth()->user()->tenant_id],
-                ['value' => $value === null ? null : (string) $value]
+                ['key' => $key],
+                [
+                    'value' => $value === null ? null : (string) $value,
+                    'tenant_id' => auth()->user()->tenant_id,
+                ]
             );
         }
 
