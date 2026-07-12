@@ -11,6 +11,7 @@
                 'agents_active' => 0,
                 'agents_inactive' => 0,
                 'agents_total' => 0,
+                'agents_active_pct' => 0,
                 'branches' => 0,
                 'other' => 0,
                 'activity_days' => 7,
@@ -35,7 +36,7 @@
         @endphp
 
         <x-admin-page-dashboard label="Summary" class="mb-8">
-            <dl class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-4">
+            <dl class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-8 gap-4">
                 <div>
                     <dt class="text-xs uppercase text-slate-500">Admin</dt>
                     <dd class="text-lg font-semibold text-slate-900 tabular-nums">{{ number_format($summary['admin']) }}</dd>
@@ -56,6 +57,13 @@
                             class="admin-prod-link text-xs shrink-0">View</a>
                     </dd>
                     <p class="text-[11px] text-slate-500 mt-0.5">Sale in last {{ $summary['activity_days'] }} days</p>
+                </div>
+                <div>
+                    <dt class="text-xs uppercase text-slate-500">Active %</dt>
+                    <dd class="text-lg font-semibold text-green-700 tabular-nums">{{ number_format($summary['agents_active_pct'] ?? 0, 1) }}%</dd>
+                    <p class="text-[11px] text-slate-500 mt-0.5">
+                        {{ number_format($summary['agents_active']) }} of {{ number_format($summary['agents_total']) }} agents
+                    </p>
                 </div>
                 <div>
                     <dt class="text-xs uppercase text-slate-500">Agent non-active</dt>

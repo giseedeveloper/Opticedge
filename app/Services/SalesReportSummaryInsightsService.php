@@ -25,6 +25,7 @@ class SalesReportSummaryInsightsService
      *     agents_active:int,
      *     agents_inactive:int,
      *     agents_total:int,
+     *     agents_active_pct:float,
      *     branches:int,
      *     other:int,
      *     activity_days:int
@@ -34,14 +35,19 @@ class SalesReportSummaryInsightsService
     {
         $activeIds = $this->activeAgentIds(7, $branchId);
         $inactiveIds = $this->inactiveAgentIds(7, $branchId);
+        $agentsActive = $activeIds->count();
+        $agentsTotal = $this->agentQuery($branchId)->count();
 
         return [
             'admin' => User::query()->where('role', 'admin')->count(),
             'team_leaders' => User::query()->where('role', 'teamleader')->count(),
             'regional_managers' => User::query()->where('role', 'regional_manager')->count(),
-            'agents_active' => $activeIds->count(),
+            'agents_active' => $agentsActive,
             'agents_inactive' => $inactiveIds->count(),
-            'agents_total' => $this->agentQuery($branchId)->count(),
+            'agents_total' => $agentsTotal,
+            'agents_active_pct' => $agentsTotal > 0
+                ? round(($agentsActive / $agentsTotal) * 100, 1)
+                : 0.0,
             'branches' => Schema::hasTable('branches') ? Branch::query()->count() : 0,
             'other' => User::query()->whereNotIn('role', self::KNOWN_ROLES)->count(),
             'activity_days' => 7,
