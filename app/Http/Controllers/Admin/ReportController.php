@@ -8,6 +8,7 @@ use App\Models\Order;
 use App\Models\ProductListItem;
 use App\Models\Purchase;
 use App\Services\AgentDailyStockReportService;
+use App\Services\SalesReportSummaryInsightsService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -121,6 +122,9 @@ class ReportController extends Controller
             ? Branch::orderBy('name')->get()
             : collect();
 
+        $reportBranchFilter = ($selectedBranchId !== null && $selectedBranchId !== '') ? (int) $selectedBranchId : null;
+        $reportSummary = app(SalesReportSummaryInsightsService::class)->summaryCounts($reportBranchFilter);
+
         return view('admin.reports.index', compact(
             'salesData',
             'branchesBusiness',
@@ -133,7 +137,42 @@ class ReportController extends Controller
             'unassignedClosingStock',
             'agentStockReport',
             'reportBranchOptions',
+            'reportSummary',
+            'reportBranchFilter',
         ));
+    }
+
+    /**
+     * Agents by sales activity (active / inactive in last 7 days).
+     */
+    public function agentActivity(Request $request, SalesReportSummaryInsightsService $insights)
+    {
+        $filter = (string) $request->query('filter', 'inactive');
+        if (! in_array($filter, ['active', 'inactive'], true)) {
+            $filter = 'inactive';
+        }
+
+        $branchRaw = $request->query('branch_id');
+        $branchId = ($branchRaw !== null && $branchRaw !== '') ? (int) $branchRaw : null;
+        $days = 7;
+
+        $titles = [
+            'active' => 'Active agents — sales in last '.$days.' days',
+            'inactive' => 'Non-active agents — no sales in last '.$days.' days',
+        ];
+
+        $agents = $insights->agentsForActivityFilter($filter, $days, $branchId);
+
+        return view('admin.reports.agent-activity', [
+            'filter' => $filter,
+            'title' => $titles[$filter],
+            'agents' => $agents,
+            'days' => $days,
+            'branchId' => $branchId,
+            'reportBranchOptions' => Schema::hasTable('branches')
+                ? Branch::orderBy('name')->get()
+                : collect(),
+        ]);
     }
 
     public function exportAgentDailyStock(Request $request): StreamedResponse

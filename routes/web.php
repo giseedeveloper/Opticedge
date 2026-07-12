@@ -343,6 +343,7 @@ Route::middleware(['auth', 'redirect.superadmin.from.admin', 'admin', 'tenant.su
 
         // Reports
         Route::get('reports', [App\Http\Controllers\Admin\ReportController::class , 'index'])->name('reports.index');
+        Route::get('reports/agent-activity', [App\Http\Controllers\Admin\ReportController::class, 'agentActivity'])->name('reports.agent-activity');
         Route::get('reports/agent-stock-export', [App\Http\Controllers\Admin\ReportController::class, 'exportAgentDailyStock'])
             ->name('reports.agent-stock-export');
 
@@ -374,6 +375,7 @@ Route::middleware(['auth', 'redirect.superadmin.from.admin', 'admin', 'tenant.su
             Route::get('imei-search', [App\Http\Controllers\Admin\StockController::class, 'imeiSearch'])->name('imei-search');
             Route::get('imei/{productListItem}', [App\Http\Controllers\Admin\StockController::class, 'showImeiItem'])->name('imei-item');
             Route::get('stocks', [App\Http\Controllers\Admin\StockController::class, 'stocks'])->name('stocks');
+            Route::get('agent-stock-alerts', [App\Http\Controllers\Admin\StockController::class, 'agentStockAlerts'])->name('agent-stock-alerts');
             Route::get('add-product/purchases/{purchase}/models', [App\Http\Controllers\Admin\StockController::class, 'modelsForPurchaseAddProduct'])->name('add-product.purchase.models');
             Route::get('stocks/{stock}/models', [App\Http\Controllers\Admin\StockController::class, 'modelsForStock'])->name('stocks.models');
             Route::get('stocks/{stock}', [App\Http\Controllers\Admin\StockController::class, 'showStock'])->name('stocks.show');

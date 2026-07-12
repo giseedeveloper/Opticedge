@@ -41,6 +41,76 @@
                     <dd class="text-lg font-semibold text-amber-700">{{ number_format($stockDashboard['pending']) }}</dd>
                 </div>
             </dl>
+
+            @php
+                $insights = $stockInsights ?? [
+                    'inventory' => ['admin' => 0, 'regional_managers' => 0, 'team_leaders' => 0, 'agents' => 0, 'total' => 0],
+                    'aging' => ['days7' => 0, 'days14' => 0],
+                    'low_stock' => ['count' => 0, 'threshold' => 2],
+                ];
+            @endphp
+
+            <div class="mt-5 grid grid-cols-1 lg:grid-cols-3 gap-4">
+                <div class="rounded-xl border border-slate-200/80 bg-white/70 p-4">
+                    <div class="flex items-baseline justify-between gap-2 mb-3">
+                        <h3 class="text-sm font-semibold text-slate-800">Inventory</h3>
+                        <span class="text-xs text-slate-500">{{ number_format($insights['inventory']['total']) }} unsold</span>
+                    </div>
+                    <dl class="space-y-2">
+                        <div class="flex items-center justify-between gap-3 text-sm">
+                            <dt class="text-slate-500">Admin</dt>
+                            <dd class="font-semibold text-slate-900 tabular-nums">{{ number_format($insights['inventory']['admin']) }}</dd>
+                        </div>
+                        <div class="flex items-center justify-between gap-3 text-sm">
+                            <dt class="text-slate-500">Regional managers</dt>
+                            <dd class="font-semibold text-slate-900 tabular-nums">{{ number_format($insights['inventory']['regional_managers']) }}</dd>
+                        </div>
+                        <div class="flex items-center justify-between gap-3 text-sm">
+                            <dt class="text-slate-500">Team leaders</dt>
+                            <dd class="font-semibold text-slate-900 tabular-nums">{{ number_format($insights['inventory']['team_leaders']) }}</dd>
+                        </div>
+                        <div class="flex items-center justify-between gap-3 text-sm">
+                            <dt class="text-slate-500">Agents</dt>
+                            <dd class="font-semibold text-slate-900 tabular-nums">{{ number_format($insights['inventory']['agents']) }}</dd>
+                        </div>
+                    </dl>
+                </div>
+
+                <div class="rounded-xl border border-slate-200/80 bg-white/70 p-4">
+                    <div class="flex items-baseline justify-between gap-2 mb-3">
+                        <h3 class="text-sm font-semibold text-slate-800">Aging stock</h3>
+                        <span class="text-xs text-slate-500">Agents with stock, no sales</span>
+                    </div>
+                    <dl class="space-y-3">
+                        <div class="flex items-center justify-between gap-3">
+                            <div>
+                                <dt class="text-xs uppercase tracking-wide text-slate-500">7 days</dt>
+                                <dd class="text-lg font-semibold text-slate-500 tabular-nums">{{ number_format($insights['aging']['days7']) }}</dd>
+                            </div>
+                            <a href="{{ route('admin.stock.agent-stock-alerts', ['filter' => 'aging7']) }}"
+                                class="admin-prod-link text-xs shrink-0">View</a>
+                        </div>
+                        <div class="flex items-center justify-between gap-3">
+                            <div>
+                                <dt class="text-xs uppercase tracking-wide text-slate-500">14 days</dt>
+                                <dd class="text-lg font-semibold text-red-600 tabular-nums">{{ number_format($insights['aging']['days14']) }}</dd>
+                            </div>
+                            <a href="{{ route('admin.stock.agent-stock-alerts', ['filter' => 'aging14']) }}"
+                                class="admin-prod-link text-xs shrink-0">View</a>
+                        </div>
+                    </dl>
+                </div>
+
+                <div class="rounded-xl border border-slate-200/80 bg-white/70 p-4">
+                    <div class="flex items-baseline justify-between gap-2 mb-3">
+                        <h3 class="text-sm font-semibold text-slate-800">Low stock</h3>
+                        <a href="{{ route('admin.stock.agent-stock-alerts', ['filter' => 'low']) }}"
+                            class="admin-prod-link text-xs shrink-0">View</a>
+                    </div>
+                    <p class="text-xs text-slate-500 mb-2">Agents with unsold devices ≤ {{ $insights['low_stock']['threshold'] }}</p>
+                    <p class="text-2xl font-semibold text-amber-700 tabular-nums">{{ number_format($insights['low_stock']['count']) }}</p>
+                </div>
+            </div>
         </x-admin-page-dashboard>
 
         <div class="mt-6 admin-clay-panel overflow-hidden">

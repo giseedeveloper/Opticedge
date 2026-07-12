@@ -4,6 +4,18 @@
     <div class="admin-prod-page">
         @php
             $asr = $agentStockReport;
+            $summary = $reportSummary ?? [
+                'admin' => 0,
+                'team_leaders' => 0,
+                'regional_managers' => 0,
+                'agents_active' => 0,
+                'agents_inactive' => 0,
+                'agents_total' => 0,
+                'branches' => 0,
+                'other' => 0,
+                'activity_days' => 7,
+            ];
+            $summaryBranchQuery = isset($reportBranchFilter) && $reportBranchFilter ? ['branch_id' => $reportBranchFilter] : [];
             $agentColorBands = [
                 'bg-orange-100/80',
                 'bg-sky-100/80',
@@ -21,6 +33,54 @@
                 'bg-rose-100/40',
             ];
         @endphp
+
+        <x-admin-page-dashboard label="Summary" class="mb-8">
+            <dl class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-4">
+                <div>
+                    <dt class="text-xs uppercase text-slate-500">Admin</dt>
+                    <dd class="text-lg font-semibold text-slate-900 tabular-nums">{{ number_format($summary['admin']) }}</dd>
+                </div>
+                <div>
+                    <dt class="text-xs uppercase text-slate-500">Team leaders</dt>
+                    <dd class="text-lg font-semibold text-slate-900 tabular-nums">{{ number_format($summary['team_leaders']) }}</dd>
+                </div>
+                <div>
+                    <dt class="text-xs uppercase text-slate-500">Regional managers</dt>
+                    <dd class="text-lg font-semibold text-slate-900 tabular-nums">{{ number_format($summary['regional_managers']) }}</dd>
+                </div>
+                <div>
+                    <dt class="text-xs uppercase text-slate-500">Agent active</dt>
+                    <dd class="flex items-baseline justify-between gap-2">
+                        <span class="text-lg font-semibold text-green-700 tabular-nums">{{ number_format($summary['agents_active']) }}</span>
+                        <a href="{{ route('admin.reports.agent-activity', array_merge(['filter' => 'active'], $summaryBranchQuery)) }}"
+                            class="admin-prod-link text-xs shrink-0">View</a>
+                    </dd>
+                    <p class="text-[11px] text-slate-500 mt-0.5">Sale in last {{ $summary['activity_days'] }} days</p>
+                </div>
+                <div>
+                    <dt class="text-xs uppercase text-slate-500">Agent non-active</dt>
+                    <dd class="flex items-baseline justify-between gap-2">
+                        <span class="text-lg font-semibold text-slate-500 tabular-nums">{{ number_format($summary['agents_inactive']) }}</span>
+                        <a href="{{ route('admin.reports.agent-activity', array_merge(['filter' => 'inactive'], $summaryBranchQuery)) }}"
+                            class="admin-prod-link text-xs shrink-0">View</a>
+                    </dd>
+                    <p class="text-[11px] text-slate-500 mt-0.5">No sale in last {{ $summary['activity_days'] }} days</p>
+                </div>
+                <div>
+                    <dt class="text-xs uppercase text-slate-500">Branches</dt>
+                    <dd class="text-lg font-semibold text-slate-900 tabular-nums">{{ number_format($summary['branches']) }}</dd>
+                </div>
+                <div>
+                    <dt class="text-xs uppercase text-slate-500">Other</dt>
+                    <dd class="text-lg font-semibold text-slate-900 tabular-nums">{{ number_format($summary['other']) }}</dd>
+                    <p class="text-[11px] text-slate-500 mt-0.5">Dealers, customers, subadmins, etc.</p>
+                </div>
+            </dl>
+            @if(!empty($summaryBranchQuery))
+                <p class="mt-3 text-xs text-slate-500">Agent active / non-active counts use the branch filter below.</p>
+            @endif
+        </x-admin-page-dashboard>
+
         <div class="admin-clay-panel overflow-hidden mb-8">
             <div class="admin-prod-form-head">
                 <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">

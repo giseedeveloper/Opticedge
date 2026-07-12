@@ -27,6 +27,7 @@ use App\Services\AgentCommissionExpenseService;
 use App\Services\AgentSaleCreditMigrationService;
 use App\Services\DistributionSaleService;
 use App\Services\PurchaseImeiRegistrationService;
+use App\Services\StockSummaryInsightsService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -122,10 +123,39 @@ class StockController extends Controller
             'pending' => $stocksData->where('status', 'pending')->count(),
         ];
 
+        $stockInsights = app(StockSummaryInsightsService::class)->summaryCounts();
+
         return view('admin.stock.stocks', [
             'stocks' => $stocksData,
             'hasPurchases' => $usingPurchases,
             'stockDashboard' => $stockDashboard,
+            'stockInsights' => $stockInsights,
+        ]);
+    }
+
+    /**
+     * Agents matching aging (no sales in 7/14 days) or low stock (<=2 unsold) filters.
+     */
+    public function agentStockAlerts(Request $request, StockSummaryInsightsService $insights)
+    {
+        $filter = (string) $request->query('filter', 'low');
+        if (! in_array($filter, ['aging7', 'aging14', 'low'], true)) {
+            $filter = 'low';
+        }
+
+        $titles = [
+            'aging7' => 'Aging stock — no sales in 7 days',
+            'aging14' => 'Aging stock — no sales in 14 days',
+            'low' => 'Low stock — agents with ≤ 2 devices',
+        ];
+
+        $agents = $insights->agentsForFilter($filter);
+
+        return view('admin.stock.agent-stock-alerts', [
+            'filter' => $filter,
+            'title' => $titles[$filter],
+            'agents' => $agents,
+            'threshold' => 2,
         ]);
     }
 
