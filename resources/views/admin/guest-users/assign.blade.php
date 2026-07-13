@@ -6,7 +6,7 @@
             <div>
                 <p class="admin-prod-eyebrow">Users</p>
                 <h1 class="admin-prod-title">Invite {{ $guest->name }}</h1>
-                <p class="admin-prod-subtitle">Send a vendor invitation. The guest must accept before they can join your team.</p>
+                <p class="admin-prod-subtitle">Send a vendor invitation. The OpticEdge user must accept before they can join your team.</p>
             </div>
             <a href="{{ route('admin.guest-users.index') }}" class="admin-prod-back shrink-0">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24"
@@ -14,7 +14,7 @@
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                         d="M10 19l-7-7m0 0l7-7m-7 7h18" />
                 </svg>
-                Back to guest users
+                Back to OpticEdge users
             </a>
         </div>
 
@@ -47,7 +47,7 @@
                             @endif
                         </div>
                     </div>
-                    <span class="admin-prod-badge shrink-0">Guest account</span>
+                    <span class="admin-prod-badge shrink-0">OpticEdge user</span>
                 </div>
             </div>
         </div>
@@ -228,7 +228,7 @@
                 </div>
                 <div class="admin-prod-form-body">
                     <div>
-                        <label for="message" class="admin-prod-label">Message to guest <span class="font-normal text-slate-500">(optional)</span></label>
+                        <label for="message" class="admin-prod-label">Message to OpticEdge user <span class="font-normal text-slate-500">(optional)</span></label>
                         <textarea id="message" name="message" rows="4" class="admin-prod-textarea"
                             placeholder="We would like you to join our team as an agent.">{{ old('message') }}</textarea>
                         @error('message')

@@ -6,7 +6,7 @@
             <div>
                 <p class="admin-prod-eyebrow">Users</p>
                 <h1 class="admin-prod-title">{{ $guest->name }}</h1>
-                <p class="admin-prod-subtitle">Review experience, work history, and ratings before inviting this guest.</p>
+                <p class="admin-prod-subtitle">Review experience, work history, and ratings before inviting this OpticEdge user.</p>
             </div>
             <div class="flex gap-2 shrink-0">
                 <a href="{{ route('admin.guest-users.index') }}" class="admin-prod-back">Back</a>

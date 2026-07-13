@@ -5,7 +5,7 @@
         <div class="admin-prod-toolbar !mb-0 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div>
                 <p class="admin-prod-eyebrow">Users</p>
-                <h1 class="admin-prod-title">Guest users</h1>
+                <h1 class="admin-prod-title">OpticEdge users</h1>
                 <p class="mt-1 text-sm text-slate-600">Self-registered users waiting to be assigned to your vendor. Review work history and ratings before inviting.</p>
             </div>
         </div>
@@ -64,7 +64,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="5" class="px-4 py-8 text-center text-slate-500">No guest users waiting for assignment.</td>
+                            <td colspan="5" class="px-4 py-8 text-center text-slate-500">No OpticEdge users waiting for assignment.</td>
                         </tr>
                     @endforelse
                 </tbody>

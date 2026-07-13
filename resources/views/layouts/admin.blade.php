@@ -367,7 +367,7 @@
                                     class="admin-sidebar-sublink {{ request()->routeIs('admin.customers.index') ? 'admin-sidebar-sublink-active' : '' }}">All users</a>
                                 <a href="{{ route('admin.guest-users.index') }}"
                                     @if (request()->routeIs('admin.guest-users.*')) aria-current="page" @endif
-                                    class="admin-sidebar-sublink {{ request()->routeIs('admin.guest-users.*') ? 'admin-sidebar-sublink-active' : '' }}">Guest users</a>
+                                    class="admin-sidebar-sublink {{ request()->routeIs('admin.guest-users.*') ? 'admin-sidebar-sublink-active' : '' }}">OpticEdge users</a>
                                 <a href="{{ route('admin.contract-terminations.index') }}"
                                     @if (request()->routeIs('admin.contract-terminations.*')) aria-current="page" @endif
                                     class="admin-sidebar-sublink {{ request()->routeIs('admin.contract-terminations.*') ? 'admin-sidebar-sublink-active' : '' }}">Contract terminations</a>
