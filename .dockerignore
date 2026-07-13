@@ -10,7 +10,6 @@ vendor
 npm-debug.log
 yarn.lock
 package-lock.json
-composer.lock
 .phpunit.result.cache
 Homestead.json
 Homestead.yaml
