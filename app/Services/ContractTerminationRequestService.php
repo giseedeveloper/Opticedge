@@ -108,7 +108,7 @@ class ContractTerminationRequestService
             ];
 
             if (Schema::hasColumn('users', 'ability')) {
-                $update['ability'] = null;
+                $update['ability'] = 'fullaccess';
             }
             if (Schema::hasColumn('users', 'notes')) {
                 $update['notes'] = null;
