@@ -5,17 +5,20 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\GuestVendorInvitation;
 use App\Models\User;
+use App\Models\UserRating;
 use App\Services\GuestVendorInvitationService;
+use App\Services\WorkerReputationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
+use InvalidArgumentException;
 
 class AdminGuestUserApiController extends Controller
 {
     private const ASSIGNABLE_ROLES = ['agent', 'teamleader', 'regional_manager'];
 
-    public function index(Request $request): JsonResponse
+    public function index(Request $request, WorkerReputationService $reputation): JsonResponse
     {
         $search = trim((string) $request->query('search', ''));
 
@@ -25,8 +28,14 @@ class AdminGuestUserApiController extends Controller
             ->when($search !== '', fn ($q) => $q->directorySearch($search))
             ->orderByDesc('created_at')
             ->take(200)
-            ->get()
-            ->map(fn (User $user) => [
+            ->get();
+
+        $totals = $reputation->ratingTotalsForUserIds($users->pluck('id')->all());
+
+        $data = $users->map(function (User $user) use ($totals) {
+            $stats = $totals[$user->id] ?? ['avg_rating' => null, 'ratings_count' => 0];
+
+            return [
                 'id' => $user->id,
                 'name' => $user->name,
                 'email' => $user->email,
@@ -35,24 +44,29 @@ class AdminGuestUserApiController extends Controller
                 'profile_image_url' => $user->profile_image_url,
                 'status' => $user->status ?? 'active',
                 'created_at' => $user->created_at?->toISOString(),
-            ]);
+                'avg_rating' => $stats['avg_rating'],
+                'ratings_count' => $stats['ratings_count'],
+            ];
+        });
 
-        return response()->json(['data' => $users]);
+        return response()->json(['data' => $data]);
     }
 
-    public function show(int $guestUser): JsonResponse
+    public function show(int $guestUser, WorkerReputationService $reputation): JsonResponse
     {
         $user = $this->findGuest($guestUser);
+        $reputationPayload = $reputation->profileReputationPayload($user);
 
-        return response()->json(['data' => [
+        return response()->json(['data' => array_merge([
             'id' => $user->id,
             'name' => $user->name,
             'email' => $user->email,
             'phone' => $user->phone,
             'avatar' => $user->avatar,
+            'profile_image_url' => $user->profile_image_url,
             'status' => $user->status ?? 'active',
             'created_at' => $user->created_at?->toISOString(),
-        ]]);
+        ], $reputationPayload)]);
     }
 
     /**
@@ -86,6 +100,41 @@ class AdminGuestUserApiController extends Controller
             'message' => 'Invitation sent. The guest must accept before joining your vendor.',
             'data' => $invitation->fresh()->toGuestListArray(),
         ], 201);
+    }
+
+    public function storeRating(Request $request, int $guestUser, WorkerReputationService $reputation): JsonResponse
+    {
+        $user = $this->findGuest($guestUser);
+        $admin = $request->user();
+        $tenantId = $admin?->tenant_id;
+
+        if ($tenantId === null) {
+            return response()->json(['message' => 'Your admin account is not linked to a vendor.'], 422);
+        }
+
+        $validated = $request->validate([
+            'score' => 'required|integer|min:1|max:5',
+            'comment' => 'nullable|string|max:2000',
+        ]);
+
+        try {
+            $rating = $reputation->upsertRating(
+                $user,
+                $admin,
+                (int) $tenantId,
+                (int) $validated['score'],
+                $validated['comment'] ?? null,
+                UserRating::SOURCE_MANUAL,
+            );
+        } catch (InvalidArgumentException $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
+        }
+
+        return response()->json([
+            'message' => 'Rating saved.',
+            'data' => $rating->toPublicArray(),
+            'summary' => $reputation->ratingSummary($user),
+        ]);
     }
 
     /**

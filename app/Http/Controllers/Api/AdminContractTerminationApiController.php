@@ -50,13 +50,26 @@ class AdminContractTerminationApiController extends Controller
     public function approve(Request $request, ContractTerminationRequest $contractTermination)
     {
         $this->assertTenantAccess($contractTermination, $request->user());
-        $validated = $request->validate(['admin_note' => 'nullable|string|max:2000']);
+        $validated = $request->validate([
+            'admin_note' => 'nullable|string|max:2000',
+            'rating' => 'nullable|integer|min:1|max:5',
+            'rating_comment' => 'nullable|string|max:2000',
+        ]);
+
+        $ratingPayload = null;
+        if (isset($validated['rating'])) {
+            $ratingPayload = [
+                'score' => (int) $validated['rating'],
+                'comment' => $validated['rating_comment'] ?? null,
+            ];
+        }
 
         try {
             app(ContractTerminationRequestService::class)->approve(
                 $contractTermination,
                 $request->user(),
-                $validated['admin_note'] ?? null
+                $validated['admin_note'] ?? null,
+                $ratingPayload,
             );
         } catch (\InvalidArgumentException $e) {
             return response()->json(['message' => $e->getMessage()], 422);

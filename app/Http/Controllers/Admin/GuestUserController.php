@@ -5,17 +5,20 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Branch;
 use App\Models\User;
+use App\Models\UserRating;
 use App\Services\GuestVendorInvitationService;
+use App\Services\WorkerReputationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\View\View;
 use Illuminate\Validation\Rule;
+use InvalidArgumentException;
 
 class GuestUserController extends Controller
 {
-    public function index(Request $request): View
+    public function index(Request $request, WorkerReputationService $reputation): View
     {
         $search = $request->string('search')->trim()->toString();
 
@@ -27,10 +30,21 @@ class GuestUserController extends Controller
             ->paginate(50)
             ->withQueryString();
 
-        return view('admin.guest-users.index', compact('guests', 'search'));
+        $totals = $reputation->ratingTotalsForUserIds($guests->getCollection()->pluck('id')->all());
+
+        return view('admin.guest-users.index', compact('guests', 'search', 'totals'));
     }
 
-    public function assignForm(int $guestUser): View
+    public function show(int $guestUser, WorkerReputationService $reputation): View
+    {
+        $guest = $this->findGuest($guestUser);
+        $workHistory = $reputation->workHistory($guest);
+        $ratingSummary = $reputation->ratingSummary($guest);
+
+        return view('admin.guest-users.show', compact('guest', 'workHistory', 'ratingSummary'));
+    }
+
+    public function assignForm(int $guestUser, WorkerReputationService $reputation): View
     {
         $guest = $this->findGuest($guestUser);
 
@@ -49,7 +63,18 @@ class GuestUserController extends Controller
             ->orderBy('name')
             ->get(['id', 'name', 'region_id']);
 
-        return view('admin.guest-users.assign', compact('guest', 'branches', 'regions', 'teamLeaders', 'regionalManagers'));
+        $workHistory = $reputation->workHistory($guest);
+        $ratingSummary = $reputation->ratingSummary($guest);
+
+        return view('admin.guest-users.assign', compact(
+            'guest',
+            'branches',
+            'regions',
+            'teamLeaders',
+            'regionalManagers',
+            'workHistory',
+            'ratingSummary',
+        ));
     }
 
     public function assign(Request $request, int $guestUser, GuestVendorInvitationService $invitations): RedirectResponse
@@ -107,6 +132,37 @@ class GuestUserController extends Controller
         return redirect()
             ->route('admin.guest-users.index')
             ->with('success', "Invitation sent to {$guest->name}. They must accept before joining your vendor.");
+    }
+
+    public function storeRating(Request $request, int $guestUser, WorkerReputationService $reputation): RedirectResponse
+    {
+        $guest = $this->findGuest($guestUser);
+        $admin = $request->user();
+        $tenantId = $admin?->tenant_id;
+
+        if ($tenantId === null) {
+            return back()->withErrors(['error' => 'Your admin account is not linked to a vendor.']);
+        }
+
+        $validated = $request->validate([
+            'score' => 'required|integer|min:1|max:5',
+            'comment' => 'nullable|string|max:2000',
+        ]);
+
+        try {
+            $reputation->upsertRating(
+                $guest,
+                $admin,
+                (int) $tenantId,
+                (int) $validated['score'],
+                $validated['comment'] ?? null,
+                UserRating::SOURCE_MANUAL,
+            );
+        } catch (InvalidArgumentException $e) {
+            return back()->withErrors(['error' => $e->getMessage()]);
+        }
+
+        return back()->with('success', 'Rating saved.');
     }
 
     private function findGuest(int $id): User

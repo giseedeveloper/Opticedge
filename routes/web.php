@@ -316,8 +316,10 @@ Route::middleware(['auth', 'redirect.superadmin.from.admin', 'admin', 'tenant.su
         Route::delete('customers/{user}', [App\Http\Controllers\Admin\CustomerController::class, 'destroy'])->name('customers.destroy');
         Route::get('customers/{user}', [App\Http\Controllers\Admin\CustomerController::class, 'show'])->whereNumber('user')->name('customers.show');
         Route::get('guest-users', [App\Http\Controllers\Admin\GuestUserController::class, 'index'])->name('guest-users.index');
+        Route::get('guest-users/{guestUser}', [App\Http\Controllers\Admin\GuestUserController::class, 'show'])->name('guest-users.show');
         Route::get('guest-users/{guestUser}/assign', [App\Http\Controllers\Admin\GuestUserController::class, 'assignForm'])->name('guest-users.assign');
         Route::post('guest-users/{guestUser}/assign', [App\Http\Controllers\Admin\GuestUserController::class, 'assign'])->name('guest-users.assign.store');
+        Route::post('guest-users/{guestUser}/ratings', [App\Http\Controllers\Admin\GuestUserController::class, 'storeRating'])->name('guest-users.ratings.store');
         Route::get('contract-terminations', [App\Http\Controllers\Admin\ContractTerminationController::class, 'index'])->name('contract-terminations.index');
         Route::post('contract-terminations/{contractTermination}/approve', [App\Http\Controllers\Admin\ContractTerminationController::class, 'approve'])->name('contract-terminations.approve');
         Route::post('contract-terminations/{contractTermination}/reject', [App\Http\Controllers\Admin\ContractTerminationController::class, 'reject'])->name('contract-terminations.reject');

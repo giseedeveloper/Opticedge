@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../api/guest_users_api.dart';
 import '../../api/users_api.dart';
 import 'admin_scaffold.dart';
 import 'assign_regional_manager_devices_screen.dart';
@@ -121,12 +122,57 @@ class _AdminUserDetailScreenState extends State<AdminUserDetailScreen> {
     }
   }
 
+  Future<void> _rateWorker() async {
+    int score = 5;
+    final comment = TextEditingController();
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setLocal) => AlertDialog(
+          title: const Text('Rate worker'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              DropdownButtonFormField<int>(
+                value: score,
+                decoration: const InputDecoration(labelText: 'Score', border: OutlineInputBorder()),
+                items: [5, 4, 3, 2, 1].map((s) => DropdownMenuItem(value: s, child: Text('$s / 5'))).toList(),
+                onChanged: (v) => setLocal(() => score = v ?? 5),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: comment,
+                maxLines: 3,
+                decoration: const InputDecoration(labelText: 'Comment', border: OutlineInputBorder()),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+            FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Save')),
+          ],
+        ),
+      ),
+    );
+    final text = comment.text;
+    comment.dispose();
+    if (ok != true) return;
+    await _action(() async {
+      await rateFieldUser(widget.userId, score: score, comment: text);
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final u = _user;
     final role = u?['role'] as String? ?? widget.role;
     final status = u?['status'] as String? ?? 'active';
     final isAdmin = role == 'admin';
+    final isField = role == 'agent' || role == 'teamleader' || role == 'regional_manager';
+    final history = (u?['work_history'] as List<dynamic>? ?? []).map((e) => Map<String, dynamic>.from(e as Map)).toList();
+    final ratings = (u?['ratings'] as List<dynamic>? ?? []).map((e) => Map<String, dynamic>.from(e as Map)).toList();
+    final summary = u?['rating_summary'] as Map<String, dynamic>?;
+    final ratingCount = (summary?['count'] as num?)?.toInt() ?? 0;
 
     return AdminScaffold(
       title: 'User',
@@ -151,9 +197,52 @@ class _AdminUserDetailScreenState extends State<AdminUserDetailScreen> {
                           if (u['team_leader_name'] != null) KeyValueRow(label: 'Team leader', value: u['team_leader_name'].toString()),
                           if (u['regional_manager_name'] != null) KeyValueRow(label: 'Regional manager', value: u['regional_manager_name'].toString()),
                           if (u['subadmin_role_name'] != null) KeyValueRow(label: 'Role', value: u['subadmin_role_name'].toString()),
+                          if (isField)
+                            KeyValueRow(
+                              label: 'Rating',
+                              value: ratingCount > 0 ? '${summary?['average']} / 5 ($ratingCount)' : 'No ratings',
+                            ),
                         ],
                       ),
                     ),
+                    if (isField) ...[
+                      const SizedBox(height: 12),
+                      AdminSectionCard(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text('Work history', style: TextStyle(fontWeight: FontWeight.w700)),
+                            const SizedBox(height: 8),
+                            if (history.isEmpty)
+                              Text('No work history.', style: TextStyle(color: Colors.grey.shade600))
+                            else
+                              ...history.map((t) => Padding(
+                                    padding: const EdgeInsets.only(bottom: 8),
+                                    child: Text(
+                                      '${t['vendor_name'] ?? 'Vendor'} · ${t['role_label'] ?? t['role'] ?? ''}',
+                                      style: const TextStyle(fontSize: 13),
+                                    ),
+                                  )),
+                            if (ratings.isNotEmpty) ...[
+                              const Divider(height: 20),
+                              const Text('Ratings', style: TextStyle(fontWeight: FontWeight.w700)),
+                              const SizedBox(height: 8),
+                              ...ratings.map((r) => Padding(
+                                    padding: const EdgeInsets.only(bottom: 6),
+                                    child: Text('${r['vendor_name'] ?? 'Vendor'}: ${r['score']}/5'),
+                                  )),
+                            ],
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      OutlinedButton.icon(
+                        onPressed: _rateWorker,
+                        icon: const Icon(Icons.star_outline),
+                        label: const Text('Rate worker'),
+                      ),
+                    ],
                     const SizedBox(height: 16),
                     if (role == 'regional_manager' && status == 'active')
                       Padding(

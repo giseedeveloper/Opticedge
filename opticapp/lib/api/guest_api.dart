@@ -22,10 +22,15 @@ Future<Map<String, dynamic>> getGuestProfile() async {
   return map?['data'] as Map<String, dynamic>? ?? {};
 }
 
-Future<Map<String, dynamic>> updateGuestProfile({required String name, String? phone}) async {
+Future<Map<String, dynamic>> updateGuestProfile({
+  required String name,
+  String? phone,
+  String? experienceBio,
+}) async {
   final res = await apiPut('/guest/profile', {
     'name': name,
     'phone': phone ?? '',
+    'experience_bio': experienceBio ?? '',
   });
   final map = decodeApiJsonMap(res);
   if (res.statusCode != 200) {

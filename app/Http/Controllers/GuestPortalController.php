@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\GuestVendorInvitation;
 use App\Models\User;
 use App\Services\GuestVendorInvitationService;
+use App\Services\WorkerReputationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
@@ -36,9 +37,13 @@ class GuestPortalController extends Controller
         return view('guest.requests', compact('invitations'));
     }
 
-    public function profile(Request $request): View
+    public function profile(Request $request, WorkerReputationService $reputation): View
     {
-        return view('guest.profile', ['user' => $request->user()]);
+        $user = $request->user();
+        $workHistory = $reputation->workHistory($user);
+        $ratingSummary = $reputation->ratingSummary($user);
+
+        return view('guest.profile', compact('user', 'workHistory', 'ratingSummary'));
     }
 
     public function updateProfile(Request $request): RedirectResponse
@@ -46,7 +51,12 @@ class GuestPortalController extends Controller
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'phone' => 'nullable|string|max:100',
+            'experience_bio' => 'nullable|string|max:5000',
         ]);
+
+        if (! Schema::hasColumn('users', 'experience_bio')) {
+            unset($validated['experience_bio']);
+        }
 
         User::withoutGlobalScopes()
             ->whereKey($request->user()->id)

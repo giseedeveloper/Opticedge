@@ -5,6 +5,9 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\SubadminRole;
 use App\Models\User;
+use App\Models\UserRating;
+use App\Models\UserVendorTenure;
+use App\Services\WorkerReputationService;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -12,6 +15,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
+use InvalidArgumentException;
 
 class AdminUserManagementApiController extends Controller
 {
@@ -19,13 +23,18 @@ class AdminUserManagementApiController extends Controller
         'customer', 'dealer', 'agent', 'teamleader', 'regional_manager', 'subadmin',
     ];
 
-    public function show(User $user): JsonResponse
+    public function show(User $user, WorkerReputationService $reputation): JsonResponse
     {
         $this->assertManageable($user);
         $user = User::withLocationRelations()->findOrFail($user->id);
         $user->load('subadminRole:id,name');
 
-        return response()->json(['data' => $this->serializeUser($user)]);
+        $data = $this->serializeUser($user);
+        if (in_array($user->role, ['agent', 'teamleader', 'regional_manager'], true)) {
+            $data = array_merge($data, $reputation->profileReputationPayload($user));
+        }
+
+        return response()->json(['data' => $data]);
     }
 
     public function store(Request $request): JsonResponse
@@ -132,10 +141,60 @@ class AdminUserManagementApiController extends Controller
         $user = User::create($payload);
         $user->forceFill(['email_verified_at' => now()])->save();
 
+        if (in_array($role, ['agent', 'teamleader', 'regional_manager'], true)) {
+            app(WorkerReputationService::class)->openTenureForUser(
+                $user->fresh(),
+                UserVendorTenure::SOURCE_DIRECT_ASSIGN,
+            );
+        }
+
         return response()->json([
             'message' => 'User created.',
             'data' => $this->serializeUser($user->fresh()),
         ], 201);
+    }
+
+    public function storeRating(Request $request, User $user, WorkerReputationService $reputation): JsonResponse
+    {
+        $this->assertManageable($user);
+
+        if (! in_array($user->role, ['agent', 'teamleader', 'regional_manager', 'guest'], true)) {
+            return response()->json(['message' => 'Only field workers can be rated.'], 422);
+        }
+
+        $admin = $request->user();
+        $tenantId = $admin?->tenant_id;
+        if ($tenantId === null) {
+            return response()->json(['message' => 'Your admin account is not linked to a vendor.'], 422);
+        }
+
+        if ($user->role !== 'guest' && (int) $user->tenant_id !== (int) $tenantId) {
+            return response()->json(['message' => 'This user does not belong to your vendor.'], 403);
+        }
+
+        $validated = $request->validate([
+            'score' => 'required|integer|min:1|max:5',
+            'comment' => 'nullable|string|max:2000',
+        ]);
+
+        try {
+            $rating = $reputation->upsertRating(
+                $user,
+                $admin,
+                (int) $tenantId,
+                (int) $validated['score'],
+                $validated['comment'] ?? null,
+                UserRating::SOURCE_MANUAL,
+            );
+        } catch (InvalidArgumentException $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
+        }
+
+        return response()->json([
+            'message' => 'Rating saved.',
+            'data' => $rating->toPublicArray(),
+            'summary' => $reputation->ratingSummary($user),
+        ]);
     }
 
     public function update(Request $request, User $user): JsonResponse

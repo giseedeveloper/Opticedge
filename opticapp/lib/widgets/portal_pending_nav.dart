@@ -117,6 +117,11 @@ abstract final class PortalPendingNav {
           route: '/admin/dealers',
         ),
         const PortalNavItem(
+          icon: Icons.person_search_rounded,
+          label: 'Guest users',
+          route: '/admin/guest-users',
+        ),
+        const PortalNavItem(
           icon: Icons.local_shipping_rounded,
           label: 'Vendors',
           route: '/admin/vendors',

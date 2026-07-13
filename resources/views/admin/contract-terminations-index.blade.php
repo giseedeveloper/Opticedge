@@ -68,9 +68,16 @@
                         </td>
                         <td class="px-4 py-3 text-right whitespace-nowrap">
                             @if($row->isPending())
-                                <form method="POST" action="{{ route('admin.contract-terminations.approve', $row) }}" class="inline-block mb-2">
+                                <form method="POST" action="{{ route('admin.contract-terminations.approve', $row) }}" class="inline-block mb-2 text-left space-y-1">
                                     @csrf
-                                    <input type="text" name="admin_note" placeholder="Optional note" class="admin-prod-input text-xs mb-1 w-40">
+                                    <input type="text" name="admin_note" placeholder="Optional note" class="admin-prod-input text-xs w-40">
+                                    <select name="rating" class="admin-prod-select text-xs w-40">
+                                        <option value="">No rating</option>
+                                        @for ($i = 5; $i >= 1; $i--)
+                                            <option value="{{ $i }}">Rate {{ $i }}/5</option>
+                                        @endfor
+                                    </select>
+                                    <input type="text" name="rating_comment" placeholder="Rating comment" class="admin-prod-input text-xs w-40">
                                     <button type="submit" class="admin-prod-btn-primary text-xs">Approve</button>
                                 </form>
                                 <form method="POST" action="{{ route('admin.contract-terminations.reject', $row) }}" class="inline-block">

@@ -621,10 +621,14 @@ class _GuestProfileTab extends StatefulWidget {
 class _GuestProfileTabState extends State<_GuestProfileTab> {
   final _name = TextEditingController();
   final _phone = TextEditingController();
+  final _experience = TextEditingController();
   bool _loading = true;
   bool _saving = false;
   String? _email;
   String? _avatar;
+  List<Map<String, dynamic>> _workHistory = [];
+  Map<String, dynamic>? _ratingSummary;
+  List<Map<String, dynamic>> _ratings = [];
 
   @override
   void initState() {
@@ -636,6 +640,7 @@ class _GuestProfileTabState extends State<_GuestProfileTab> {
   void dispose() {
     _name.dispose();
     _phone.dispose();
+    _experience.dispose();
     super.dispose();
   }
 
@@ -646,8 +651,16 @@ class _GuestProfileTabState extends State<_GuestProfileTab> {
       if (!mounted) return;
       _name.text = data['name']?.toString() ?? '';
       _phone.text = data['phone']?.toString() ?? '';
+      _experience.text = data['experience_bio']?.toString() ?? '';
       _email = data['email']?.toString();
       _avatar = data['avatar']?.toString();
+      _workHistory = (data['work_history'] as List<dynamic>? ?? [])
+          .map((e) => Map<String, dynamic>.from(e as Map))
+          .toList();
+      _ratingSummary = data['rating_summary'] as Map<String, dynamic>?;
+      _ratings = (data['ratings'] as List<dynamic>? ?? [])
+          .map((e) => Map<String, dynamic>.from(e as Map))
+          .toList();
       setState(() => _loading = false);
     } catch (e) {
       if (!mounted) return;
@@ -662,8 +675,20 @@ class _GuestProfileTabState extends State<_GuestProfileTab> {
     if (_name.text.trim().isEmpty) return;
     setState(() => _saving = true);
     try {
-      await updateGuestProfile(name: _name.text.trim(), phone: _phone.text.trim());
+      final data = await updateGuestProfile(
+        name: _name.text.trim(),
+        phone: _phone.text.trim(),
+        experienceBio: _experience.text.trim(),
+      );
       if (!mounted) return;
+      _workHistory = (data['work_history'] as List<dynamic>? ?? [])
+          .map((e) => Map<String, dynamic>.from(e as Map))
+          .toList();
+      _ratingSummary = data['rating_summary'] as Map<String, dynamic>?;
+      _ratings = (data['ratings'] as List<dynamic>? ?? [])
+          .map((e) => Map<String, dynamic>.from(e as Map))
+          .toList();
+      setState(() {});
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Profile saved.')));
     } catch (e) {
       if (!mounted) return;
@@ -673,9 +698,22 @@ class _GuestProfileTabState extends State<_GuestProfileTab> {
     }
   }
 
+  String _formatDate(String? iso) {
+    if (iso == null || iso.isEmpty) return '–';
+    try {
+      final d = DateTime.parse(iso).toLocal();
+      return '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+    } catch (_) {
+      return iso;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_loading) return const AdminPageLoading();
+
+    final avg = _ratingSummary?['average'];
+    final count = (_ratingSummary?['count'] as num?)?.toInt() ?? 0;
 
     return ListView(
       padding: const EdgeInsets.all(20),
@@ -709,6 +747,17 @@ class _GuestProfileTabState extends State<_GuestProfileTab> {
                 keyboardType: TextInputType.phone,
                 decoration: const InputDecoration(labelText: 'Phone', border: OutlineInputBorder()),
               ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _experience,
+                maxLines: 4,
+                decoration: const InputDecoration(
+                  labelText: 'Experience',
+                  hintText: 'Describe your work experience for vendors',
+                  border: OutlineInputBorder(),
+                  alignLabelWithHint: true,
+                ),
+              ),
               const SizedBox(height: 20),
               FilledButton(
                 onPressed: _saving ? null : _save,
@@ -716,6 +765,71 @@ class _GuestProfileTabState extends State<_GuestProfileTab> {
                     ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
                     : const Text('Save profile'),
               ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+        Container(
+          padding: const EdgeInsets.all(20),
+          decoration: sectionCardDecoration(context),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Work history', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+              const SizedBox(height: 8),
+              if (_workHistory.isEmpty)
+                Text('No work history yet.', style: TextStyle(color: Colors.grey.shade600))
+              else
+                ..._workHistory.map((t) {
+                  final ended = t['ended_at']?.toString();
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(t['vendor_name']?.toString() ?? 'Vendor', style: const TextStyle(fontWeight: FontWeight.w600)),
+                        Text(t['role_label']?.toString() ?? t['role']?.toString() ?? ''),
+                        Text(
+                          '${_formatDate(t['started_at']?.toString())} – ${ended == null || ended.isEmpty ? 'Present' : _formatDate(ended)}',
+                          style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                        ),
+                      ],
+                    ),
+                  );
+                }),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+        Container(
+          padding: const EdgeInsets.all(20),
+          decoration: sectionCardDecoration(context),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Ratings', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+              const SizedBox(height: 4),
+              Text(
+                count > 0 ? 'Average ${avg ?? '–'} / 5 ($count)' : 'No ratings yet.',
+                style: TextStyle(color: Colors.grey.shade600),
+              ),
+              const SizedBox(height: 8),
+              ..._ratings.map((r) => Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(child: Text(r['vendor_name']?.toString() ?? 'Vendor', style: const TextStyle(fontWeight: FontWeight.w600))),
+                            Text('${r['score'] ?? '–'} / 5', style: const TextStyle(fontWeight: FontWeight.w700, color: Color(0xFFFA8900))),
+                          ],
+                        ),
+                        if ((r['comment']?.toString() ?? '').isNotEmpty)
+                          Text(r['comment'].toString(), style: TextStyle(color: Colors.grey.shade700)),
+                      ],
+                    ),
+                  )),
             ],
           ),
         ),

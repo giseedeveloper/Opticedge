@@ -52,6 +52,55 @@
             </div>
         </div>
 
+        <div class="grid gap-6 lg:grid-cols-2 mb-6">
+            <div class="admin-clay-panel p-6">
+                <h2 class="admin-prod-form-title mb-2">Work history</h2>
+                @forelse ($workHistory ?? [] as $tenure)
+                    <div class="border-b border-slate-100 py-3 last:border-0">
+                        <p class="font-medium">{{ $tenure['vendor_name'] ?? 'Vendor' }}</p>
+                        <p class="text-sm text-slate-600">{{ $tenure['role_label'] }}</p>
+                        <p class="text-xs text-slate-500 mt-1">
+                            {{ \Illuminate\Support\Carbon::parse($tenure['started_at'])->format('M j, Y') }}
+                            –
+                            {{ $tenure['ended_at'] ? \Illuminate\Support\Carbon::parse($tenure['ended_at'])->format('M j, Y') : 'Present' }}
+                        </p>
+                    </div>
+                @empty
+                    <p class="text-sm text-slate-500">No prior work history.</p>
+                @endforelse
+                @if ($guest->experience_bio)
+                    <div class="mt-4 pt-4 border-t border-slate-100">
+                        <p class="text-sm font-semibold mb-1">Experience</p>
+                        <p class="text-sm text-slate-700 whitespace-pre-wrap">{{ $guest->experience_bio }}</p>
+                    </div>
+                @endif
+            </div>
+            <div class="admin-clay-panel p-6">
+                <h2 class="admin-prod-form-title mb-2">Ratings</h2>
+                <p class="text-sm text-slate-500 mb-3">
+                    @if (($ratingSummary['count'] ?? 0) > 0)
+                        Average {{ number_format($ratingSummary['average'], 1) }} / 5 ({{ $ratingSummary['count'] }})
+                    @else
+                        No ratings yet
+                    @endif
+                </p>
+                @foreach ($ratingSummary['ratings'] ?? [] as $rating)
+                    <div class="border-b border-slate-100 py-2 last:border-0">
+                        <div class="flex justify-between">
+                            <span class="text-sm font-medium">{{ $rating['vendor_name'] ?? 'Vendor' }}</span>
+                            <span class="text-sm font-semibold text-[#fa8900]">{{ $rating['score'] }}/5</span>
+                        </div>
+                        @if (!empty($rating['comment']))
+                            <p class="text-xs text-slate-600 mt-1">{{ $rating['comment'] }}</p>
+                        @endif
+                    </div>
+                @endforeach
+                <p class="mt-3 text-xs text-slate-500">
+                    <a href="{{ route('admin.guest-users.show', $guest) }}" class="text-[#fa8900] hover:underline">Open full profile</a> to add or update a rating.
+                </p>
+            </div>
+        </div>
+
         <form method="POST" action="{{ route('admin.guest-users.assign.store', $guest) }}">
             @csrf
 

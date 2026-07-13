@@ -64,15 +64,22 @@ class ContractTerminationRequestService
         ]);
     }
 
-    public function approve(ContractTerminationRequest $request, User $admin, ?string $adminNote = null): User
-    {
+    /**
+     * @param  array{score?: int, comment?: string|null}|null  $rating
+     */
+    public function approve(
+        ContractTerminationRequest $request,
+        User $admin,
+        ?string $adminNote = null,
+        ?array $rating = null,
+    ): User {
         $this->assertAdminForTenant($admin, (int) $request->tenant_id);
 
         if (! $request->isPending()) {
             throw new InvalidArgumentException('This request is no longer pending.');
         }
 
-        return DB::transaction(function () use ($request, $admin, $adminNote) {
+        return DB::transaction(function () use ($request, $admin, $adminNote, $rating) {
             $locked = ContractTerminationRequest::query()->lockForUpdate()->findOrFail($request->id);
 
             if (! $locked->isPending()) {
@@ -84,6 +91,10 @@ class ContractTerminationRequestService
             if ((int) $user->tenant_id !== (int) $locked->tenant_id) {
                 throw new InvalidArgumentException('This user is no longer assigned to this vendor.');
             }
+
+            $tenantId = (int) $locked->tenant_id;
+            $reputation = app(WorkerReputationService::class);
+            $tenure = $reputation->closeTenure($user, $tenantId, $locked);
 
             $update = [
                 'role' => 'guest',
@@ -119,6 +130,18 @@ class ContractTerminationRequestService
                 'decided_at' => now(),
                 'decided_by' => $admin->id,
             ]);
+
+            if ($rating !== null && isset($rating['score'])) {
+                $reputation->upsertRating(
+                    $user,
+                    $admin,
+                    $tenantId,
+                    (int) $rating['score'],
+                    $rating['comment'] ?? null,
+                    \App\Models\UserRating::SOURCE_TERMINATION,
+                    $tenure,
+                );
+            }
 
             return User::withoutGlobalScopes()->findOrFail($user->id);
         });

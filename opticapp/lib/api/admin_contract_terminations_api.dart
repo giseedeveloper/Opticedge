@@ -13,9 +13,16 @@ Future<List<Map<String, dynamic>>> listAdminContractTerminations({String? status
   return data.map((e) => Map<String, dynamic>.from(e as Map)).toList();
 }
 
-Future<void> approveAdminContractTermination(int id, {String? adminNote}) async {
+Future<void> approveAdminContractTermination(
+  int id, {
+  String? adminNote,
+  int? rating,
+  String? ratingComment,
+}) async {
   final res = await apiPost('/admin/contract-terminations/$id/approve', {
     if (adminNote != null && adminNote.trim().isNotEmpty) 'admin_note': adminNote.trim(),
+    if (rating != null) 'rating': rating,
+    if (ratingComment != null && ratingComment.trim().isNotEmpty) 'rating_comment': ratingComment.trim(),
   });
   final map = jsonDecode(res.body) as Map<String, dynamic>;
   if (res.statusCode != 200) {

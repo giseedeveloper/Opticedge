@@ -6,8 +6,10 @@ use App\Http\Controllers\Controller;
 use App\Models\GuestVendorInvitation;
 use App\Models\User;
 use App\Services\GuestVendorInvitationService;
+use App\Services\WorkerReputationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 
 class GuestPortalApiController extends Controller
 {
@@ -33,12 +35,13 @@ class GuestPortalApiController extends Controller
         ]);
     }
 
-    public function profile(Request $request): JsonResponse
+    public function profile(Request $request, WorkerReputationService $reputation): JsonResponse
     {
         $user = $request->user();
+        $reputationPayload = $reputation->profileReputationPayload($user);
 
         return response()->json([
-            'data' => [
+            'data' => array_merge([
                 'id' => $user->id,
                 'name' => $user->name,
                 'email' => $user->email,
@@ -48,37 +51,44 @@ class GuestPortalApiController extends Controller
                 'role' => $user->role,
                 'email_verified' => $user->hasVerifiedEmail(),
                 'created_at' => $user->created_at?->toISOString(),
-            ],
+            ], $reputationPayload),
         ]);
     }
 
-    public function updateProfile(Request $request): JsonResponse
+    public function updateProfile(Request $request, WorkerReputationService $reputation): JsonResponse
     {
         $user = $request->user();
 
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'phone' => 'nullable|string|max:100',
+            'experience_bio' => 'nullable|string|max:5000',
         ]);
+
+        $payload = [
+            'name' => $validated['name'],
+            'phone' => $validated['phone'] ?? null,
+        ];
+        if (Schema::hasColumn('users', 'experience_bio')) {
+            $payload['experience_bio'] = $validated['experience_bio'] ?? null;
+        }
 
         User::withoutGlobalScopes()
             ->whereKey($user->id)
-            ->update([
-                'name' => $validated['name'],
-                'phone' => $validated['phone'] ?? null,
-            ]);
+            ->update($payload);
 
         $fresh = User::withoutGlobalScopes()->findOrFail($user->id);
+        $reputationPayload = $reputation->profileReputationPayload($fresh);
 
         return response()->json([
             'message' => 'Profile updated.',
-            'data' => [
+            'data' => array_merge([
                 'id' => $fresh->id,
                 'name' => $fresh->name,
                 'email' => $fresh->email,
                 'phone' => $fresh->phone,
                 'avatar' => $fresh->avatar,
-            ],
+            ], $reputationPayload),
         ]);
     }
 

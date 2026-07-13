@@ -60,23 +60,66 @@ class _AdminContractTerminationsScreenState extends State<AdminContractTerminati
     final int? rid = id is int ? id : (id is num ? id.toInt() : null);
     if (rid == null) return;
 
+    int? selectedRating;
+    final noteCtrl = TextEditingController();
+    final commentCtrl = TextEditingController();
+
     final ok = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Approve termination?'),
-        content: Text(
-          'Approve contract termination for ${row['user']?['name'] ?? 'this user'}? They will leave your vendor and return to guest status.',
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setLocal) => AlertDialog(
+          title: const Text('Approve termination?'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  'Approve contract termination for ${row['user']?['name'] ?? 'this user'}? They will leave your vendor and return to guest status.',
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: noteCtrl,
+                  decoration: const InputDecoration(labelText: 'Admin note (optional)', border: OutlineInputBorder()),
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<int?>(
+                  value: selectedRating,
+                  decoration: const InputDecoration(labelText: 'Rate worker (optional)', border: OutlineInputBorder()),
+                  items: [
+                    const DropdownMenuItem<int?>(value: null, child: Text('No rating')),
+                    ...[5, 4, 3, 2, 1].map((s) => DropdownMenuItem<int?>(value: s, child: Text('$s / 5'))),
+                  ],
+                  onChanged: (v) => setLocal(() => selectedRating = v),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: commentCtrl,
+                  decoration: const InputDecoration(labelText: 'Rating comment', border: OutlineInputBorder()),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+            FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Approve')),
+          ],
         ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Approve')),
-        ],
       ),
     );
+    final note = noteCtrl.text;
+    final comment = commentCtrl.text;
+    noteCtrl.dispose();
+    commentCtrl.dispose();
     if (ok != true || !mounted) return;
 
     try {
-      await approveAdminContractTermination(rid);
+      await approveAdminContractTermination(
+        rid,
+        adminNote: note,
+        rating: selectedRating,
+        ratingComment: comment,
+      );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Termination approved.')));
       _load();

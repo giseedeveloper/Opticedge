@@ -41,6 +41,7 @@ class User extends Authenticatable
         'referred_by',
         'google_id',
         'avatar',
+        'experience_bio',
     ];
 
     /** Friend/referrer who made this user (dealer) join – gets commission on first dealer purchase */

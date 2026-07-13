@@ -218,9 +218,11 @@ Route::middleware(['auth:sanctum', 'tenant.context'])->group(function () {
         Route::get('guest-users', [AdminGuestUserApiController::class, 'index']);
         Route::get('guest-users/{guestUser}', [AdminGuestUserApiController::class, 'show']);
         Route::post('guest-users/{guestUser}/assign', [AdminGuestUserApiController::class, 'assign']);
+        Route::post('guest-users/{guestUser}/ratings', [AdminGuestUserApiController::class, 'storeRating']);
         Route::get('users/my-permissions', [AdminUserManagementApiController::class, 'myPermissions']);
         Route::get('users/create-form-data', [AdminUserManagementApiController::class, 'createFormData']);
         Route::get('users/{user}', [AdminUserManagementApiController::class, 'show']);
+        Route::post('users/{user}/ratings', [AdminUserManagementApiController::class, 'storeRating']);
         Route::post('users', [AdminUserManagementApiController::class, 'store']);
         Route::put('users/{user}', [AdminUserManagementApiController::class, 'update']);
         Route::post('users/{user}/transfer-branch', [AdminUserManagementApiController::class, 'transferBranch']);

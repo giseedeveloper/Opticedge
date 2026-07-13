@@ -6,7 +6,7 @@
             <div>
                 <p class="admin-prod-eyebrow">Users</p>
                 <h1 class="admin-prod-title">Guest users</h1>
-                <p class="mt-1 text-sm text-slate-600">Self-registered users waiting to be assigned to your vendor.</p>
+                <p class="mt-1 text-sm text-slate-600">Self-registered users waiting to be assigned to your vendor. Review work history and ratings before inviting.</p>
             </div>
         </div>
 
@@ -28,12 +28,14 @@
                     <tr>
                         <th class="px-4 py-3 font-medium">Name</th>
                         <th class="px-4 py-3 font-medium">Email</th>
+                        <th class="px-4 py-3 font-medium">Rating</th>
                         <th class="px-4 py-3 font-medium">Registered</th>
                         <th class="px-4 py-3 font-medium">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
                     @forelse ($guests as $guest)
+                        @php $stats = $totals[$guest->id] ?? ['avg_rating' => null, 'ratings_count' => 0]; @endphp
                         <tr class="border-b border-slate-100">
                             <td class="px-4 py-3">
                                 <div class="flex items-center gap-3">
@@ -44,15 +46,25 @@
                                 </div>
                             </td>
                             <td class="px-4 py-3 text-slate-700">{{ $guest->email }}</td>
+                            <td class="px-4 py-3 text-slate-700">
+                                @if (($stats['ratings_count'] ?? 0) > 0)
+                                    <span class="font-semibold text-[#fa8900]">{{ number_format($stats['avg_rating'], 1) }}</span>
+                                    <span class="text-slate-500">/ 5 ({{ $stats['ratings_count'] }})</span>
+                                @else
+                                    <span class="text-slate-400">No ratings</span>
+                                @endif
+                            </td>
                             <td class="px-4 py-3 text-slate-500">{{ $guest->created_at?->format('M j, Y') }}</td>
-                            <td class="px-4 py-3">
+                            <td class="px-4 py-3 space-x-3">
+                                <a href="{{ route('admin.guest-users.show', $guest) }}"
+                                    class="text-slate-700 hover:underline font-medium">Profile</a>
                                 <a href="{{ route('admin.guest-users.assign', $guest) }}"
                                     class="text-[#fa8900] hover:underline font-medium">Send request</a>
                             </td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="4" class="px-4 py-8 text-center text-slate-500">No guest users waiting for assignment.</td>
+                            <td colspan="5" class="px-4 py-8 text-center text-slate-500">No guest users waiting for assignment.</td>
                         </tr>
                     @endforelse
                 </tbody>

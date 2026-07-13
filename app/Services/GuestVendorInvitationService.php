@@ -116,7 +116,11 @@ class GuestVendorInvitationService
                     'responded_at' => now(),
                 ]);
 
-            return User::withoutGlobalScopes()->findOrFail($guestFresh->id);
+            $assignedUser = User::withoutGlobalScopes()->findOrFail($guestFresh->id);
+            $locked->refresh();
+            app(WorkerReputationService::class)->openTenureFromInvitation($locked, $assignedUser);
+
+            return $assignedUser;
         });
 
         if ($assigned->role === 'agent') {
