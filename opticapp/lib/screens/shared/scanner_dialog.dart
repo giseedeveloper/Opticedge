@@ -101,7 +101,7 @@ class _BarcodeScannerDialogState extends State<_BarcodeScannerDialog> {
             child: MobileScanner(
               controller: _controller,
               onDetect: _onDetect,
-              errorBuilder: (context, error, _) => Container(
+              errorBuilder: (context, error) => Container(
                 color: Colors.black87,
                 alignment: Alignment.center,
                 child: Column(

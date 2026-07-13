@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
 import '../api/auth_api.dart';
 import '../api/client.dart';
@@ -9,17 +10,14 @@ import '../services/website_google_auth_service.dart';
 import '../theme/app_theme.dart';
 import '../utils/auth_navigation.dart';
 
-/// Auth-only accent (mock used blue; app uses yellow here without changing global admin theme).
-const Color _authYellow = Color(0xFFE5B800);
-const Color _authYellowPressed = Color(0xFFC9A200);
-const Color _authBgGray = Color(0xFFE8EAED);
+const Color _authBgTop = Color(0xFFFFF8F2);
+const Color _authBgBottom = Color(0xFFF3F4F6);
 const Color _authTitle = Color(0xFF1A1D21);
 const Color _authMuted = Color(0xFF6B7280);
 const String _kAppIconAsset = 'assets/icons/app_icon.png';
+const String _kGoogleLogoAsset = 'assets/icons/google_logo.svg';
 
 enum _AuthView { signIn, signUp, signUpAgent, signUpDealer, forgot }
-
-enum _ApiSettingsOutcome { saved, useDefault }
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -58,34 +56,40 @@ class _LoginScreenState extends State<LoginScreen> {
   _AuthView _view = _AuthView.signIn;
   bool _loading = false;
   String? _error;
-  String _activeApiBaseUrl = kInternalApiBaseUrl;
   bool _obscureSignInPassword = true;
   bool _obscureSignUpPassword = true;
   bool _obscureAgentPassword = true;
   bool _obscureDealerPassword = true;
-  String? _googleAuthUrl;
 
-  @override
-  void initState() {
-    super.initState();
-    _loadActiveApiBaseUrl();
-    _loadAuthConfig();
-  }
+  Color _brandPrimary(BuildContext context) => Theme.of(context).colorScheme.primary;
 
-  Future<void> _loadAuthConfig() async {
-    try {
-      final config = await getPublicAuthConfig(mobile: true);
-      if (!mounted) return;
-      setState(() {
-        _googleAuthUrl = config['google_auth_url'] as String?;
-      });
-    } catch (_) {}
-  }
+  Color _brandPrimaryPressed(BuildContext context) =>
+      Color.lerp(_brandPrimary(context), Colors.black, 0.12)!;
 
-  Future<void> _loadActiveApiBaseUrl() async {
-    final base = await resolveBaseUrl();
-    if (!mounted) return;
-    setState(() => _activeApiBaseUrl = base);
+  String _friendlyAuthError(Object e, {bool isLogin = false}) {
+    final msg = e.toString().replaceFirst('Exception: ', '').toLowerCase();
+    if (msg.contains('401') ||
+        msg.contains('invalid') ||
+        msg.contains('credential') ||
+        msg.contains('unauthorized')) {
+      return isLogin
+          ? 'Incorrect email or password. Please try again.'
+          : 'Could not complete sign-in. Check your details and try again.';
+    }
+    if (msg.contains('network') ||
+        msg.contains('socket') ||
+        msg.contains('connection') ||
+        msg.contains('failed host') ||
+        msg.contains('host lookup')) {
+      return 'Unable to connect. Check your internet connection and try again.';
+    }
+    if (msg.contains('timeout') || msg.contains('timed out')) {
+      return 'Request timed out. Please try again.';
+    }
+    if (msg.contains('google') || msg.contains('404') || msg.contains('not found')) {
+      return 'Google sign-in is not available right now. Try email and password instead.';
+    }
+    return isLogin ? 'Sign in failed. Please try again.' : 'Something went wrong. Please try again.';
   }
 
   Future<void> _completeAuthSuccess() async {
@@ -106,11 +110,8 @@ class _LoginScreenState extends State<LoginScreen> {
       await _completeAuthSuccess();
     } catch (e) {
       if (!mounted) return;
-      final base = await resolveBaseUrl();
-      final message = e.toString().replaceFirst('Exception: ', '');
       setState(() {
-        _activeApiBaseUrl = base;
-        _error = 'Server: $base\n$message';
+        _error = _friendlyAuthError(e, isLogin: true);
         _loading = false;
       });
     }
@@ -154,15 +155,8 @@ class _LoginScreenState extends State<LoginScreen> {
       await _completeAuthSuccess();
     } catch (e) {
       if (!mounted) return;
-      final msg = e.toString().replaceFirst('Exception: ', '');
       setState(() {
-        if (msg.contains('404') || msg.toLowerCase().contains('not found')) {
-          _error =
-              'Google sign-in is not available on the current API server ($_activeApiBaseUrl). '
-              'Open Server settings (top right) and set the API URL to the same server where website Google login works.';
-        } else {
-          _error = msg;
-        }
+        _error = _friendlyAuthError(e);
         _loading = false;
       });
     }
@@ -171,29 +165,6 @@ class _LoginScreenState extends State<LoginScreen> {
   void _snack(String message) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
-  }
-
-  Future<void> _openApiSettings() async {
-    final existing = await getServerSettingsApiUrl();
-    final active = await resolveBaseUrl();
-    if (!mounted) return;
-    final outcome = await showDialog<_ApiSettingsOutcome>(
-      context: context,
-      builder: (ctx) => _ApiServerSettingsDialog(
-        initialOverride: existing,
-        activeApiBaseUrl: active,
-      ),
-    );
-    if (!mounted || outcome == null) return;
-    await _loadActiveApiBaseUrl();
-    await _loadAuthConfig();
-    if (!mounted) return;
-    switch (outcome) {
-      case _ApiSettingsOutcome.saved:
-        _snack('API address saved: $_activeApiBaseUrl');
-      case _ApiSettingsOutcome.useDefault:
-        _snack('Using built-in API server: $_activeApiBaseUrl');
-    }
   }
 
   @override
@@ -222,6 +193,7 @@ class _LoginScreenState extends State<LoginScreen> {
     Widget? suffixIcon,
   }) {
     const borderRadius = BorderRadius.all(Radius.circular(12));
+    final primary = _brandPrimary(context);
     return InputDecoration(
       hintText: hint,
       prefixIcon: prefixIcon,
@@ -234,9 +206,9 @@ class _LoginScreenState extends State<LoginScreen> {
         borderRadius: borderRadius,
         borderSide: BorderSide(color: Colors.grey.shade300),
       ),
-      focusedBorder: const OutlineInputBorder(
+      focusedBorder: OutlineInputBorder(
         borderRadius: borderRadius,
-        borderSide: BorderSide(color: _authYellow, width: 2),
+        borderSide: BorderSide(color: primary, width: 2),
       ),
       errorBorder: OutlineInputBorder(
         borderRadius: borderRadius,
@@ -250,12 +222,27 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Widget _heroImage() {
-    return Image.asset(
-      _kAppIconAsset,
-      height: 140,
-      fit: BoxFit.contain,
-      errorBuilder: (context, error, stackTrace) =>
-          Icon(Icons.broken_image_outlined, size: 80, color: Colors.grey.shade400),
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: _brandPrimary(context).withValues(alpha: 0.12),
+            blurRadius: 20,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Image.asset(
+        _kAppIconAsset,
+        height: 72,
+        width: 72,
+        fit: BoxFit.contain,
+        errorBuilder: (context, error, stackTrace) =>
+            Icon(Icons.broken_image_outlined, size: 56, color: Colors.grey.shade400),
+      ),
     );
   }
 
@@ -263,7 +250,7 @@ class _LoginScreenState extends State<LoginScreen> {
     return TextButton(
       onPressed: onTap,
       style: TextButton.styleFrom(
-        foregroundColor: _authYellow,
+        foregroundColor: _brandPrimary(context),
         padding: EdgeInsets.zero,
         minimumSize: Size.zero,
         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -273,18 +260,20 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Widget _primaryButton({required String label, required VoidCallback? onPressed}) {
+    final primary = _brandPrimary(context);
+    final pressed = _brandPrimaryPressed(context);
     return FilledButton(
       onPressed: onPressed,
       style: FilledButton.styleFrom(
-        backgroundColor: _authYellow,
+        backgroundColor: primary,
         foregroundColor: Colors.white,
-        disabledBackgroundColor: _authYellow.withValues(alpha: 0.5),
-        minimumSize: const Size.fromHeight(50),
+        disabledBackgroundColor: primary.withValues(alpha: 0.5),
+        minimumSize: const Size.fromHeight(52),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
       ).copyWith(
         overlayColor: WidgetStateProperty.resolveWith((states) {
-          if (states.contains(WidgetState.pressed)) return _authYellowPressed;
+          if (states.contains(WidgetState.pressed)) return pressed;
           return null;
         }),
       ),
@@ -311,13 +300,68 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
+  Widget _authHeader({required String title, required String subtitle}) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          title,
+          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                fontWeight: FontWeight.w700,
+                color: _authTitle,
+              ),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          subtitle,
+          style: TextStyle(color: _authMuted, fontSize: 14, height: 1.35),
+        ),
+      ],
+    );
+  }
+
+  Widget _errorBanner(String message) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.errorContainer.withValues(alpha: 0.35),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: Theme.of(context).colorScheme.error.withValues(alpha: 0.2),
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            Icons.error_outline_rounded,
+            size: 20,
+            color: Theme.of(context).colorScheme.error,
+          ),
+          const SizedBox(width: 10),
+          Expanded(child: Text(message, style: errorStyle())),
+        ],
+      ),
+    );
+  }
+
+  Widget _googleLogo() {
+    return SvgPicture.asset(
+      _kGoogleLogoAsset,
+      width: 20,
+      height: 20,
+      fit: BoxFit.contain,
+      semanticsLabel: 'Google',
+    );
+  }
+
   Widget _googleSignInButton() {
     return OutlinedButton(
       onPressed: _loading ? null : _submitGoogleSignIn,
       style: OutlinedButton.styleFrom(
         foregroundColor: _authTitle,
         backgroundColor: Colors.white,
-        minimumSize: const Size.fromHeight(50),
+        minimumSize: const Size.fromHeight(52),
         side: BorderSide(color: Colors.grey.shade300),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
@@ -333,25 +377,6 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  Widget _googleLogo() {
-    return SizedBox(
-      width: 20,
-      height: 20,
-      child: CustomPaint(painter: _GoogleLogoPainter()),
-    );
-  }
-
-  Widget _googleSignInHint() {
-    return Padding(
-      padding: const EdgeInsets.only(top: 12),
-      child: Text(
-        'New users register as guests and wait for a vendor admin to assign a role.',
-        textAlign: TextAlign.center,
-        style: TextStyle(color: _authMuted, fontSize: 12, height: 1.4),
-      ),
-    );
-  }
-
   void _openPrivacyPolicy() {
     Navigator.pushNamed(context, '/privacy');
   }
@@ -361,6 +386,11 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Widget _legalBlurb() {
+    final linkStyle = TextStyle(
+      color: _brandPrimary(context),
+      fontWeight: FontWeight.w600,
+      fontSize: 12,
+    );
     return Text.rich(
       TextSpan(
         style: TextStyle(color: _authMuted, fontSize: 12, height: 1.4),
@@ -371,10 +401,7 @@ class _LoginScreenState extends State<LoginScreen> {
             baseline: TextBaseline.alphabetic,
             child: GestureDetector(
               onTap: _openTermsOfService,
-              child: const Text(
-                'Terms & Conditions',
-                style: TextStyle(color: _authYellow, fontWeight: FontWeight.w600, fontSize: 12),
-              ),
+              child: Text('Terms & Conditions', style: linkStyle),
             ),
           ),
           const TextSpan(text: ' and '),
@@ -383,10 +410,7 @@ class _LoginScreenState extends State<LoginScreen> {
             baseline: TextBaseline.alphabetic,
             child: GestureDetector(
               onTap: _openPrivacyPolicy,
-              child: const Text(
-                'Privacy Policy',
-                style: TextStyle(color: _authYellow, fontWeight: FontWeight.w600, fontSize: 12),
-              ),
+              child: Text('Privacy Policy', style: linkStyle),
             ),
           ),
           const TextSpan(text: '.'),
@@ -400,7 +424,7 @@ class _LoginScreenState extends State<LoginScreen> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Text(
-          'Other signup',
+          'Sign up as',
           style: TextStyle(
             fontSize: 12,
             fontWeight: FontWeight.w600,
@@ -413,12 +437,22 @@ class _LoginScreenState extends State<LoginScreen> {
           children: [
             Expanded(
               child: OutlinedButton.icon(
-                onPressed: () => setState(() => _view = _AuthView.signUpAgent),
-                icon: Icon(Icons.support_agent_rounded, size: 18, color: _authYellow),
+                onPressed: () => setState(() {
+                  _view = _AuthView.signUpAgent;
+                  _error = null;
+                }),
+                icon: Icon(Icons.support_agent_rounded, size: 18, color: _brandPrimary(context)),
                 label: const Text('Agent'),
                 style: OutlinedButton.styleFrom(
-                  foregroundColor: _authTitle,
-                  side: BorderSide(color: Colors.grey.shade300),
+                  foregroundColor: _view == _AuthView.signUpAgent ? _brandPrimary(context) : _authTitle,
+                  backgroundColor: _view == _AuthView.signUpAgent
+                      ? _brandPrimary(context).withValues(alpha: 0.08)
+                      : Colors.white,
+                  side: BorderSide(
+                    color: _view == _AuthView.signUpAgent
+                        ? _brandPrimary(context)
+                        : Colors.grey.shade300,
+                  ),
                   padding: const EdgeInsets.symmetric(vertical: 10),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
@@ -427,12 +461,22 @@ class _LoginScreenState extends State<LoginScreen> {
             const SizedBox(width: 10),
             Expanded(
               child: OutlinedButton.icon(
-                onPressed: () => setState(() => _view = _AuthView.signUpDealer),
-                icon: Icon(Icons.storefront_outlined, size: 18, color: _authYellow),
+                onPressed: () => setState(() {
+                  _view = _AuthView.signUpDealer;
+                  _error = null;
+                }),
+                icon: Icon(Icons.storefront_outlined, size: 18, color: _brandPrimary(context)),
                 label: const Text('Dealer'),
                 style: OutlinedButton.styleFrom(
-                  foregroundColor: _authTitle,
-                  side: BorderSide(color: Colors.grey.shade300),
+                  foregroundColor: _view == _AuthView.signUpDealer ? _brandPrimary(context) : _authTitle,
+                  backgroundColor: _view == _AuthView.signUpDealer
+                      ? _brandPrimary(context).withValues(alpha: 0.08)
+                      : Colors.white,
+                  side: BorderSide(
+                    color: _view == _AuthView.signUpDealer
+                        ? _brandPrimary(context)
+                        : Colors.grey.shade300,
+                  ),
                   padding: const EdgeInsets.symmetric(vertical: 10),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
@@ -450,72 +494,38 @@ class _LoginScreenState extends State<LoginScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text(
-            'Sign In',
-            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.w700,
-                  color: _authTitle,
-                ),
+          _authHeader(
+            title: 'Welcome back',
+            subtitle: 'Sign in to continue to Opticedge',
           ),
-          const SizedBox(height: 8),
-          Text(
-            'Use your account email and password.',
-            style: TextStyle(color: _authMuted, fontSize: 14, height: 1.35),
-          ),
-          const SizedBox(height: 8),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text('New here? ', style: TextStyle(color: _authMuted, fontSize: 14)),
-              _linkButton(
-                text: 'Create account',
-                onTap: () => setState(() {
-                  _view = _AuthView.signUpAgent;
-                  _error = null;
-                }),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            _activeApiBaseUrl == kInternalApiBaseUrl
-                ? 'Using default server: $_activeApiBaseUrl'
-                : 'Using custom server: $_activeApiBaseUrl',
-            style: TextStyle(color: _authMuted.withValues(alpha: 0.9), fontSize: 12, height: 1.3),
-          ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 20),
           if (_error != null) ...[
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.errorContainer.withValues(alpha: 0.3),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(_error!, style: errorStyle()),
-            ),
-            const SizedBox(height: 16),
+            _errorBanner(_error!),
+            const SizedBox(height: 18),
           ],
           TextFormField(
             controller: _signInEmailController,
             keyboardType: TextInputType.emailAddress,
+            autofillHints: const [AutofillHints.email],
             textInputAction: TextInputAction.next,
             decoration: _fieldDecoration(
               hint: 'Email address',
-              prefixIcon: const Icon(Icons.person_outline, size: 22, color: _authMuted),
+              prefixIcon: const Icon(Icons.mail_outline_rounded, size: 22, color: _authMuted),
             ),
-            validator: (v) => v == null || v.isEmpty ? 'Enter email' : null,
+            validator: (v) => v == null || v.isEmpty ? 'Enter your email' : null,
           ),
           const SizedBox(height: 14),
           TextFormField(
             controller: _signInPasswordController,
             obscureText: _obscureSignInPassword,
+            autofillHints: const [AutofillHints.password],
             textInputAction: TextInputAction.done,
             onFieldSubmitted: (_) {
               if (_signInFormKey.currentState!.validate()) _submitSignIn();
             },
             decoration: _fieldDecoration(
               hint: 'Password',
-              prefixIcon: const Icon(Icons.lock_outline, size: 22, color: _authMuted),
+              prefixIcon: const Icon(Icons.lock_outline_rounded, size: 22, color: _authMuted),
               suffixIcon: IconButton(
                 icon: Icon(
                   _obscureSignInPassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
@@ -524,19 +534,22 @@ class _LoginScreenState extends State<LoginScreen> {
                 onPressed: () => setState(() => _obscureSignInPassword = !_obscureSignInPassword),
               ),
             ),
-            validator: (v) => v == null || v.isEmpty ? 'Enter password' : null,
+            validator: (v) => v == null || v.isEmpty ? 'Enter your password' : null,
           ),
           Align(
             alignment: Alignment.centerRight,
-            child: _linkButton(
-              text: 'Forget password',
-              onTap: () => setState(() {
-                _view = _AuthView.forgot;
-                _error = null;
-              }),
+            child: Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: _linkButton(
+                text: 'Forgot password?',
+                onTap: () => setState(() {
+                  _view = _AuthView.forgot;
+                  _error = null;
+                }),
+              ),
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 20),
           _primaryButton(
             label: 'Sign in',
             onPressed: _loading
@@ -545,11 +558,24 @@ class _LoginScreenState extends State<LoginScreen> {
                     if (_signInFormKey.currentState!.validate()) _submitSignIn();
                   },
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 18),
           _orDivider(),
-          const SizedBox(height: 16),
+          const SizedBox(height: 18),
           _googleSignInButton(),
-          _googleSignInHint(),
+          const SizedBox(height: 20),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text("Don't have an account? ", style: TextStyle(color: _authMuted, fontSize: 14)),
+              _linkButton(
+                text: 'Sign up',
+                onTap: () => setState(() {
+                  _view = _AuthView.signUpAgent;
+                  _error = null;
+                }),
+              ),
+            ],
+          ),
         ],
       ),
     );
@@ -561,25 +587,21 @@ class _LoginScreenState extends State<LoginScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text(
-            'Customer sign up',
-            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.w700,
-                  color: _authTitle,
-                ),
+          _authHeader(
+            title: 'Customer sign up',
+            subtitle: 'Create your account to shop with Opticedge',
           ),
-          const SizedBox(height: 8),
-          Text(
-            'Create a customer account with your details',
-            style: TextStyle(color: _authMuted, fontSize: 14, height: 1.35),
-          ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 20),
+          if (_error != null) ...[
+            _errorBanner(_error!),
+            const SizedBox(height: 18),
+          ],
           TextFormField(
             controller: _signUpNameController,
             textInputAction: TextInputAction.next,
             decoration: _fieldDecoration(
               hint: 'Full name',
-              prefixIcon: const Icon(Icons.badge_outlined, size: 22, color: _authMuted),
+              prefixIcon: const Icon(Icons.person_outline_rounded, size: 22, color: _authMuted),
             ),
             validator: (v) => v == null || v.isEmpty ? 'Enter your name' : null,
           ),
@@ -590,9 +612,9 @@ class _LoginScreenState extends State<LoginScreen> {
             textInputAction: TextInputAction.next,
             decoration: _fieldDecoration(
               hint: 'Email address',
-              prefixIcon: const Icon(Icons.email_outlined, size: 22, color: _authMuted),
+              prefixIcon: const Icon(Icons.mail_outline_rounded, size: 22, color: _authMuted),
             ),
-            validator: (v) => v == null || v.isEmpty ? 'Enter email' : null,
+            validator: (v) => v == null || v.isEmpty ? 'Enter your email' : null,
           ),
           const SizedBox(height: 14),
           TextFormField(
@@ -601,7 +623,7 @@ class _LoginScreenState extends State<LoginScreen> {
             textInputAction: TextInputAction.done,
             decoration: _fieldDecoration(
               hint: 'Password',
-              prefixIcon: const Icon(Icons.lock_outline, size: 22, color: _authMuted),
+              prefixIcon: const Icon(Icons.lock_outline_rounded, size: 22, color: _authMuted),
               suffixIcon: IconButton(
                 icon: Icon(
                   _obscureSignUpPassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
@@ -610,41 +632,10 @@ class _LoginScreenState extends State<LoginScreen> {
                 onPressed: () => setState(() => _obscureSignUpPassword = !_obscureSignUpPassword),
               ),
             ),
-            validator: (v) => v == null || v.isEmpty ? 'Enter password' : null,
+            validator: (v) => v == null || v.isEmpty ? 'Enter your password' : null,
           ),
           const SizedBox(height: 16),
-          Text.rich(
-            TextSpan(
-              style: TextStyle(color: _authMuted, fontSize: 12, height: 1.4),
-              children: [
-                const TextSpan(text: 'By signing up, you agree to our '),
-                WidgetSpan(
-                  alignment: PlaceholderAlignment.baseline,
-                  baseline: TextBaseline.alphabetic,
-                  child: GestureDetector(
-                    onTap: _openTermsOfService,
-                    child: const Text(
-                      'Terms & Conditions',
-                      style: TextStyle(color: _authYellow, fontWeight: FontWeight.w600, fontSize: 12),
-                    ),
-                  ),
-                ),
-                const TextSpan(text: ' and '),
-                WidgetSpan(
-                  alignment: PlaceholderAlignment.baseline,
-                  baseline: TextBaseline.alphabetic,
-                  child: GestureDetector(
-                    onTap: _openPrivacyPolicy,
-                    child: const Text(
-                      'Privacy Policy',
-                      style: TextStyle(color: _authYellow, fontWeight: FontWeight.w600, fontSize: 12),
-                    ),
-                  ),
-                ),
-                const TextSpan(text: '.'),
-              ],
-            ),
-          ),
+          _legalBlurb(),
           const SizedBox(height: 20),
           _primaryButton(
             label: 'Create Account',
@@ -668,17 +659,16 @@ class _LoginScreenState extends State<LoginScreen> {
                     } catch (e) {
                       if (!mounted) return;
                       setState(() {
-                        _error = e.toString().replaceFirst('Exception: ', '');
+                        _error = _friendlyAuthError(e);
                         _loading = false;
                       });
                     }
                   },
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 18),
           _orDivider(),
-          const SizedBox(height: 16),
+          const SizedBox(height: 18),
           _googleSignInButton(),
-          _googleSignInHint(),
           const SizedBox(height: 24),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -702,83 +692,114 @@ class _LoginScreenState extends State<LoginScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text(
-            isAgent ? 'Create account' : 'Dealer sign up',
-            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.w700,
-                  color: _authTitle,
-                ),
+          _authHeader(
+            title: isAgent ? 'Create your account' : 'Dealer sign up',
+            subtitle: isAgent
+                ? 'Enter your details to get started. Your manager will activate your account.'
+                : 'Submit your business details. Our team will review and approve your account.',
           ),
-          const SizedBox(height: 8),
-          Text(
-            isAgent
-                ? 'Register with your email and password. A vendor admin will assign you as agent, team leader, or regional manager.'
-                : 'Create a dealer account for admin approval.',
-            style: TextStyle(color: _authMuted, fontSize: 14, height: 1.35),
-          ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 20),
+          if (_error != null) ...[
+            _errorBanner(_error!),
+            const SizedBox(height: 18),
+          ],
           if (isAgent) ...[
             TextFormField(
               controller: _agentNameController,
-              decoration: _fieldDecoration(hint: 'Full name', prefixIcon: const Icon(Icons.badge_outlined, size: 22, color: _authMuted)),
-              validator: (v) => v == null || v.isEmpty ? 'Required' : null,
+              textInputAction: TextInputAction.next,
+              decoration: _fieldDecoration(
+                hint: 'Full name',
+                prefixIcon: const Icon(Icons.person_outline_rounded, size: 22, color: _authMuted),
+              ),
+              validator: (v) => v == null || v.isEmpty ? 'Enter your name' : null,
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 14),
             TextFormField(
               controller: _agentEmailController,
-              decoration: _fieldDecoration(hint: 'Email', prefixIcon: const Icon(Icons.email_outlined, size: 22, color: _authMuted)),
-              validator: (v) => v == null || v.isEmpty ? 'Required' : null,
+              keyboardType: TextInputType.emailAddress,
+              textInputAction: TextInputAction.next,
+              decoration: _fieldDecoration(
+                hint: 'Email address',
+                prefixIcon: const Icon(Icons.mail_outline_rounded, size: 22, color: _authMuted),
+              ),
+              validator: (v) => v == null || v.isEmpty ? 'Enter your email' : null,
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 14),
             TextFormField(
               controller: _agentPhoneController,
-              decoration: _fieldDecoration(hint: 'Phone (optional)', prefixIcon: const Icon(Icons.phone_outlined, size: 22, color: _authMuted)),
+              keyboardType: TextInputType.phone,
+              textInputAction: TextInputAction.next,
+              decoration: _fieldDecoration(
+                hint: 'Phone (optional)',
+                prefixIcon: const Icon(Icons.phone_outlined, size: 22, color: _authMuted),
+              ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 14),
             TextFormField(
               controller: _agentPasswordController,
               obscureText: _obscureAgentPassword,
+              textInputAction: TextInputAction.done,
               decoration: _fieldDecoration(
                 hint: 'Password',
-                prefixIcon: const Icon(Icons.lock_outline, size: 22, color: _authMuted),
+                prefixIcon: const Icon(Icons.lock_outline_rounded, size: 22, color: _authMuted),
                 suffixIcon: IconButton(
-                  icon: Icon(_obscureAgentPassword ? Icons.visibility_outlined : Icons.visibility_off_outlined, color: _authMuted),
+                  icon: Icon(
+                    _obscureAgentPassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                    color: _authMuted,
+                  ),
                   onPressed: () => setState(() => _obscureAgentPassword = !_obscureAgentPassword),
                 ),
               ),
-              validator: (v) => v == null || v.length < 8 ? 'Min 8 characters' : null,
+              validator: (v) => v == null || v.length < 8 ? 'Password must be at least 8 characters' : null,
             ),
           ] else ...[
             TextFormField(
               controller: _dealerBusinessController,
-              decoration: _fieldDecoration(hint: 'Business name', prefixIcon: const Icon(Icons.store_outlined, size: 22, color: _authMuted)),
-              validator: (v) => v == null || v.isEmpty ? 'Required' : null,
+              textInputAction: TextInputAction.next,
+              decoration: _fieldDecoration(
+                hint: 'Business name',
+                prefixIcon: const Icon(Icons.storefront_outlined, size: 22, color: _authMuted),
+              ),
+              validator: (v) => v == null || v.isEmpty ? 'Enter business name' : null,
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 14),
             TextFormField(
               controller: _dealerContactController,
-              decoration: _fieldDecoration(hint: 'Contact name', prefixIcon: const Icon(Icons.badge_outlined, size: 22, color: _authMuted)),
-              validator: (v) => v == null || v.isEmpty ? 'Required' : null,
+              textInputAction: TextInputAction.next,
+              decoration: _fieldDecoration(
+                hint: 'Contact name',
+                prefixIcon: const Icon(Icons.person_outline_rounded, size: 22, color: _authMuted),
+              ),
+              validator: (v) => v == null || v.isEmpty ? 'Enter contact name' : null,
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 14),
             TextFormField(
               controller: _dealerEmailController,
-              decoration: _fieldDecoration(hint: 'Email', prefixIcon: const Icon(Icons.email_outlined, size: 22, color: _authMuted)),
-              validator: (v) => v == null || v.isEmpty ? 'Required' : null,
+              keyboardType: TextInputType.emailAddress,
+              textInputAction: TextInputAction.next,
+              decoration: _fieldDecoration(
+                hint: 'Email address',
+                prefixIcon: const Icon(Icons.mail_outline_rounded, size: 22, color: _authMuted),
+              ),
+              validator: (v) => v == null || v.isEmpty ? 'Enter your email' : null,
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 14),
             TextFormField(
               controller: _dealerPasswordController,
               obscureText: _obscureDealerPassword,
+              textInputAction: TextInputAction.done,
               decoration: _fieldDecoration(
                 hint: 'Password',
-                prefixIcon: const Icon(Icons.lock_outline, size: 22, color: _authMuted),
+                prefixIcon: const Icon(Icons.lock_outline_rounded, size: 22, color: _authMuted),
                 suffixIcon: IconButton(
-                  icon: Icon(_obscureDealerPassword ? Icons.visibility_outlined : Icons.visibility_off_outlined, color: _authMuted),
+                  icon: Icon(
+                    _obscureDealerPassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                    color: _authMuted,
+                  ),
                   onPressed: () => setState(() => _obscureDealerPassword = !_obscureDealerPassword),
                 ),
               ),
-              validator: (v) => v == null || v.length < 8 ? 'Min 8 characters' : null,
+              validator: (v) => v == null || v.length < 8 ? 'Password must be at least 8 characters' : null,
             ),
           ],
           const SizedBox(height: 20),
@@ -828,19 +849,20 @@ class _LoginScreenState extends State<LoginScreen> {
                     } catch (e) {
                       if (!mounted) return;
                       setState(() {
-                        _error = e.toString().replaceFirst('Exception: ', '');
+                        _error = _friendlyAuthError(e);
                         _loading = false;
                       });
                     }
                   },
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 18),
           if (isAgent) ...[
             _orDivider(),
-            const SizedBox(height: 16),
+            const SizedBox(height: 18),
             _googleSignInButton(),
-            _googleSignInHint(),
           ],
+          const SizedBox(height: 20),
+          _signupModeLinks(),
           const SizedBox(height: 16),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -866,28 +888,20 @@ class _LoginScreenState extends State<LoginScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text(
-            'Forget Password',
-            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.w700,
-                  color: _authTitle,
-                ),
+          _authHeader(
+            title: 'Forgot password',
+            subtitle: 'Enter the email linked to your account and we will send you a reset link.',
           ),
-          const SizedBox(height: 8),
-          Text(
-            "Don't worry, it happens. Please enter the address associated with your account.",
-            style: TextStyle(color: _authMuted, fontSize: 14, height: 1.35),
-          ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 20),
           TextFormField(
             controller: _forgotEmailController,
             keyboardType: TextInputType.emailAddress,
             textInputAction: TextInputAction.done,
             decoration: _fieldDecoration(
               hint: 'Email address',
-              prefixIcon: const Icon(Icons.mail_outline, size: 22, color: _authMuted),
+              prefixIcon: const Icon(Icons.mail_outline_rounded, size: 22, color: _authMuted),
             ),
-            validator: (v) => v == null || v.isEmpty ? 'Enter email' : null,
+            validator: (v) => v == null || v.isEmpty ? 'Enter your email' : null,
           ),
           const SizedBox(height: 20),
           _primaryButton(
@@ -904,7 +918,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       setState(() => _view = _AuthView.signIn);
                     } catch (e) {
                       if (!mounted) return;
-                      _snack(e.toString().replaceFirst('Exception: ', ''));
+                      _snack(_friendlyAuthError(e));
                     } finally {
                       if (mounted) setState(() => _loading = false);
                     }
@@ -914,7 +928,7 @@ class _LoginScreenState extends State<LoginScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Text('You remember your password? ', style: TextStyle(color: _authMuted, fontSize: 14)),
+              Text('Remember your password? ', style: TextStyle(color: _authMuted, fontSize: 14)),
               _linkButton(
                 text: 'Sign in',
                 onTap: () => setState(() => _view = _AuthView.signIn),
@@ -924,6 +938,18 @@ class _LoginScreenState extends State<LoginScreen> {
         ],
       ),
     );
+  }
+
+  bool get _showHeroLogo {
+    switch (_view) {
+      case _AuthView.signUp:
+      case _AuthView.signUpAgent:
+      case _AuthView.signUpDealer:
+        return false;
+      case _AuthView.signIn:
+      case _AuthView.forgot:
+        return true;
+    }
   }
 
   @override
@@ -951,231 +977,82 @@ class _LoginScreenState extends State<LoginScreen> {
           Container(
             width: double.infinity,
             height: double.infinity,
-            color: _authBgGray,
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [_authBgTop, _authBgBottom],
+              ),
+            ),
           ),
           Positioned(
-            top: -40,
-            right: -30,
+            top: -60,
+            right: -40,
             child: IgnorePointer(
               child: Container(
-                width: 120,
-                height: 120,
+                width: 180,
+                height: 180,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: Colors.white.withValues(alpha: 0.45),
+                  color: _brandPrimary(context).withValues(alpha: 0.08),
                 ),
               ),
             ),
           ),
           Positioned(
-            bottom: 80,
-            left: -50,
+            bottom: 40,
+            left: -70,
             child: IgnorePointer(
               child: Container(
-                width: 100,
-                height: 100,
+                width: 160,
+                height: 160,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: Colors.white.withValues(alpha: 0.35),
+                  color: Colors.white.withValues(alpha: 0.55),
                 ),
               ),
             ),
           ),
           SafeArea(
-            child: Stack(
-              clipBehavior: Clip.none,
-              children: [
-                Center(
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 400),
-                      child: Column(
-                        children: [
-                          const SizedBox(height: 8),
-                          _heroImage(),
-                          const SizedBox(height: 20),
-                          Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.fromLTRB(22, 26, 22, 28),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(22),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withValues(alpha: 0.07),
-                                  blurRadius: 24,
-                                  offset: const Offset(0, 8),
-                                ),
-                              ],
+            child: Center(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 400),
+                  child: Column(
+                    children: [
+                      if (_showHeroLogo) ...[
+                        const SizedBox(height: 12),
+                        _heroImage(),
+                        const SizedBox(height: 24),
+                      ] else
+                        const SizedBox(height: 8),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.fromLTRB(24, 28, 24, 28),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: Colors.white),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.06),
+                              blurRadius: 28,
+                              offset: const Offset(0, 10),
                             ),
-                            child: body,
-                          ),
-                          const SizedBox(height: 32),
-                        ],
+                          ],
+                        ),
+                        child: body,
                       ),
-                    ),
+                      const SizedBox(height: 32),
+                    ],
                   ),
                 ),
-                Positioned(
-                  top: 4,
-                  right: 4,
-                  child: Material(
-                    color: Colors.white.withValues(alpha: 0.92),
-                    shape: const CircleBorder(),
-                    elevation: 1,
-                    shadowColor: Colors.black26,
-                    child: IconButton(
-                      tooltip: 'Server settings',
-                      onPressed: _loading ? null : _openApiSettings,
-                      icon: const Icon(Icons.settings_outlined),
-                      color: _authTitle,
-                    ),
-                  ),
-                ),
-              ],
+              ),
             ),
           ),
         ],
       ),
     );
   }
-}
-
-class _ApiServerSettingsDialog extends StatefulWidget {
-  const _ApiServerSettingsDialog({
-    required this.initialOverride,
-    required this.activeApiBaseUrl,
-  });
-
-  final String? initialOverride;
-  final String activeApiBaseUrl;
-
-  @override
-  State<_ApiServerSettingsDialog> createState() => _ApiServerSettingsDialogState();
-}
-
-class _ApiServerSettingsDialogState extends State<_ApiServerSettingsDialog> {
-  late final TextEditingController _urlController;
-  final _formKey = GlobalKey<FormState>();
-
-  @override
-  void initState() {
-    super.initState();
-    _urlController = TextEditingController(text: widget.initialOverride ?? '');
-  }
-
-  @override
-  void dispose() {
-    _urlController.dispose();
-    super.dispose();
-  }
-
-  String? _validateOptionalApiUrl(String value) {
-    final normalized = normalizeServerSettingsApiUrlInput(value);
-    if (value.trim().isEmpty) return null;
-    if (normalized == null) {
-      return 'Enter a valid URL (http/https). Example: 192.168.1.5/api';
-    }
-    return null;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text('Server settings'),
-      content: Form(
-        key: _formKey,
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(
-                'API base URL (include /api if your server uses it). Leave empty to use the built-in server.',
-                style: TextStyle(color: _authMuted, fontSize: 13, height: 1.35),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Currently active: ${widget.activeApiBaseUrl}',
-                style: TextStyle(color: _authMuted.withValues(alpha: 0.85), fontSize: 12),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Default: $kInternalApiBaseUrl',
-                style: TextStyle(color: _authMuted.withValues(alpha: 0.85), fontSize: 12),
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _urlController,
-                keyboardType: TextInputType.url,
-                autocorrect: false,
-                decoration: InputDecoration(
-                  hintText: kInternalApiBaseUrl,
-                  filled: true,
-                  fillColor: Colors.grey.shade50,
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-                validator: (v) => _validateOptionalApiUrl(v ?? ''),
-              ),
-            ],
-          ),
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Cancel'),
-        ),
-        TextButton(
-          onPressed: () async {
-            await setServerSettingsApiUrl(null);
-            if (!context.mounted) return;
-            Navigator.pop(context, _ApiSettingsOutcome.useDefault);
-          },
-          child: Text('Use default', style: TextStyle(color: _authMuted)),
-        ),
-        FilledButton(
-          onPressed: () async {
-            if (!(_formKey.currentState?.validate() ?? false)) return;
-            final normalized = normalizeServerSettingsApiUrlInput(_urlController.text);
-            await setServerSettingsApiUrl(normalized);
-            if (!context.mounted) return;
-            Navigator.pop(context, _ApiSettingsOutcome.saved);
-          },
-          style: FilledButton.styleFrom(backgroundColor: _authYellow, foregroundColor: Colors.white),
-          child: const Text('Save'),
-        ),
-      ],
-    );
-  }
-}
-
-class _GoogleLogoPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()..style = PaintingStyle.fill;
-    final w = size.width;
-    final h = size.height;
-
-    paint.color = const Color(0xFF4285F4);
-    canvas.drawArc(Rect.fromLTWH(0, 0, w, h), 3.14, 1.57, true, paint);
-
-    paint.color = const Color(0xFF34A853);
-    canvas.drawArc(Rect.fromLTWH(0, 0, w, h), 1.57, 1.57, true, paint);
-
-    paint.color = const Color(0xFFFBBC05);
-    canvas.drawArc(Rect.fromLTWH(0, 0, w, h), 0.78, 1.57, true, paint);
-
-    paint.color = const Color(0xFFEA4335);
-    canvas.drawArc(Rect.fromLTWH(0, 0, w, h), -0.78, 1.57, true, paint);
-
-    paint.color = Colors.white;
-    canvas.drawCircle(Offset(w * 0.52, h * 0.52), w * 0.28, paint);
-    paint.color = const Color(0xFF4285F4);
-    canvas.drawRect(Rect.fromLTWH(w * 0.48, h * 0.48, w * 0.42, h * 0.16), paint);
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

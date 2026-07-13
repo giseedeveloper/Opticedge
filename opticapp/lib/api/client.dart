@@ -21,11 +21,13 @@ Future<http.Response> _guardAuthenticatedResponse(http.Response res) async {
 }
 
 /// Default API root when no custom URL is saved (full path including `/api`).
-/// Uses staging while production Google OAuth is still being rolled out.
-const String kInternalApiBaseUrl = 'https://stage.opticedgeafrica.net/api';
+const String kInternalApiBaseUrl = 'https://opticedgeafrica.net/api';
 
 /// Production API root.
 const String kProductionApiBaseUrl = 'https://opticedgeafrica.net/api';
+
+/// Staging host; auto-remapped to [kInternalApiBaseUrl].
+const String _stagingApiBaseUrl = 'https://stage.opticedgeafrica.net/api';
 
 /// Previous production host; auto-remapped to [kInternalApiBaseUrl].
 const String _previousProductionApiBaseUrl = 'https://optic.opticedgeafrica.net/api';
@@ -73,10 +75,13 @@ String? normalizeServerSettingsApiUrlInput(String value) {
   return _normalizeApiBaseUrl(t);
 }
 
-/// Maps previous production API roots to [kInternalApiBaseUrl].
+/// Maps legacy/staging API roots to [kInternalApiBaseUrl].
 String _canonicalizeProductionApiUrl(String url) {
   final normalized = _normalizeApiBaseUrl(url);
   if (normalized == _normalizeApiBaseUrl(_previousProductionApiBaseUrl)) {
+    return kInternalApiBaseUrl;
+  }
+  if (normalized == _normalizeApiBaseUrl(_stagingApiBaseUrl)) {
     return kInternalApiBaseUrl;
   }
   final uri = Uri.tryParse(normalized);
