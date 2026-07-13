@@ -161,6 +161,10 @@ class GuestVendorInvitationService
             'business_name' => $validated['business_name'] ?? null,
         ];
 
+        if (Schema::hasColumn('users', 'ability')) {
+            $payload['ability'] = 'fullaccess';
+        }
+
         if (isset($validated['branch_id'])) {
             $payload['branch_id'] = $validated['branch_id'] ?: null;
         }
