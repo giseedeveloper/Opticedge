@@ -23,8 +23,11 @@ class AdminContractTerminationApiController extends Controller
             ->where('tenant_id', $tenantId)
             ->latest();
 
-        if ($status && in_array($status, ['pending', 'approved', 'rejected', 'cancelled'], true)) {
+        if ($status && in_array($status, ['pending', 'approved', 'rejected', 'cancelled', 'awaiting_major'], true)) {
             $query->where('status', $status);
+        } else {
+            // Default admin queue: only ready for admin decision.
+            $query->where('status', ContractTerminationRequest::STATUS_PENDING);
         }
 
         $page = $query->paginate($request->integer('per_page', 50));
@@ -100,6 +103,44 @@ class AdminContractTerminationApiController extends Controller
             'message' => 'Contract termination request rejected.',
             'data' => $contractTermination->fresh(['user', 'tenant', 'decidedByUser'])->toListArray(),
         ]);
+    }
+
+    public function force(Request $request)
+    {
+        $admin = $request->user();
+        $tenantId = $admin?->tenant_id;
+        if ($tenantId === null) {
+            return response()->json(['message' => 'Your admin account is not linked to a vendor.'], 422);
+        }
+
+        $validated = $request->validate([
+            'user_id' => 'required|integer',
+            'reason' => 'required|string|max:5000',
+        ]);
+
+        $target = \App\Models\User::withoutGlobalScopes()
+            ->whereKey($validated['user_id'])
+            ->where('tenant_id', $tenantId)
+            ->first();
+
+        if (! $target) {
+            return response()->json(['message' => 'User not found in your vendor.'], 404);
+        }
+
+        try {
+            $row = app(ContractTerminationRequestService::class)->createForced(
+                $admin,
+                $target,
+                $validated['reason'],
+            );
+        } catch (\InvalidArgumentException $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
+        }
+
+        return response()->json([
+            'message' => 'Forced termination started. Major must approve after devices are returned.',
+            'data' => $row->toListArray(),
+        ], 201);
     }
 
     private function assertTenantAccess(ContractTerminationRequest $row, $admin): void

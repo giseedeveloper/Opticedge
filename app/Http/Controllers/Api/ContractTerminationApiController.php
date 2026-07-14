@@ -20,7 +20,7 @@ class ContractTerminationApiController extends Controller
             ->where('user_id', $userId)
             ->latest();
 
-        if ($status && in_array($status, ['pending', 'approved', 'rejected', 'cancelled'], true)) {
+        if ($status && in_array($status, ['pending', 'approved', 'rejected', 'cancelled', 'awaiting_major'], true)) {
             $query->where('status', $status);
         }
 
@@ -53,7 +53,7 @@ class ContractTerminationApiController extends Controller
         }
 
         return response()->json([
-            'message' => 'Contract termination request submitted. Your vendor admin will review it.',
+            'message' => 'Contract termination request submitted. Return all devices to your major first if you have any; your major will be notified to approve, then vendor admin reviews.',
             'data' => $row->toListArray(),
         ], 201);
     }

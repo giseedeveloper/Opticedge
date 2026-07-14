@@ -46,7 +46,7 @@ class PortalPendingRequestCounts
                             ->where('status', AgentDeviceReturn::STATUS_PENDING)
                             ->count()
                         : 0,
-                    'pending_contract_terminations' => 0,
+                    'pending_contract_terminations' => self::countAwaitingMajorFor($id),
                 ],
                 'regional_manager' => [
                     'pending_transfer_requests' => self::tableExists('regional_manager_product_transfers')
@@ -61,7 +61,7 @@ class PortalPendingRequestCounts
                             ->where('status', TeamLeaderDeviceReturn::STATUS_PENDING)
                             ->count()
                         : 0,
-                    'pending_contract_terminations' => 0,
+                    'pending_contract_terminations' => self::countAwaitingMajorFor($id),
                 ],
                 'agent' => [
                     'pending_transfer_requests' => AgentProductTransfer::query()
@@ -157,6 +157,22 @@ class PortalPendingRequestCounts
             return ContractTerminationRequest::query()
                 ->where('tenant_id', $user->tenant_id)
                 ->where('status', ContractTerminationRequest::STATUS_PENDING)
+                ->count();
+        } catch (\Throwable) {
+            return 0;
+        }
+    }
+
+    private static function countAwaitingMajorFor(int $majorUserId): int
+    {
+        try {
+            if (! self::tableExists('contract_termination_requests')) {
+                return 0;
+            }
+
+            return ContractTerminationRequest::query()
+                ->where('major_user_id', $majorUserId)
+                ->where('status', ContractTerminationRequest::STATUS_AWAITING_MAJOR)
                 ->count();
         } catch (\Throwable) {
             return 0;

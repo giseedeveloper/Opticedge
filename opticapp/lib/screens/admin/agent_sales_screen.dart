@@ -246,6 +246,7 @@ class _AgentSalesScreenState extends State<AgentSalesScreen> {
         itemBuilder: (context, index) {
                             final s = _list[index];
                             final agentName = s['agent_name'] as String? ?? 'Unknown';
+                            final teamLeaderName = s['team_leader_name']?.toString();
                             final customerName = s['customer_name'] as String? ?? '–';
                             final productName = s['product_name'] as String? ?? '–';
                             final categoryName = s['category_name'] as String? ?? '–';
@@ -288,6 +289,10 @@ class _AgentSalesScreenState extends State<AgentSalesScreen> {
                                     const SizedBox(height: 10),
                                     KeyValueRow(label: 'Date', value: _formatDate(date)),
                                     KeyValueRow(label: 'Customer', value: customerName),
+                                    KeyValueRow(
+                                      label: 'Team leader',
+                                      value: (teamLeaderName != null && teamLeaderName.isNotEmpty) ? teamLeaderName : '–',
+                                    ),
                                     KeyValueRow(label: 'Category', value: categoryName),
                                     KeyValueRow(label: 'Product', value: productName),
                                     KeyValueRow(label: 'Quantity', value: '$qty'),

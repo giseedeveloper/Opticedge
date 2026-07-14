@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../../api/contract_termination_api.dart';
-import '../../theme/app_theme.dart';
 import '../admin/widgets/admin_page_ui.dart';
 
 class ContractTerminationContent extends StatefulWidget {
@@ -15,10 +14,8 @@ class ContractTerminationContent extends StatefulWidget {
 }
 
 class _ContractTerminationContentState extends State<ContractTerminationContent> {
-  final _reason = TextEditingController();
   List<Map<String, dynamic>> _items = [];
   bool _loading = true;
-  bool _submitting = false;
   String? _error;
   int? _busyId;
 
@@ -26,12 +23,6 @@ class _ContractTerminationContentState extends State<ContractTerminationContent>
   void initState() {
     super.initState();
     _load();
-  }
-
-  @override
-  void dispose() {
-    _reason.dispose();
-    super.dispose();
   }
 
   String _formatDate(String? value) {
@@ -61,49 +52,6 @@ class _ContractTerminationContentState extends State<ContractTerminationContent>
         _error = e.toString().replaceFirst('Exception: ', '');
         _loading = false;
       });
-    }
-  }
-
-  Future<void> _submit() async {
-    final reason = _reason.text.trim();
-    if (reason.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter a reason for ending your contract.')),
-      );
-      return;
-    }
-
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Submit termination request?'),
-        content: const Text(
-          'Your vendor admin will review this request. If approved, you will leave this vendor and return to guest status.',
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Submit')),
-        ],
-      ),
-    );
-    if (ok != true || !mounted) return;
-
-    setState(() => _submitting = true);
-    try {
-      await submitContractTerminationRequest(apiPrefix: widget.apiPrefix, reason: reason);
-      if (!mounted) return;
-      _reason.clear();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Termination request submitted.')),
-      );
-      await _load();
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
-      );
-    } finally {
-      if (mounted) setState(() => _submitting = false);
     }
   }
 
@@ -140,8 +88,6 @@ class _ContractTerminationContentState extends State<ContractTerminationContent>
     }
   }
 
-  bool get _hasPending => _items.any((e) => e['status']?.toString() == 'pending');
-
   @override
   Widget build(BuildContext context) {
     if (_loading) return const AdminPageLoading();
@@ -156,55 +102,6 @@ class _ContractTerminationContentState extends State<ContractTerminationContent>
             Center(child: TextButton(onPressed: _load, child: const Text('Retry'))),
             const SizedBox(height: 16),
           ],
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: sectionCardDecoration(context),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Request to end contract',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Explain why you want to leave your current vendor. An admin must approve before your contract ends.',
-                  style: TextStyle(color: Colors.grey.shade700),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: _reason,
-                  maxLines: 4,
-                  enabled: !_hasPending && !_submitting,
-                  decoration: const InputDecoration(
-                    labelText: 'Reason',
-                    hintText: 'Why do you want to terminate your contract?',
-                    border: OutlineInputBorder(),
-                    alignLabelWithHint: true,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                FilledButton(
-                  onPressed: (_hasPending || _submitting) ? null : _submit,
-                  child: _submitting
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Text('Submit request'),
-                ),
-                if (_hasPending) ...[
-                  const SizedBox(height: 8),
-                  Text(
-                    'You already have a pending request. Cancel it below to submit a new one.',
-                    style: TextStyle(color: Colors.orange.shade800, fontSize: 13),
-                  ),
-                ],
-              ],
-            ),
-          ),
-          const SizedBox(height: 20),
           Text(
             'Your requests',
             style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
@@ -285,6 +182,9 @@ class _StatusChip extends StatelessWidget {
     final Color fg;
     final Color bg;
     switch (status) {
+      case 'awaiting_major':
+        fg = Colors.blue.shade800;
+        bg = Colors.blue.withValues(alpha: 0.12);
       case 'pending':
         fg = Colors.orange.shade800;
         bg = Colors.orange.withValues(alpha: 0.12);
@@ -299,6 +199,12 @@ class _StatusChip extends StatelessWidget {
         bg = Colors.grey.withValues(alpha: 0.12);
     }
 
+    final label = switch (status) {
+      'awaiting_major' => 'Awaiting major',
+      'pending' => 'Pending admin',
+      _ => status.isEmpty ? 'Unknown' : status[0].toUpperCase() + status.substring(1),
+    };
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
@@ -306,7 +212,7 @@ class _StatusChip extends StatelessWidget {
         borderRadius: BorderRadius.circular(8),
       ),
       child: Text(
-        status.isEmpty ? 'Unknown' : status[0].toUpperCase() + status.substring(1),
+        label,
         style: TextStyle(color: fg, fontWeight: FontWeight.w600, fontSize: 12),
       ),
     );

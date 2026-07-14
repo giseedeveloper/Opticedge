@@ -788,6 +788,15 @@ class CustomerController extends Controller
                 ->withErrors(['error' => 'Admin account cannot be deactivated here.']);
         }
 
+        if (in_array($user->role, ['agent', 'teamleader', 'regional_manager'], true)) {
+            try {
+                app(\App\Services\WorkerCustodyGuardService::class)->assertCanLeaveVendor($user);
+            } catch (\InvalidArgumentException $e) {
+                return redirect()->route('admin.customers.index', request()->query())
+                    ->withErrors(['error' => $e->getMessage()]);
+            }
+        }
+
         $user->update(['status' => 'inactive']);
 
         return redirect()->route('admin.customers.index', request()->query())

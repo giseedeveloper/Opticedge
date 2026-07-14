@@ -1467,6 +1467,10 @@ class _AdminAgentCreditsScreenState extends State<AdminAgentCreditsScreen> {
                   children: [
                     Text(c['agent_name']?.toString() ?? '–', style: const TextStyle(fontWeight: FontWeight.w700)),
                     Text(
+                      'Team leader: ${((c['team_leader_name']?.toString().isNotEmpty ?? false) ? c['team_leader_name'] : '–')}',
+                      style: TextStyle(color: kAdminTextMuted, fontSize: 13),
+                    ),
+                    Text(
                       '${c['product_name'] ?? ''} · pending ${NumberFormat('#,##0').format((c['pending_amount'] as num?)?.toDouble() ?? 0)}',
                       style: TextStyle(color: kAdminTextMuted, fontSize: 13),
                     ),
@@ -1530,6 +1534,10 @@ class _AdminAgentCreditDetailScreenState extends State<AdminAgentCreditDetailScr
                 children: [
                   if (c != null) ...[
                     Text(c['agent_name']?.toString() ?? '', style: Theme.of(context).textTheme.titleLarge),
+                    Text(
+                      'Team leader: ${((c['team_leader_name']?.toString().isNotEmpty ?? false) ? c['team_leader_name'] : '–')}',
+                      style: TextStyle(color: kAdminTextMuted),
+                    ),
                     Text('Total ${c['total_amount']} · Paid ${c['paid_amount']} · Pending ${c['pending_amount']}'),
                   ],
                   const SizedBox(height: 16),

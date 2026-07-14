@@ -75,6 +75,10 @@
                             –
                             {{ $tenure['ended_at'] ? \Illuminate\Support\Carbon::parse($tenure['ended_at'])->format('M j, Y') : 'Present' }}
                         </p>
+                        <p class="text-xs text-slate-600 mt-1">
+                            Sold devices:
+                            <span class="font-semibold text-slate-900">{{ number_format((int) ($tenure['sold_devices'] ?? 0)) }}</span>
+                        </p>
                     </div>
                 @empty
                     <p class="text-sm text-slate-500">No prior vendor work on record.</p>

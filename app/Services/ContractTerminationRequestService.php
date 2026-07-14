@@ -13,9 +13,14 @@ class ContractTerminationRequestService
 {
     private const FIELD_ROLES = ['agent', 'teamleader', 'regional_manager'];
 
-    public function create(User $requester, string $reason): ContractTerminationRequest
+    public function __construct(
+        private readonly WorkerCustodyGuardService $custody,
+    ) {}
+
+    public function create(User $requester, string $reason, bool $forceInitiated = false): ContractTerminationRequest
     {
         $this->assertFieldUser($requester);
+        $this->custody->assertCanLeaveVendor($requester);
 
         $reason = trim($reason);
         if ($reason === '') {
@@ -29,23 +34,50 @@ class ContractTerminationRequestService
         $existing = ContractTerminationRequest::query()
             ->where('user_id', $requester->id)
             ->where('tenant_id', $requester->tenant_id)
-            ->where('status', ContractTerminationRequest::STATUS_PENDING)
+            ->whereIn('status', [
+                ContractTerminationRequest::STATUS_AWAITING_MAJOR,
+                ContractTerminationRequest::STATUS_PENDING,
+            ])
             ->first();
 
         if ($existing) {
             throw new InvalidArgumentException('You already have a pending contract termination request.');
         }
 
+        $major = $this->custody->resolveMajor($requester);
+        $needsMajor = $major !== null;
+
         $request = ContractTerminationRequest::create([
             'user_id' => $requester->id,
             'tenant_id' => (int) $requester->tenant_id,
+            'major_user_id' => $major?->id,
             'role_at_request' => (string) $requester->role,
-            'status' => ContractTerminationRequest::STATUS_PENDING,
+            'status' => $needsMajor
+                ? ContractTerminationRequest::STATUS_AWAITING_MAJOR
+                : ContractTerminationRequest::STATUS_PENDING,
+            'major_status' => $needsMajor
+                ? ContractTerminationRequest::MAJOR_PENDING
+                : ContractTerminationRequest::MAJOR_SKIPPED,
             'reason' => $reason,
             'snapshot' => $this->buildSnapshot($requester),
+            'force_initiated' => $forceInitiated,
         ]);
 
-        return $request->fresh(['user', 'tenant']);
+        $fresh = $request->fresh(['user', 'tenant', 'majorUser']);
+        $this->notifyAfterCreate($fresh, $requester, $major);
+
+        return $fresh;
+    }
+
+    /**
+     * Admin/force path: still requires returned devices + major approval when a major exists.
+     */
+    public function createForced(User $admin, User $target, string $reason): ContractTerminationRequest
+    {
+        $this->assertAdminForTenant($admin, (int) $target->tenant_id);
+        $this->assertFieldUser($target);
+
+        return $this->create($target, $reason, true);
     }
 
     public function cancel(ContractTerminationRequest $request, User $requester): void
@@ -54,7 +86,7 @@ class ContractTerminationRequestService
             abort(403);
         }
 
-        if (! $request->isPending()) {
+        if (! $request->isOpen()) {
             throw new InvalidArgumentException('This request can no longer be cancelled.');
         }
 
@@ -62,6 +94,57 @@ class ContractTerminationRequestService
             'status' => ContractTerminationRequest::STATUS_CANCELLED,
             'decided_at' => now(),
         ]);
+    }
+
+    public function approveByMajor(ContractTerminationRequest $request, User $major, ?string $note = null): ContractTerminationRequest
+    {
+        if (! $request->isAwaitingMajor()) {
+            throw new InvalidArgumentException('This request is not waiting for major approval.');
+        }
+
+        if ((int) $request->major_user_id !== (int) $major->id) {
+            abort(403);
+        }
+
+        $user = User::withoutGlobalScopes()->findOrFail($request->user_id);
+        $this->custody->assertCanLeaveVendor($user);
+
+        $request->update([
+            'status' => ContractTerminationRequest::STATUS_PENDING,
+            'major_status' => ContractTerminationRequest::MAJOR_APPROVED,
+            'major_note' => $note,
+            'major_decided_at' => now(),
+            'major_decided_by' => $major->id,
+        ]);
+
+        $fresh = $request->fresh(['user', 'tenant', 'majorUser']);
+        app(NotificationDispatchService::class)->contractTerminationMajorApproved($fresh, $major);
+
+        return $fresh;
+    }
+
+    public function rejectByMajor(ContractTerminationRequest $request, User $major, ?string $note = null): void
+    {
+        if (! $request->isAwaitingMajor()) {
+            throw new InvalidArgumentException('This request is not waiting for major approval.');
+        }
+
+        if ((int) $request->major_user_id !== (int) $major->id) {
+            abort(403);
+        }
+
+        $request->update([
+            'status' => ContractTerminationRequest::STATUS_REJECTED,
+            'major_status' => ContractTerminationRequest::MAJOR_REJECTED,
+            'major_note' => $note,
+            'major_decided_at' => now(),
+            'major_decided_by' => $major->id,
+            'decided_at' => now(),
+            'decided_by' => $major->id,
+        ]);
+
+        $fresh = $request->fresh(['user', 'tenant', 'majorUser']);
+        app(NotificationDispatchService::class)->contractTerminationMajorRejected($fresh, $major);
     }
 
     /**
@@ -76,6 +159,11 @@ class ContractTerminationRequestService
         $this->assertAdminForTenant($admin, (int) $request->tenant_id);
 
         if (! $request->isPending()) {
+            if ($request->isAwaitingMajor()) {
+                throw new InvalidArgumentException(
+                    'This request is still waiting for major (supervisor) approval. Devices must be returned and the major must approve first.'
+                );
+            }
             throw new InvalidArgumentException('This request is no longer pending.');
         }
 
@@ -91,6 +179,8 @@ class ContractTerminationRequestService
             if ((int) $user->tenant_id !== (int) $locked->tenant_id) {
                 throw new InvalidArgumentException('This user is no longer assigned to this vendor.');
             }
+
+            app(WorkerCustodyGuardService::class)->assertCanLeaveVendor($user);
 
             $tenantId = (int) $locked->tenant_id;
             $reputation = app(WorkerReputationService::class);
@@ -143,7 +233,10 @@ class ContractTerminationRequestService
                 );
             }
 
-            return User::withoutGlobalScopes()->findOrFail($user->id);
+            $guest = User::withoutGlobalScopes()->findOrFail($user->id);
+            app(NotificationDispatchService::class)->contractTerminationApproved($locked->fresh(['user']), $admin, $guest);
+
+            return $guest;
         });
     }
 
@@ -151,7 +244,7 @@ class ContractTerminationRequestService
     {
         $this->assertAdminForTenant($admin, (int) $request->tenant_id);
 
-        if (! $request->isPending()) {
+        if (! $request->isPending() && ! $request->isAwaitingMajor()) {
             throw new InvalidArgumentException('This request is no longer pending.');
         }
 
@@ -161,6 +254,22 @@ class ContractTerminationRequestService
             'decided_at' => now(),
             'decided_by' => $admin->id,
         ]);
+
+        app(NotificationDispatchService::class)->contractTerminationRejected(
+            $request->fresh(['user']),
+            $admin,
+        );
+    }
+
+    private function notifyAfterCreate(ContractTerminationRequest $request, User $requester, ?User $major): void
+    {
+        $notifications = app(NotificationDispatchService::class);
+
+        if ($major) {
+            $notifications->contractTerminationAwaitingMajor($request, $requester, $major);
+        }
+
+        $notifications->contractTerminationSubmittedAdmins($request, $requester);
     }
 
     private function assertFieldUser(User $user): void

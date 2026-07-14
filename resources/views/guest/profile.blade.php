@@ -65,6 +65,10 @@
                             <span class="ml-1 rounded-full bg-emerald-100 px-2 py-0.5 text-emerald-800">Current</span>
                         @endif
                     </p>
+                    <p class="text-xs text-slate-600 mt-1">
+                        Sold devices:
+                        <span class="font-semibold text-slate-900">{{ number_format((int) ($tenure['sold_devices'] ?? 0)) }}</span>
+                    </p>
                 </div>
             @empty
                 <p class="text-sm text-slate-500">No work history yet. After you join a vendor, it will appear here.</p>

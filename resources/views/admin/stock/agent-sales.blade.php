@@ -83,6 +83,7 @@
                             <th scope="col" class="admin-prod-th">Date</th>
                             <th scope="col" class="admin-prod-th">Customer</th>
                             <th scope="col" class="admin-prod-th">Seller</th>
+                            <th scope="col" class="admin-prod-th">Team leader</th>
                             <th scope="col" class="admin-prod-th">Product</th>
                             <th scope="col" class="admin-prod-th">Qty</th>
                             <th scope="col" class="admin-prod-th">Buy</th>
@@ -100,7 +101,8 @@
                             <tr>
                                 <td class="text-slate-600">{{ $sale->date }}</td>
                                 <td class="font-semibold text-[#232f3e]">{{ $sale->customer_name ?? 'N/A' }}</td>
-                                <td class="text-slate-600">{{ $sale->seller_name ?? $sale->teamLeader?->name ?? $sale->agent?->name ?? '-' }}</td>
+                                <td class="text-slate-600">{{ $sale->seller_name ?? $sale->agent?->name ?? $sale->teamLeader?->name ?? '-' }}</td>
+                                <td class="text-slate-600">{{ $sale->teamLeader?->name ?? $sale->agent?->teamLeader?->name ?? '—' }}</td>
                                 <td class="text-slate-600 text-sm">
                                     {{ $sale->product ? (($sale->product->category?->name ?? '—') . ' – ' . $sale->product->name) : 'N/A' }}</td>
                                 <td class="font-variant-numeric">{{ $sale->quantity_sold }}</td>
@@ -156,7 +158,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="13" class="text-center text-slate-500 py-10">No agent sales found.</td>
+                                <td colspan="14" class="text-center text-slate-500 py-10">No agent sales found.</td>
                             </tr>
                         @endforelse
                     </tbody>

@@ -281,6 +281,14 @@ class AgentController extends Controller
             abort(404);
         }
 
+        if ($user->role === 'agent') {
+            try {
+                app(\App\Services\WorkerCustodyGuardService::class)->assertCanLeaveVendor($user);
+            } catch (\InvalidArgumentException $e) {
+                return redirect()->route('admin.agents.index')->with('error', $e->getMessage());
+            }
+        }
+
         $user->update(['status' => 'inactive']);
 
         $targetRoute = $user->role === 'agent'

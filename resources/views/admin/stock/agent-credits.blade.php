@@ -89,6 +89,7 @@
                         <tr>
                             <th scope="col" class="admin-prod-th">Date</th>
                             <th scope="col" class="admin-prod-th">Agent</th>
+                            <th scope="col" class="admin-prod-th">Team leader</th>
                             <th scope="col" class="admin-prod-th">Customer</th>
                             <th scope="col" class="admin-prod-th">Product</th>
                             <th scope="col" class="admin-prod-th">IMEI</th>
@@ -107,6 +108,7 @@
                                 <td class="text-slate-600 text-sm">
                                     {{ $credit->date instanceof \Carbon\Carbon ? $credit->date->format('Y-m-d') : $credit->date }}</td>
                                 <td class="text-slate-700">{{ $credit->agent?->name ?? '—' }}</td>
+                                <td class="text-slate-700">{{ $credit->teamLeader?->name ?? $credit->agent?->teamLeader?->name ?? '—' }}</td>
                                 <td class="font-medium text-[#232f3e]">{{ $credit->customer_name }}</td>
                                 <td class="text-slate-600 text-sm">
                                     {{ $credit->product ? (($credit->product->category?->name ?? '—') . ' – ' . $credit->product->name) : 'N/A' }}</td>
@@ -146,7 +148,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="12" class="text-center text-slate-500 py-10">No agent credits yet. Credits appear when an agent sells on credit from the app.</td>
+                                <td colspan="13" class="text-center text-slate-500 py-10">No agent credits yet. Credits appear when an agent sells on credit from the app.</td>
                             </tr>
                         @endforelse
                     </tbody>

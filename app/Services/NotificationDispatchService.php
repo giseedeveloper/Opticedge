@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\ContractTerminationRequest;
 use App\Models\GuestVendorInvitation;
 use App\Models\Order;
 use App\Models\User;
@@ -499,6 +500,130 @@ class NotificationDispatchService
                     'meta' => ['scope' => 'regional_manager_to_admin'],
                 ],
             );
+        });
+    }
+
+    public function contractTerminationAwaitingMajor(ContractTerminationRequest $request, User $requester, User $major): void
+    {
+        $this->afterCommit(function () use ($request, $requester, $major) {
+            $role = ContractTerminationRequest::roleLabel($request->role_at_request);
+            $force = $request->force_initiated ? ' (forced)' : '';
+            $this->notifyUser(
+                $major,
+                NotificationType::CONTRACT_TERMINATION_AWAITING_MAJOR,
+                'Contract termination needs your approval',
+                "{$requester->name} ({$role}) requested to leave the vendor{$force}. Confirm devices were returned, then approve or reject.",
+                [
+                    'entity_type' => 'contract_termination',
+                    'entity_id' => $request->id,
+                ],
+            );
+        });
+    }
+
+    public function contractTerminationSubmittedAdmins(ContractTerminationRequest $request, User $requester): void
+    {
+        $this->afterCommit(function () use ($request, $requester) {
+            $role = ContractTerminationRequest::roleLabel($request->role_at_request);
+            $waitingMajor = $request->status === ContractTerminationRequest::STATUS_AWAITING_MAJOR;
+            $body = $waitingMajor
+                ? "{$requester->name} ({$role}) requested to leave. Waiting for their major to approve after devices are returned."
+                : "{$requester->name} ({$role}) requested to leave. Review and decide.";
+
+            $this->notifyTenantAdmins(
+                $request->tenant_id,
+                NotificationType::CONTRACT_TERMINATION_SUBMITTED,
+                'Contract termination request',
+                $body,
+                [
+                    'entity_type' => 'contract_termination',
+                    'entity_id' => $request->id,
+                ],
+            );
+        });
+    }
+
+    public function contractTerminationMajorApproved(ContractTerminationRequest $request, User $major): void
+    {
+        $this->afterCommit(function () use ($request, $major) {
+            $request->loadMissing('user');
+            $name = $request->user?->name ?? 'A worker';
+            $this->notifyTenantAdmins(
+                $request->tenant_id,
+                NotificationType::CONTRACT_TERMINATION_MAJOR_APPROVED,
+                'Major approved termination',
+                "{$major->name} approved {$name}'s exit request. Admin review is required.",
+                [
+                    'entity_type' => 'contract_termination',
+                    'entity_id' => $request->id,
+                ],
+            );
+            if ($request->user) {
+                $this->notifyUser(
+                    $request->user,
+                    NotificationType::CONTRACT_TERMINATION_MAJOR_APPROVED,
+                    'Major approved your exit request',
+                    "{$major->name} approved your request. Vendor admin will make the final decision.",
+                    [
+                        'entity_type' => 'contract_termination',
+                        'entity_id' => $request->id,
+                    ],
+                );
+            }
+        });
+    }
+
+    public function contractTerminationMajorRejected(ContractTerminationRequest $request, User $major): void
+    {
+        $this->afterCommit(function () use ($request, $major) {
+            $request->loadMissing('user');
+            if ($request->user) {
+                $this->notifyUser(
+                    $request->user,
+                    NotificationType::CONTRACT_TERMINATION_MAJOR_REJECTED,
+                    'Exit request rejected by major',
+                    "{$major->name} rejected your contract termination request.",
+                    [
+                        'entity_type' => 'contract_termination',
+                        'entity_id' => $request->id,
+                    ],
+                );
+            }
+        });
+    }
+
+    public function contractTerminationApproved(ContractTerminationRequest $request, User $admin, User $guest): void
+    {
+        $this->afterCommit(function () use ($request, $admin, $guest) {
+            $this->notifyUser(
+                $guest,
+                NotificationType::CONTRACT_TERMINATION_APPROVED,
+                'Contract ended',
+                "{$admin->name} approved your exit. You are now an OpticEdge guest again.",
+                [
+                    'entity_type' => 'contract_termination',
+                    'entity_id' => $request->id,
+                ],
+            );
+        });
+    }
+
+    public function contractTerminationRejected(ContractTerminationRequest $request, User $admin): void
+    {
+        $this->afterCommit(function () use ($request, $admin) {
+            $request->loadMissing('user');
+            if ($request->user) {
+                $this->notifyUser(
+                    $request->user,
+                    NotificationType::CONTRACT_TERMINATION_REJECTED,
+                    'Exit request rejected',
+                    "{$admin->name} rejected your contract termination request.",
+                    [
+                        'entity_type' => 'contract_termination',
+                        'entity_id' => $request->id,
+                    ],
+                );
+            }
         });
     }
 

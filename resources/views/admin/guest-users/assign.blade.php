@@ -64,6 +64,10 @@
                             –
                             {{ $tenure['ended_at'] ? \Illuminate\Support\Carbon::parse($tenure['ended_at'])->format('M j, Y') : 'Present' }}
                         </p>
+                        <p class="text-xs text-slate-600 mt-1">
+                            Sold devices:
+                            <span class="font-semibold text-slate-900">{{ number_format((int) ($tenure['sold_devices'] ?? 0)) }}</span>
+                        </p>
                     </div>
                 @empty
                     <p class="text-sm text-slate-500">No prior work history.</p>
@@ -192,31 +196,6 @@
                                 <p class="text-red-600 text-xs mt-1.5 font-semibold">{{ $message }}</p>
                             @enderror
                         </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="admin-clay-panel admin-prod-form-shell overflow-hidden mt-6">
-                <div class="admin-prod-form-head">
-                    <h2 class="admin-prod-form-title">Additional details</h2>
-                    <p class="admin-prod-form-hint">Optional organization title and internal notes.</p>
-                </div>
-                <div class="admin-prod-form-body space-y-6">
-                    <div>
-                        <label for="business_name" class="admin-prod-label">Business name</label>
-                        <input type="text" id="business_name" name="business_name" value="{{ old('business_name') }}"
-                            class="admin-prod-input" placeholder="Organization or title (optional)">
-                        @error('business_name')
-                            <p class="text-red-600 text-xs mt-1.5 font-semibold">{{ $message }}</p>
-                        @enderror
-                    </div>
-                    <div>
-                        <label for="notes" class="admin-prod-label">Notes</label>
-                        <textarea id="notes" name="notes" rows="3" class="admin-prod-textarea"
-                            placeholder="Internal notes visible to admins only">{{ old('notes') }}</textarea>
-                        @error('notes')
-                            <p class="text-red-600 text-xs mt-1.5 font-semibold">{{ $message }}</p>
-                        @enderror
                     </div>
                 </div>
             </div>

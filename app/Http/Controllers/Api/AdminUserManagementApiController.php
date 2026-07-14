@@ -248,6 +248,15 @@ class AdminUserManagementApiController extends Controller
     public function deactivate(User $user): JsonResponse
     {
         $this->assertManageable($user);
+
+        if (in_array($user->role, ['agent', 'teamleader', 'regional_manager'], true)) {
+            try {
+                app(\App\Services\WorkerCustodyGuardService::class)->assertCanLeaveVendor($user);
+            } catch (\InvalidArgumentException $e) {
+                return response()->json(['message' => $e->getMessage()], 422);
+            }
+        }
+
         $user->update(['status' => 'inactive']);
 
         app(\App\Services\NotificationDispatchService::class)->userDeactivated($user->fresh());

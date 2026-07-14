@@ -25,11 +25,11 @@
                     <dd class="text-lg font-semibold text-slate-900">{{ number_format($stockDashboard['rows']) }}</dd>
                 </div>
                 <div>
-                    <dt class="text-xs uppercase text-slate-500">Total limit qty</dt>
+                    <dt class="text-xs uppercase text-slate-500">Total purchases quantity</dt>
                     <dd class="text-lg font-semibold text-slate-900">{{ number_format($stockDashboard['total_limit']) }}</dd>
                 </div>
                 <div>
-                    <dt class="text-xs uppercase text-slate-500">Total added</dt>
+                    <dt class="text-xs uppercase text-slate-500">Total IMEI's Recorded</dt>
                     <dd class="text-lg font-semibold text-slate-900">{{ number_format($stockDashboard['total_added']) }}</dd>
                 </div>
                 <div>

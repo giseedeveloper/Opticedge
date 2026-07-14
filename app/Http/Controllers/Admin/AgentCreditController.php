@@ -38,7 +38,7 @@ class AgentCreditController extends Controller
                 : 0.0,
         ];
 
-        $credits = $base->with(['agent', 'product.category', 'productListItem', 'paymentOption'])
+        $credits = $base->with(['agent.teamLeader', 'teamLeader', 'product.category', 'productListItem', 'paymentOption'])
             ->orderByDesc('date')
             ->orderByDesc('id')
             ->paginate(50)

@@ -20,20 +20,20 @@ class AgentSaleController extends Controller
     public function index(Request $request)
     {
         $limit = min((int) $request->query('limit', 500), 2000);
-        $sales = AgentSale::with(['product.category', 'agent', 'teamLeader', 'paymentOption'])
+        $sales = AgentSale::with(['product.category', 'agent.teamLeader', 'teamLeader', 'paymentOption'])
             ->latest('date')
             ->take($limit)
             ->get()
             ->map(function ($sale) {
-                $sellerName = $sale->teamLeader?->name
-                    ?? $sale->agent?->name
+                $sellerName = $sale->agent?->name
+                    ?? $sale->teamLeader?->name
                     ?? ($sale->seller_name ?: 'Unknown');
 
                 return [
                     'id' => $sale->id,
                     'agent_name' => $sellerName,
-                    'seller_type' => $sale->team_leader_id ? 'team_leader' : 'agent',
-                    'team_leader_name' => $sale->teamLeader?->name,
+                    'seller_type' => $sale->agent_id ? 'agent' : ($sale->team_leader_id ? 'team_leader' : 'agent'),
+                    'team_leader_name' => $sale->teamLeader?->name ?? $sale->agent?->teamLeader?->name,
                     'customer_name' => $sale->customer_name ?? '–',
                     'product_name' => $sale->product?->name ?? '–',
                     'category_name' => $sale->product?->category?->name ?? '–',

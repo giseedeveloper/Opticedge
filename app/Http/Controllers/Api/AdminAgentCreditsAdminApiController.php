@@ -37,7 +37,7 @@ class AdminAgentCreditsAdminApiController extends Controller
             : 0.0;
 
         $credits = (clone $base)
-            ->with(['agent:id,name,phone', 'teamLeader:id,name,phone', 'product.category', 'paymentOption:id,name'])
+            ->with(['agent:id,name,phone,team_leader_id', 'agent.teamLeader:id,name,phone', 'teamLeader:id,name,phone', 'product.category', 'paymentOption:id,name'])
             ->orderByDesc('date')
             ->orderByDesc('id')
             ->limit(200)
@@ -173,10 +173,10 @@ class AdminAgentCreditsAdminApiController extends Controller
             'date' => optional($c->date)->toDateString(),
             'agent_id' => $c->agent_id,
             'team_leader_id' => $c->team_leader_id,
-            'agent_name' => $c->teamLeader?->name ?? $c->agent?->name,
-            'seller_type' => $c->team_leader_id ? 'team_leader' : 'agent',
-            'team_leader_name' => $c->teamLeader?->name,
-            'agent_phone' => $c->teamLeader?->phone ?? $c->agent?->phone,
+            'agent_name' => $c->agent?->name ?? $c->teamLeader?->name,
+            'seller_type' => $c->agent_id ? 'agent' : ($c->team_leader_id ? 'team_leader' : 'agent'),
+            'team_leader_name' => $c->teamLeader?->name ?? $c->agent?->teamLeader?->name,
+            'agent_phone' => $c->agent?->phone ?? $c->teamLeader?->phone,
             'product_name' => $c->product?->name,
             'category_name' => $c->product?->category?->name,
             'total_amount' => $total,

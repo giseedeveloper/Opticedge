@@ -7,6 +7,7 @@ use App\Models\GuestVendorInvitation;
 use App\Models\User;
 use App\Models\UserRating;
 use App\Models\UserVendorTenure;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use InvalidArgumentException;
 
@@ -167,18 +168,26 @@ class WorkerReputationService
     /**
      * @return list<array<string, mixed>>
      */
-    public function workHistory(User $user): array
+    public function workHistory(User $user, ?int $excludeTenantId = null): array
     {
         if (! Schema::hasTable('user_vendor_tenures')) {
             return [];
         }
 
+        $soldByTenant = $this->soldDeviceCountsByTenantForUser((int) $user->id, $excludeTenantId);
+
         return UserVendorTenure::query()
             ->where('user_id', $user->id)
+            ->when($excludeTenantId !== null, fn ($q) => $q->where('tenant_id', '!=', $excludeTenantId))
             ->with(['tenant:id,name,brand_name'])
             ->orderByDesc('started_at')
             ->get()
-            ->map(fn (UserVendorTenure $t) => $t->toHistoryArray())
+            ->map(function (UserVendorTenure $t) use ($soldByTenant) {
+                $row = $t->toHistoryArray();
+                $row['sold_devices'] = (int) ($soldByTenant[(int) $t->tenant_id] ?? 0);
+
+                return $row;
+            })
             ->values()
             ->all();
     }
@@ -237,15 +246,95 @@ class WorkerReputationService
     }
 
     /**
+     * Devices sold while working for other vendors (excludes the viewing vendor when provided).
+     *
+     * @param  array<int>  $userIds
+     * @return array<int, int> user_id => sold device count
+     */
+    public function soldDeviceCountsForUserIds(array $userIds, ?int $excludeTenantId = null): array
+    {
+        $out = [];
+        foreach ($userIds as $id) {
+            $out[(int) $id] = 0;
+        }
+
+        if ($userIds === [] || ! Schema::hasTable('agent_sales')) {
+            return $out;
+        }
+
+        $rows = $this->soldDevicesQuery($userIds, $excludeTenantId)
+            ->groupBy('s.agent_id')
+            ->selectRaw('s.agent_id as agent_id, COUNT(*) as sold_count')
+            ->pluck('sold_count', 'agent_id');
+
+        foreach ($rows as $agentId => $count) {
+            $out[(int) $agentId] = (int) $count;
+        }
+
+        return $out;
+    }
+
+    /**
+     * @return array<int, int> tenant_id => sold device count for one user
+     */
+    public function soldDeviceCountsByTenantForUser(int $userId, ?int $excludeTenantId = null): array
+    {
+        if (! Schema::hasTable('agent_sales')) {
+            return [];
+        }
+
+        return $this->soldDevicesQuery([$userId], $excludeTenantId)
+            ->groupBy('s.tenant_id')
+            ->selectRaw('s.tenant_id as tenant_id, COUNT(*) as sold_count')
+            ->pluck('sold_count', 'tenant_id')
+            ->map(fn ($c) => (int) $c)
+            ->all();
+    }
+
+    /**
+     * Base query: sold IMEIs attributed to the given agents at other vendors.
+     *
+     * @param  array<int>  $userIds
+     */
+    private function soldDevicesQuery(array $userIds, ?int $excludeTenantId = null)
+    {
+        if (
+            Schema::hasTable('product_list')
+            && Schema::hasColumn('product_list', 'agent_sale_id')
+            && Schema::hasColumn('product_list', 'sold_at')
+        ) {
+            $query = DB::table('product_list as pl')
+                ->join('agent_sales as s', 's.id', '=', 'pl.agent_sale_id')
+                ->whereIn('s.agent_id', $userIds)
+                ->whereNotNull('pl.sold_at')
+                ->whereNotNull('s.tenant_id');
+        } else {
+            $query = DB::table('agent_sales as s')
+                ->whereIn('s.agent_id', $userIds)
+                ->whereNotNull('s.tenant_id');
+        }
+
+        if ($excludeTenantId !== null) {
+            $query->where('s.tenant_id', '!=', $excludeTenantId);
+        }
+
+        return $query;
+    }
+
+    /**
      * @return array<string, mixed>
      */
-    public function profileReputationPayload(User $user): array
+    public function profileReputationPayload(User $user, ?int $excludeTenantId = null): array
     {
         $summary = $this->ratingSummary($user);
+        $soldDevices = $this->soldDeviceCountsForUserIds([(int) $user->id], $excludeTenantId);
 
         return [
             'experience_bio' => Schema::hasColumn('users', 'experience_bio') ? $user->experience_bio : null,
-            'work_history' => Schema::hasTable('user_vendor_tenures') ? $this->workHistory($user) : [],
+            'work_history' => Schema::hasTable('user_vendor_tenures')
+                ? $this->workHistory($user, $excludeTenantId)
+                : [],
+            'sold_devices' => (int) ($soldDevices[(int) $user->id] ?? 0),
             'rating_summary' => [
                 'average' => $summary['average'],
                 'count' => $summary['count'],

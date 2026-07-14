@@ -21,6 +21,9 @@ class AdminGuestUserApiController extends Controller
     public function index(Request $request, WorkerReputationService $reputation): JsonResponse
     {
         $search = trim((string) $request->query('search', ''));
+        $viewerTenantId = $request->user()?->tenant_id !== null
+            ? (int) $request->user()->tenant_id
+            : null;
 
         $users = User::withoutGlobalScopes()
             ->where('role', 'guest')
@@ -30,9 +33,11 @@ class AdminGuestUserApiController extends Controller
             ->take(200)
             ->get();
 
-        $totals = $reputation->ratingTotalsForUserIds($users->pluck('id')->all());
+        $userIds = $users->pluck('id')->all();
+        $totals = $reputation->ratingTotalsForUserIds($userIds);
+        $soldDevices = $reputation->soldDeviceCountsForUserIds($userIds, $viewerTenantId);
 
-        $data = $users->map(function (User $user) use ($totals) {
+        $data = $users->map(function (User $user) use ($totals, $soldDevices) {
             $stats = $totals[$user->id] ?? ['avg_rating' => null, 'ratings_count' => 0];
 
             return [
@@ -46,16 +51,20 @@ class AdminGuestUserApiController extends Controller
                 'created_at' => $user->created_at?->toISOString(),
                 'avg_rating' => $stats['avg_rating'],
                 'ratings_count' => $stats['ratings_count'],
+                'sold_devices' => (int) ($soldDevices[$user->id] ?? 0),
             ];
         });
 
         return response()->json(['data' => $data]);
     }
 
-    public function show(int $guestUser, WorkerReputationService $reputation): JsonResponse
+    public function show(int $guestUser, Request $request, WorkerReputationService $reputation): JsonResponse
     {
         $user = $this->findGuest($guestUser);
-        $reputationPayload = $reputation->profileReputationPayload($user);
+        $viewerTenantId = $request->user()?->tenant_id !== null
+            ? (int) $request->user()->tenant_id
+            : null;
+        $reputationPayload = $reputation->profileReputationPayload($user, $viewerTenantId);
 
         return response()->json(['data' => array_merge([
             'id' => $user->id,

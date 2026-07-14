@@ -73,8 +73,8 @@ class _StocksScreenState extends State<StocksScreen> {
     }
     return [
       AdminStockStat(label: 'Rows', value: formatCount(_stocks.length)),
-      AdminStockStat(label: 'Total limit qty', value: formatCount(totalLimit)),
-      AdminStockStat(label: 'Total added', value: formatCount(totalAdded)),
+      AdminStockStat(label: 'Total purchases quantity', value: formatCount(totalLimit)),
+      AdminStockStat(label: "Total IMEI's Recorded", value: formatCount(totalAdded)),
       AdminStockStat(label: 'Complete', value: formatCount(complete), highlight: true, highlightColor: const Color(0xFF059669)),
       AdminStockStat(label: 'Pending', value: formatCount(pending), highlight: true, highlightColor: const Color(0xFFD97706)),
     ];

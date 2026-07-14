@@ -41,4 +41,16 @@ final class NotificationType
     public const DEVICES_ASSIGNED = 'devices.assigned';
 
     public const GUEST_INVITATION = 'guest.invitation';
+
+    public const CONTRACT_TERMINATION_AWAITING_MAJOR = 'contract_termination.awaiting_major';
+
+    public const CONTRACT_TERMINATION_SUBMITTED = 'contract_termination.submitted';
+
+    public const CONTRACT_TERMINATION_MAJOR_APPROVED = 'contract_termination.major_approved';
+
+    public const CONTRACT_TERMINATION_MAJOR_REJECTED = 'contract_termination.major_rejected';
+
+    public const CONTRACT_TERMINATION_APPROVED = 'contract_termination.approved';
+
+    public const CONTRACT_TERMINATION_REJECTED = 'contract_termination.rejected';
 }

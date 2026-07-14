@@ -6,7 +6,7 @@
         <div>
             <p class="admin-prod-eyebrow">Users</p>
             <h1 class="admin-prod-title">Contract termination requests</h1>
-            <p class="admin-prod-subtitle">Review requests from agents, team leaders, and regional managers who want to leave your vendor.</p>
+            <p class="admin-prod-subtitle">Workers must return all devices to their major first. Major approves, then you make the final decision. You cannot remove or deactivate someone who still holds unsold devices.</p>
         </div>
     </div>
 
@@ -21,8 +21,8 @@
         <div>
             <label class="admin-prod-label">Status</label>
             <select name="status" class="admin-prod-select mt-1" onchange="this.form.submit()">
-                <option value="">All</option>
-                <option value="pending" {{ ($status ?? '') === 'pending' ? 'selected' : '' }}>Pending</option>
+                <option value="pending" {{ ($status ?? 'pending') === 'pending' ? 'selected' : '' }}>Pending admin review</option>
+                <option value="awaiting_major" {{ ($status ?? '') === 'awaiting_major' ? 'selected' : '' }}>Awaiting major</option>
                 <option value="approved" {{ ($status ?? '') === 'approved' ? 'selected' : '' }}>Approved</option>
                 <option value="rejected" {{ ($status ?? '') === 'rejected' ? 'selected' : '' }}>Rejected</option>
                 <option value="cancelled" {{ ($status ?? '') === 'cancelled' ? 'selected' : '' }}>Cancelled</option>
@@ -57,13 +57,20 @@
                         <td class="px-4 py-3">
                             <span class="inline-flex rounded-full px-2 py-0.5 text-xs font-medium
                                 @if($row->status === 'pending') bg-amber-100 text-amber-900
+                                @elseif($row->status === 'awaiting_major') bg-sky-100 text-sky-900
                                 @elseif($row->status === 'approved') bg-green-100 text-green-900
                                 @elseif($row->status === 'rejected') bg-red-100 text-red-900
                                 @else bg-slate-100 text-slate-700 @endif">
-                                {{ ucfirst($row->status) }}
+                                {{ \App\Models\ContractTerminationRequest::statusLabel($row->status) }}
                             </span>
+                            @if($row->majorUser)
+                                <div class="text-xs text-slate-500 mt-1">Major: {{ $row->majorUser->name }}</div>
+                            @endif
                             @if($row->admin_note)
                                 <div class="text-xs text-slate-500 mt-1">Admin: {{ $row->admin_note }}</div>
+                            @endif
+                            @if($row->major_note)
+                                <div class="text-xs text-slate-500 mt-1">Major note: {{ $row->major_note }}</div>
                             @endif
                         </td>
                         <td class="px-4 py-3 text-right whitespace-nowrap">
@@ -85,6 +92,8 @@
                                     <input type="text" name="admin_note" placeholder="Optional note" class="admin-prod-input text-xs mb-1 w-40">
                                     <button type="submit" class="admin-prod-btn-ghost text-xs">Reject</button>
                                 </form>
+                            @elseif($row->isAwaitingMajor())
+                                <span class="text-xs text-slate-500">Waiting for major after devices returned</span>
                             @else
                                 <span class="text-xs text-slate-500">—</span>
                             @endif

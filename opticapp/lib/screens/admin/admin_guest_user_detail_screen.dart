@@ -170,6 +170,10 @@ class _AdminGuestUserDetailScreenState extends State<AdminGuestUserDetailScreen>
                                           '${_formatDate(t['started_at']?.toString())} – ${ended == null || ended.isEmpty ? 'Present' : _formatDate(ended)}',
                                           style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
                                         ),
+                                        Text(
+                                          'Sold devices: ${(t['sold_devices'] as num?)?.toInt() ?? 0}',
+                                          style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+                                        ),
                                       ],
                                     ),
                                   );

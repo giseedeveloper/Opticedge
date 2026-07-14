@@ -16,17 +16,19 @@ class ContractTerminationController extends Controller
         abort_if($tenantId === null, 403);
 
         $status = $request->query('status');
-        if ($status && ! in_array($status, ['pending', 'approved', 'rejected', 'cancelled'], true)) {
+        if ($status && ! in_array($status, ['pending', 'approved', 'rejected', 'cancelled', 'awaiting_major'], true)) {
             $status = null;
         }
 
         $query = ContractTerminationRequest::query()
-            ->with(['user:id,name,email,phone', 'decidedByUser:id,name'])
+            ->with(['user:id,name,email,phone', 'decidedByUser:id,name', 'majorUser:id,name'])
             ->where('tenant_id', $tenantId)
             ->latest();
 
         if ($status) {
             $query->where('status', $status);
+        } else {
+            $query->where('status', ContractTerminationRequest::STATUS_PENDING);
         }
 
         $requests = $query->paginate(50)->withQueryString();

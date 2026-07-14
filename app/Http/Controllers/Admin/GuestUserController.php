@@ -21,6 +21,9 @@ class GuestUserController extends Controller
     public function index(Request $request, WorkerReputationService $reputation): View
     {
         $search = $request->string('search')->trim()->toString();
+        $viewerTenantId = $request->user()?->tenant_id !== null
+            ? (int) $request->user()->tenant_id
+            : null;
 
         $guests = User::withoutGlobalScopes()
             ->where('role', 'guest')
@@ -30,23 +33,31 @@ class GuestUserController extends Controller
             ->paginate(50)
             ->withQueryString();
 
-        $totals = $reputation->ratingTotalsForUserIds($guests->getCollection()->pluck('id')->all());
+        $guestIds = $guests->getCollection()->pluck('id')->all();
+        $totals = $reputation->ratingTotalsForUserIds($guestIds);
+        $soldDevices = $reputation->soldDeviceCountsForUserIds($guestIds, $viewerTenantId);
 
-        return view('admin.guest-users.index', compact('guests', 'search', 'totals'));
+        return view('admin.guest-users.index', compact('guests', 'search', 'totals', 'soldDevices'));
     }
 
-    public function show(int $guestUser, WorkerReputationService $reputation): View
+    public function show(int $guestUser, Request $request, WorkerReputationService $reputation): View
     {
         $guest = $this->findGuest($guestUser);
-        $workHistory = $reputation->workHistory($guest);
+        $viewerTenantId = $request->user()?->tenant_id !== null
+            ? (int) $request->user()->tenant_id
+            : null;
+        $workHistory = $reputation->workHistory($guest, $viewerTenantId);
         $ratingSummary = $reputation->ratingSummary($guest);
 
         return view('admin.guest-users.show', compact('guest', 'workHistory', 'ratingSummary'));
     }
 
-    public function assignForm(int $guestUser, WorkerReputationService $reputation): View
+    public function assignForm(int $guestUser, Request $request, WorkerReputationService $reputation): View
     {
         $guest = $this->findGuest($guestUser);
+        $viewerTenantId = $request->user()?->tenant_id !== null
+            ? (int) $request->user()->tenant_id
+            : null;
 
         $branches = Schema::hasTable('branches')
             ? Branch::orderBy('name')->get(['id', 'name'])
@@ -63,7 +74,7 @@ class GuestUserController extends Controller
             ->orderBy('name')
             ->get(['id', 'name', 'region_id']);
 
-        $workHistory = $reputation->workHistory($guest);
+        $workHistory = $reputation->workHistory($guest, $viewerTenantId);
         $ratingSummary = $reputation->ratingSummary($guest);
 
         return view('admin.guest-users.assign', compact(

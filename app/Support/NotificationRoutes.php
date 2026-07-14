@@ -60,6 +60,17 @@ final class NotificationRoutes
             return $role === 'guest' ? '/guest/requests' : null;
         }
 
+        if (str_starts_with($type, 'contract_termination.')) {
+            return match ($role) {
+                'admin', 'subadmin' => '/admin/contract-terminations',
+                'regional_manager' => '/regional-manager/contract-termination-approvals',
+                'teamleader' => '/team-leader/contract-termination-approvals',
+                'agent' => '/agent/contract-termination',
+                'guest' => '/guest/requests',
+                default => null,
+            };
+        }
+
         return null;
     }
 
@@ -124,6 +135,13 @@ final class NotificationRoutes
 
         if (str_starts_with($type, 'guest.')) {
             return $role === 'guest' ? self::safeRoute('guest.waiting') : null;
+        }
+
+        if (str_starts_with($type, 'contract_termination.')) {
+            return match ($role) {
+                'admin', 'subadmin' => self::safeRoute('admin.contract-terminations.index'),
+                default => null,
+            };
         }
 
         return null;

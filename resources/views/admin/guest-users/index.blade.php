@@ -29,13 +29,17 @@
                         <th class="px-4 py-3 font-medium">Name</th>
                         <th class="px-4 py-3 font-medium">Email</th>
                         <th class="px-4 py-3 font-medium">Rating</th>
+                        <th class="px-4 py-3 font-medium">Sold devices <span class="font-normal text-slate-400">(other vendors)</span></th>
                         <th class="px-4 py-3 font-medium">Registered</th>
                         <th class="px-4 py-3 font-medium">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
                     @forelse ($guests as $guest)
-                        @php $stats = $totals[$guest->id] ?? ['avg_rating' => null, 'ratings_count' => 0]; @endphp
+                        @php
+                            $stats = $totals[$guest->id] ?? ['avg_rating' => null, 'ratings_count' => 0];
+                            $soldCount = (int) ($soldDevices[$guest->id] ?? 0);
+                        @endphp
                         <tr class="border-b border-slate-100">
                             <td class="px-4 py-3">
                                 <div class="flex items-center gap-3">
@@ -54,6 +58,13 @@
                                     <span class="text-slate-400">No ratings</span>
                                 @endif
                             </td>
+                            <td class="px-4 py-3 text-slate-700">
+                                @if ($soldCount > 0)
+                                    <span class="font-semibold text-slate-900">{{ number_format($soldCount) }}</span>
+                                @else
+                                    <span class="text-slate-400">0</span>
+                                @endif
+                            </td>
                             <td class="px-4 py-3 text-slate-500">{{ $guest->created_at?->format('M j, Y') }}</td>
                             <td class="px-4 py-3 space-x-3">
                                 <a href="{{ route('admin.guest-users.show', $guest) }}"
@@ -64,7 +75,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="5" class="px-4 py-8 text-center text-slate-500">No OpticEdge users waiting for assignment.</td>
+                            <td colspan="6" class="px-4 py-8 text-center text-slate-500">No OpticEdge users waiting for assignment.</td>
                         </tr>
                     @endforelse
                 </tbody>
