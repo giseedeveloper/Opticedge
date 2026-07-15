@@ -96,6 +96,11 @@
                             :class="resultOk ? 'bg-emerald-50 text-emerald-800' : 'bg-red-50 text-red-800'"
                             x-text="resultMessage"></p>
                     </div>
+
+                    <div class="pt-4 border-t border-white/60">
+                        <button type="submit" class="admin-prod-btn-primary px-8">Save Selcom settings</button>
+                        <p class="text-xs text-slate-500 mt-2">Save your Vendor ID, API key and secret before running the payment tests below.</p>
+                    </div>
                 </div>
             </div>
 
