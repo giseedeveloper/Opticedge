@@ -85,6 +85,36 @@ class SelcomApiService
     }
 
     /**
+     * Create order (full) – for hosted checkout that supports card and bank payments.
+     * Requires payment_methods and billing.* fields; does NOT accept the "expiry" field.
+     * POST /v1/checkout/create-order
+     */
+    public function createOrder(array $payload): array
+    {
+        $signedFields = array_keys($payload);
+        $url = $this->baseUrl . '/checkout/create-order';
+        $headers = $this->buildHeaders($signedFields, $payload);
+
+        try {
+            $response = Http::connectTimeout(30)
+                ->timeout(90)
+                ->retry(3, 2000)
+                ->withHeaders($headers)
+                ->post($url, $payload);
+
+            $body = $response->json();
+            if ($response->failed()) {
+                return $body ?? ['result' => 'FAIL', 'resultcode' => (string) $response->status(), 'message' => $response->body()];
+            }
+            return $body;
+        } catch (\Illuminate\Http\Client\ConnectionException $e) {
+            return ['result' => 'FAIL', 'resultcode' => 'CONNECTION_ERROR', 'message' => 'Connection timeout: ' . $e->getMessage()];
+        } catch (\Exception $e) {
+            return ['result' => 'FAIL', 'resultcode' => 'ERROR', 'message' => $e->getMessage()];
+        }
+    }
+
+    /**
      * Process order – wallet pull (push USSD to customer).
      * POST /v1/checkout/wallet-payment
      */

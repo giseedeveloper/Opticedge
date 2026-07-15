@@ -83,12 +83,24 @@ class SelcomPaymentTestService
         $selcom = $this->makeService();
         $orderId = 'TESTC'.now()->timestamp.rand(1000, 9999);
 
-        // A buyer phone is required to create an order; card is chosen on the hosted page.
-        $create = $selcom->createOrderMinimal($this->buildOrderPayload($orderId, '255700000000', $amount));
+        // Card/bank need the full create-order (hosted checkout page), not the
+        // minimal wallet endpoint. It requires payment_methods + billing.* fields.
+        $create = $selcom->createOrder($this->buildCheckoutPayload($orderId, $amount));
         if (($create['resultcode'] ?? null) !== '000') {
             return [
                 'ok' => false,
                 'message' => 'Order creation failed: '.$this->errorText($create),
+                'details' => $create,
+            ];
+        }
+
+        // Vendors provisioned only for mobile-money collection return
+        // "Payment notification logged" and produce a checkout page that cannot
+        // render card/bank. Surface that clearly instead of a dead link.
+        if (str_contains(strtolower((string) ($create['message'] ?? '')), 'notification logged')) {
+            return [
+                'ok' => false,
+                'message' => 'Selcom accepted the order but did not open a card/bank checkout (response: "'.($create['message'] ?? '').'"). This usually means the Selcom Checkout product (card & bank) is not enabled for this vendor. Contact Selcom to enable it.',
                 'details' => $create,
             ];
         }
@@ -197,6 +209,42 @@ class SelcomPaymentTestService
             'merchant_remarks' => 'Superadmin diagnostic test',
             'no_of_items' => 1,
             'expiry' => (int) (config('selcom.expiry') ?? 60),
+        ];
+    }
+
+    /**
+     * Payload for the full create-order (hosted card/bank checkout).
+     * Note: no "expiry" field (Selcom rejects it here) and billing.* are flat keys.
+     *
+     * @return array<string, mixed>
+     */
+    protected function buildCheckoutPayload(string $orderId, int $amount): array
+    {
+        $creds = $this->credentials->resolve();
+        $settingsUrl = route('superadmin.settings.index');
+
+        return [
+            'vendor' => $creds['vendor'],
+            'order_id' => $orderId,
+            'buyer_email' => 'diagnostics@opticedge.africa',
+            'buyer_name' => 'Selcom Diagnostic',
+            'buyer_phone' => '255700000000',
+            'amount' => $amount,
+            'currency' => 'TZS',
+            'payment_methods' => 'ALL',
+            'redirect_url' => base64_encode($settingsUrl),
+            'cancel_url' => base64_encode($settingsUrl),
+            'webhook' => base64_encode(route('selcom.checkout-callback')),
+            'buyer_remarks' => 'Selcom payment diagnostic test',
+            'merchant_remarks' => 'Superadmin diagnostic test',
+            'no_of_items' => 1,
+            'billing.firstname' => 'Selcom',
+            'billing.lastname' => 'Diagnostic',
+            'billing.address_1' => 'Dar es Salaam',
+            'billing.city' => 'Dar es Salaam',
+            'billing.state_or_region' => 'Dar es Salaam',
+            'billing.country' => 'TZ',
+            'billing.phone' => '255700000000',
         ];
     }
 
