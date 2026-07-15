@@ -164,6 +164,9 @@ Route::middleware(['auth', 'superadmin'])->prefix('superadmin')->name('superadmi
     Route::get('settings', [App\Http\Controllers\Superadmin\PlatformSettingController::class, 'index'])->name('settings.index');
     Route::post('settings', [App\Http\Controllers\Superadmin\PlatformSettingController::class, 'update'])->name('settings.update');
     Route::post('settings/test-selcom', [App\Http\Controllers\Superadmin\PlatformSettingController::class, 'testSelcom'])->name('settings.test-selcom');
+    Route::post('settings/test-selcom-mobile', [App\Http\Controllers\Superadmin\PlatformSettingController::class, 'testSelcomMobile'])->name('settings.test-selcom-mobile');
+    Route::post('settings/test-selcom-card', [App\Http\Controllers\Superadmin\PlatformSettingController::class, 'testSelcomCard'])->name('settings.test-selcom-card');
+    Route::post('settings/test-selcom-status', [App\Http\Controllers\Superadmin\PlatformSettingController::class, 'testSelcomStatus'])->name('settings.test-selcom-status');
 });
 
 Route::middleware(['auth', 'redirect.superadmin.from.admin', 'admin', 'tenant.subscription', 'subadmin.ability'])->prefix('admin')->name('admin.')->group(function () {

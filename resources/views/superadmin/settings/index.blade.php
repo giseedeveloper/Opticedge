@@ -99,6 +99,78 @@
                 </div>
             </div>
 
+            <div x-show="tab === 'selcom'" x-cloak class="admin-clay-panel admin-prod-form-shell overflow-hidden mt-6"
+                x-data="selcomPaymentTest()">
+                <div class="admin-prod-form-head">
+                    <h2 class="admin-prod-form-title">Test payments</h2>
+                    <p class="admin-prod-form-hint">Check that mobile money and card payments work with the credentials above. Uses throwaway test orders — no real order is created.</p>
+                </div>
+                <div class="admin-prod-form-body space-y-8">
+                    {{-- Mobile money test --}}
+                    <div>
+                        <p class="admin-prod-label mb-2">Mobile money (all mobile money)</p>
+                        <p class="text-xs text-slate-500 mb-3">Sends a real USSD approval prompt to the phone number below. Approve it on the phone, then check the status.</p>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div>
+                                <label for="test_mobile_phone" class="text-xs font-medium text-slate-600">Phone number</label>
+                                <input type="text" id="test_mobile_phone" x-model="mobile.phone"
+                                    placeholder="0712345678" class="admin-prod-input" autocomplete="off">
+                            </div>
+                            <div>
+                                <label for="test_mobile_amount" class="text-xs font-medium text-slate-600">Amount (TZS)</label>
+                                <input type="number" id="test_mobile_amount" x-model="mobile.amount"
+                                    min="100" class="admin-prod-input">
+                            </div>
+                        </div>
+                        <div class="mt-3 flex flex-wrap items-center gap-2">
+                            <button type="button" @click="runMobile" :disabled="mobile.testing"
+                                class="admin-prod-btn-ghost text-sm disabled:opacity-60">
+                                <span x-show="!mobile.testing">Send test push</span>
+                                <span x-show="mobile.testing" x-cloak>Sending…</span>
+                            </button>
+                            <button type="button" x-show="mobile.orderId" x-cloak @click="checkStatus('mobile')"
+                                :disabled="mobile.checking" class="admin-prod-btn-ghost text-sm disabled:opacity-60">
+                                <span x-show="!mobile.checking">Check status</span>
+                                <span x-show="mobile.checking" x-cloak>Checking…</span>
+                            </button>
+                        </div>
+                        <p x-show="mobile.message" x-cloak class="mt-3 text-sm rounded-xl px-3 py-2"
+                            :class="mobile.ok ? 'bg-emerald-50 text-emerald-800' : 'bg-red-50 text-red-800'"
+                            x-text="mobile.message"></p>
+                    </div>
+
+                    {{-- Card test --}}
+                    <div class="pt-6 border-t border-white/60">
+                        <p class="admin-prod-label mb-2">Card / Bank</p>
+                        <p class="text-xs text-slate-500 mb-3">Creates a test order and opens the Selcom hosted checkout, where you can pay by card or bank to confirm those channels work.</p>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div>
+                                <label for="test_card_amount" class="text-xs font-medium text-slate-600">Amount (TZS)</label>
+                                <input type="number" id="test_card_amount" x-model="card.amount"
+                                    min="100" class="admin-prod-input">
+                            </div>
+                        </div>
+                        <div class="mt-3 flex flex-wrap items-center gap-2">
+                            <button type="button" @click="runCard" :disabled="card.testing"
+                                class="admin-prod-btn-ghost text-sm disabled:opacity-60">
+                                <span x-show="!card.testing">Create card / bank test link</span>
+                                <span x-show="card.testing" x-cloak>Creating…</span>
+                            </button>
+                            <a x-show="card.gatewayUrl" x-cloak :href="card.gatewayUrl" target="_blank" rel="noopener"
+                                class="admin-prod-btn-primary text-sm px-4">Open checkout to pay by card or bank</a>
+                            <button type="button" x-show="card.orderId" x-cloak @click="checkStatus('card')"
+                                :disabled="card.checking" class="admin-prod-btn-ghost text-sm disabled:opacity-60">
+                                <span x-show="!card.checking">Check status</span>
+                                <span x-show="card.checking" x-cloak>Checking…</span>
+                            </button>
+                        </div>
+                        <p x-show="card.message" x-cloak class="mt-3 text-sm rounded-xl px-3 py-2"
+                            :class="card.ok ? 'bg-emerald-50 text-emerald-800' : 'bg-red-50 text-red-800'"
+                            x-text="card.message"></p>
+                    </div>
+                </div>
+            </div>
+
             <div x-show="tab === 'email'" x-cloak class="admin-clay-panel admin-prod-form-shell overflow-hidden">
                 <div class="admin-prod-form-head">
                     <h2 class="admin-prod-form-title">Email configuration</h2>
@@ -219,6 +291,79 @@
                             this.resultMessage = 'Could not reach the server.';
                         } finally {
                             this.testing = false;
+                        }
+                    },
+                }));
+
+                Alpine.data('selcomPaymentTest', () => ({
+                    mobile: { phone: '', amount: 1000, testing: false, checking: false, ok: false, message: '', orderId: '' },
+                    card: { amount: 1000, testing: false, checking: false, ok: false, message: '', orderId: '', gatewayUrl: '' },
+                    async post(url, body) {
+                        const res = await fetch(url, {
+                            method: 'POST',
+                            headers: {
+                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                                'Accept': 'application/json',
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify(body || {}),
+                        });
+                        return res.json();
+                    },
+                    async runMobile() {
+                        this.mobile.testing = true;
+                        this.mobile.message = '';
+                        this.mobile.orderId = '';
+                        try {
+                            const data = await this.post(@json(route('superadmin.settings.test-selcom-mobile')), {
+                                phone: this.mobile.phone,
+                                amount: this.mobile.amount,
+                            });
+                            this.mobile.ok = !!data.ok;
+                            this.mobile.message = data.message || (data.ok ? 'OK' : 'Test failed');
+                            this.mobile.orderId = data.order_id || '';
+                        } catch {
+                            this.mobile.ok = false;
+                            this.mobile.message = 'Could not reach the server.';
+                        } finally {
+                            this.mobile.testing = false;
+                        }
+                    },
+                    async runCard() {
+                        this.card.testing = true;
+                        this.card.message = '';
+                        this.card.orderId = '';
+                        this.card.gatewayUrl = '';
+                        try {
+                            const data = await this.post(@json(route('superadmin.settings.test-selcom-card')), {
+                                amount: this.card.amount,
+                            });
+                            this.card.ok = !!data.ok;
+                            this.card.message = data.message || (data.ok ? 'OK' : 'Test failed');
+                            this.card.orderId = data.order_id || '';
+                            this.card.gatewayUrl = data.gateway_url || '';
+                        } catch {
+                            this.card.ok = false;
+                            this.card.message = 'Could not reach the server.';
+                        } finally {
+                            this.card.testing = false;
+                        }
+                    },
+                    async checkStatus(kind) {
+                        const target = this[kind];
+                        if (!target.orderId) return;
+                        target.checking = true;
+                        try {
+                            const data = await this.post(@json(route('superadmin.settings.test-selcom-status')), {
+                                order_id: target.orderId,
+                            });
+                            target.ok = !!data.ok;
+                            target.message = data.message || 'Status unknown.';
+                        } catch {
+                            target.ok = false;
+                            target.message = 'Could not reach the server.';
+                        } finally {
+                            target.checking = false;
                         }
                     },
                 }));

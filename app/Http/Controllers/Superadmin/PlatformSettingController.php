@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Superadmin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Setting;
+use App\Services\SelcomPaymentTestService;
 use App\Services\VendorSubscriptionPaymentService;
 use App\Support\PlatformPaymentSettings;
 use Illuminate\Http\JsonResponse;
@@ -89,5 +90,39 @@ class PlatformSettingController extends Controller
         $result = $payments->testSelcomConnection();
 
         return response()->json($result, $result['ok'] ? 200 : 422);
+    }
+
+    public function testSelcomMobile(Request $request, SelcomPaymentTestService $tester): JsonResponse
+    {
+        $data = $request->validate([
+            'phone' => 'required|string|max:20',
+            'amount' => 'nullable|integer|min:100|max:1000000',
+        ]);
+
+        $result = $tester->testMobileMoney($data['phone'], (int) ($data['amount'] ?? 1000));
+
+        return response()->json($result, $result['ok'] ? 200 : 422);
+    }
+
+    public function testSelcomCard(Request $request, SelcomPaymentTestService $tester): JsonResponse
+    {
+        $data = $request->validate([
+            'amount' => 'nullable|integer|min:100|max:1000000',
+        ]);
+
+        $result = $tester->testCard((int) ($data['amount'] ?? 1000));
+
+        return response()->json($result, $result['ok'] ? 200 : 422);
+    }
+
+    public function testSelcomStatus(Request $request, SelcomPaymentTestService $tester): JsonResponse
+    {
+        $data = $request->validate([
+            'order_id' => 'required|string|max:100',
+        ]);
+
+        $result = $tester->checkOrder($data['order_id']);
+
+        return response()->json($result, 200);
     }
 }
