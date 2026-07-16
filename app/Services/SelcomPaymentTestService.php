@@ -85,7 +85,18 @@ class SelcomPaymentTestService
 
         // Card/bank need the full create-order (hosted checkout page), not the
         // minimal wallet endpoint. It requires payment_methods + billing.* fields.
-        $create = $selcom->createOrder($this->buildCheckoutPayload($orderId, $amount));
+        $payload = $this->buildCheckoutPayload($orderId, $amount);
+        $create = $selcom->createOrder($payload);
+
+        // Full request + Selcom response are logged so the exact exchange can be
+        // pulled from storage/logs/laravel.log and shared with Selcom support.
+        Log::info('Selcom card/bank checkout diagnostic', [
+            'endpoint' => 'checkout/create-order',
+            'order_id' => $orderId,
+            'request' => $payload,
+            'response' => $create,
+        ]);
+
         if (($create['resultcode'] ?? null) !== '000') {
             return [
                 'ok' => false,
@@ -120,8 +131,6 @@ class SelcomPaymentTestService
                 'details' => $create,
             ];
         }
-
-        Log::info('Selcom card diagnostic', ['order_id' => $orderId]);
 
         return [
             'ok' => true,
