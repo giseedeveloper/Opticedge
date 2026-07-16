@@ -65,6 +65,16 @@ return [
             'replace_placeholders' => true,
         ],
 
+        // Dedicated Selcom diagnostics log. Always at debug level so payment
+        // channel tests are captured regardless of the global LOG_LEVEL.
+        'selcom' => [
+            'driver' => 'single',
+            'path' => storage_path('logs/selcom.log'),
+            'level' => 'debug',
+            'days' => 14,
+            'replace_placeholders' => true,
+        ],
+
         'daily' => [
             'driver' => 'daily',
             'path' => storage_path('logs/laravel.log'),

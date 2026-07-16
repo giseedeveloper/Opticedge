@@ -88,9 +88,10 @@ class SelcomPaymentTestService
         $payload = $this->buildCheckoutPayload($orderId, $amount);
         $create = $selcom->createOrder($payload);
 
-        // Full request + Selcom response are logged so the exact exchange can be
-        // pulled from storage/logs/laravel.log and shared with Selcom support.
-        Log::info('Selcom card/bank checkout diagnostic', [
+        // Full request + Selcom response are logged to a dedicated channel
+        // (storage/logs/selcom.log) so the exact exchange can be pulled and
+        // shared with Selcom support, regardless of the global LOG_LEVEL.
+        Log::channel('selcom')->info('Selcom card/bank checkout diagnostic', [
             'endpoint' => 'checkout/create-order',
             'order_id' => $orderId,
             'request' => $payload,
