@@ -106,7 +106,7 @@ class ContractTerminationRequest extends Model
     public static function statusLabel(string $status): string
     {
         return match ($status) {
-            self::STATUS_AWAITING_MAJOR => 'Awaiting major approval',
+            self::STATUS_AWAITING_MAJOR => 'Pending admin review',
             self::STATUS_PENDING => 'Pending admin review',
             self::STATUS_APPROVED => 'Approved',
             self::STATUS_REJECTED => 'Rejected',
@@ -158,10 +158,10 @@ class ContractTerminationRequest extends Model
             'major_decided_by_name' => $this->majorDecidedByUser?->name,
             'created_at' => $this->created_at?->toISOString(),
             'can_cancel' => $this->isOpen(),
-            'can_approve' => $this->isPending(),
-            'can_reject' => $this->isPending(),
-            'can_major_approve' => $this->isAwaitingMajor(),
-            'can_major_reject' => $this->isAwaitingMajor(),
+            'can_approve' => $this->isPending() || $this->isAwaitingMajor(),
+            'can_reject' => $this->isPending() || $this->isAwaitingMajor(),
+            'can_major_approve' => false,
+            'can_major_reject' => false,
         ];
     }
 }

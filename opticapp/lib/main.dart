@@ -58,7 +58,6 @@ import 'screens/regional_manager/regional_manager_imei_register_screen.dart';
 import 'screens/regional_manager/regional_manager_profile_screen.dart';
 import 'screens/regional_manager/regional_manager_vendor_requests_screen.dart';
 import 'screens/regional_manager/regional_manager_contract_termination_screen.dart';
-import 'screens/regional_manager/regional_manager_contract_termination_approvals_screen.dart';
 import 'screens/regional_manager/regional_manager_return_devices_screen.dart';
 import 'screens/regional_manager/regional_manager_return_requests_screen.dart';
 import 'screens/regional_manager/regional_manager_my_transfers_screen.dart';
@@ -69,7 +68,6 @@ import 'screens/team_leader/team_leader_imei_register_screen.dart';
 import 'screens/team_leader/team_leader_profile_screen.dart';
 import 'screens/team_leader/team_leader_vendor_requests_screen.dart';
 import 'screens/team_leader/team_leader_contract_termination_screen.dart';
-import 'screens/team_leader/team_leader_contract_termination_approvals_screen.dart';
 import 'screens/team_leader/team_leader_return_devices_screen.dart';
 import 'screens/team_leader/team_leader_return_requests_screen.dart';
 import 'screens/team_leader/team_leader_my_transfers_screen.dart';
@@ -279,8 +277,6 @@ class OpticApp extends StatelessWidget {
         '/regional-manager/profile': (context) => const RegionalManagerProfileScreen(),
         '/regional-manager/vendor-requests': (context) => const RegionalManagerVendorRequestsScreen(),
         '/regional-manager/contract-termination': (context) => const RegionalManagerContractTerminationScreen(),
-        '/regional-manager/contract-termination-approvals': (context) =>
-            const RegionalManagerContractTerminationApprovalsScreen(),
         '/team-leader/dashboard': (context) => const TeamLeaderDashboardScreen(),
         '/team-leader/imei-register': (context) => const TeamLeaderImeiRegisterScreen(),
         '/team-leader/transfers': (context) => const TeamLeaderMyTransfersScreen(),
@@ -291,8 +287,6 @@ class OpticApp extends StatelessWidget {
         '/team-leader/profile': (context) => const TeamLeaderProfileScreen(),
         '/team-leader/vendor-requests': (context) => const TeamLeaderVendorRequestsScreen(),
         '/team-leader/contract-termination': (context) => const TeamLeaderContractTerminationScreen(),
-        '/team-leader/contract-termination-approvals': (context) =>
-            const TeamLeaderContractTerminationApprovalsScreen(),
         '/team-leader/sell': (context) => const SellScreen(apiPrefix: 'team-leader'),
         '/team-leader/credits': (context) => const AgentCreditsScreen(apiPrefix: 'team-leader'),
         '/team-leader/credits/detail': (context) => const AgentCreditDetailScreen(apiPrefix: 'team-leader'),

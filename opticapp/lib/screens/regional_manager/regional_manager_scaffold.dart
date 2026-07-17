@@ -156,11 +156,6 @@ class _RegionalManagerDrawer extends StatelessWidget {
                       route: '/regional-manager/vendor-requests',
                     ),
                     PortalNavItem(
-                      icon: Icons.verified_user_outlined,
-                      label: 'Exit approvals',
-                      route: '/regional-manager/contract-termination-approvals',
-                    ),
-                    PortalNavItem(
                       icon: Icons.logout_rounded,
                       label: 'End contract',
                       route: '/regional-manager/contract-termination',

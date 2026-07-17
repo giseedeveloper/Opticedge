@@ -197,7 +197,8 @@ class _AdminContractTerminationsScreenState extends State<AdminContractTerminati
                               itemBuilder: (context, index) {
                                 final row = _list[index];
                                 final user = row['user'] as Map<String, dynamic>?;
-                                final pending = row['status']?.toString() == 'pending';
+                                final status = row['status']?.toString();
+                                final actionable = status == 'pending' || status == 'awaiting_major';
 
                                 return Container(
                                   padding: const EdgeInsets.all(16),
@@ -224,7 +225,7 @@ class _AdminContractTerminationsScreenState extends State<AdminContractTerminati
                                           padding: const EdgeInsets.only(top: 8),
                                           child: Text('Admin note: ${row['admin_note']}'),
                                         ),
-                                      if (pending) ...[
+                                      if (actionable) ...[
                                         const SizedBox(height: 12),
                                         Wrap(
                                           spacing: 8,

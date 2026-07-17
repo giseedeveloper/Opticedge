@@ -179,11 +179,6 @@ class _TeamLeaderDrawer extends StatelessWidget {
                       route: '/team-leader/vendor-requests',
                     ),
                     PortalNavItem(
-                      icon: Icons.verified_user_outlined,
-                      label: 'Exit approvals',
-                      route: '/team-leader/contract-termination-approvals',
-                    ),
-                    PortalNavItem(
                       icon: Icons.logout_rounded,
                       label: 'End contract',
                       route: '/team-leader/contract-termination',

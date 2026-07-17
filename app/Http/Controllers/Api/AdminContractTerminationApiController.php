@@ -26,8 +26,11 @@ class AdminContractTerminationApiController extends Controller
         if ($status && in_array($status, ['pending', 'approved', 'rejected', 'cancelled', 'awaiting_major'], true)) {
             $query->where('status', $status);
         } else {
-            // Default admin queue: only ready for admin decision.
-            $query->where('status', ContractTerminationRequest::STATUS_PENDING);
+            // Default admin queue: requests ready for admin decision.
+            $query->whereIn('status', [
+                ContractTerminationRequest::STATUS_PENDING,
+                ContractTerminationRequest::STATUS_AWAITING_MAJOR,
+            ]);
         }
 
         $page = $query->paginate($request->integer('per_page', 50));
@@ -138,7 +141,7 @@ class AdminContractTerminationApiController extends Controller
         }
 
         return response()->json([
-            'message' => 'Forced termination started. Major must approve after devices are returned.',
+            'message' => 'Forced termination started. Awaiting admin review after devices are returned.',
             'data' => $row->toListArray(),
         ], 201);
     }

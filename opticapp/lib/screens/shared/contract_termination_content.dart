@@ -200,7 +200,7 @@ class _StatusChip extends StatelessWidget {
     }
 
     final label = switch (status) {
-      'awaiting_major' => 'Awaiting major',
+      'awaiting_major' => 'Pending admin',
       'pending' => 'Pending admin',
       _ => status.isEmpty ? 'Unknown' : status[0].toUpperCase() + status.substring(1),
     };

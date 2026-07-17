@@ -28,7 +28,10 @@ class ContractTerminationController extends Controller
         if ($status) {
             $query->where('status', $status);
         } else {
-            $query->where('status', ContractTerminationRequest::STATUS_PENDING);
+            $query->whereIn('status', [
+                ContractTerminationRequest::STATUS_PENDING,
+                ContractTerminationRequest::STATUS_AWAITING_MAJOR,
+            ]);
         }
 
         $requests = $query->paginate(50)->withQueryString();

@@ -6,7 +6,7 @@
         <div>
             <p class="admin-prod-eyebrow">Users</p>
             <h1 class="admin-prod-title">Contract termination requests</h1>
-            <p class="admin-prod-subtitle">Workers must return all devices to their major first. Major approves, then you make the final decision. You cannot remove or deactivate someone who still holds unsold devices.</p>
+            <p class="admin-prod-subtitle">Workers must return all devices before you can approve. Only vendor admin can review and decide contract terminations. You cannot remove or deactivate someone who still holds unsold devices.</p>
         </div>
     </div>
 
@@ -22,7 +22,6 @@
             <label class="admin-prod-label">Status</label>
             <select name="status" class="admin-prod-select mt-1" onchange="this.form.submit()">
                 <option value="pending" {{ ($status ?? 'pending') === 'pending' ? 'selected' : '' }}>Pending admin review</option>
-                <option value="awaiting_major" {{ ($status ?? '') === 'awaiting_major' ? 'selected' : '' }}>Awaiting major</option>
                 <option value="approved" {{ ($status ?? '') === 'approved' ? 'selected' : '' }}>Approved</option>
                 <option value="rejected" {{ ($status ?? '') === 'rejected' ? 'selected' : '' }}>Rejected</option>
                 <option value="cancelled" {{ ($status ?? '') === 'cancelled' ? 'selected' : '' }}>Cancelled</option>
@@ -74,7 +73,7 @@
                             @endif
                         </td>
                         <td class="px-4 py-3 text-right whitespace-nowrap">
-                            @if($row->isPending())
+                            @if($row->isPending() || $row->isAwaitingMajor())
                                 <form method="POST" action="{{ route('admin.contract-terminations.approve', $row) }}" class="inline-block mb-2 text-left space-y-1">
                                     @csrf
                                     <input type="text" name="admin_note" placeholder="Optional note" class="admin-prod-input text-xs w-40">
@@ -92,8 +91,6 @@
                                     <input type="text" name="admin_note" placeholder="Optional note" class="admin-prod-input text-xs mb-1 w-40">
                                     <button type="submit" class="admin-prod-btn-ghost text-xs">Reject</button>
                                 </form>
-                            @elseif($row->isAwaitingMajor())
-                                <span class="text-xs text-slate-500">Waiting for major after devices returned</span>
                             @else
                                 <span class="text-xs text-slate-500">—</span>
                             @endif

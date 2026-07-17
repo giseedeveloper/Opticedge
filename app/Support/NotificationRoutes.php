@@ -63,8 +63,8 @@ final class NotificationRoutes
         if (str_starts_with($type, 'contract_termination.')) {
             return match ($role) {
                 'admin', 'subadmin' => '/admin/contract-terminations',
-                'regional_manager' => '/regional-manager/contract-termination-approvals',
-                'teamleader' => '/team-leader/contract-termination-approvals',
+                'regional_manager' => '/regional-manager/contract-termination',
+                'teamleader' => '/team-leader/contract-termination',
                 'agent' => '/agent/contract-termination',
                 'guest' => '/guest/requests',
                 default => null,
