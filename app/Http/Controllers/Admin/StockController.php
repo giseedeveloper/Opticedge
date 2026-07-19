@@ -1922,21 +1922,29 @@ class StockController extends Controller
             }
         }
 
-        // Prepare update data
+        // Prepare update data. Payment-only submits omit name/sell_price — keep existing values.
         $updateData = [
-            'name' => $validated['name'] ?? $purchase->name,
-            'sell_price' => $validated['sell_price'] ?? null,
-            'paid_date' => $newPaidDate,
+            'paid_date' => $newPaidDate ?: $purchase->paid_date,
             'paid_amount' => $newPaidAmount,
             'payment_status' => $paymentStatus,
             'payment_receipt_image' => $paymentReceiptPath,
         ];
+
+        if (array_key_exists('name', $validated)) {
+            $updateData['name'] = $validated['name'] ?? $purchase->name;
+        }
+        if (array_key_exists('sell_price', $validated)) {
+            $updateData['sell_price'] = $validated['sell_price'];
+        }
         
         // Only add payment_option_id if the column exists (migration has been run)
         try {
             $columns = Schema::getColumnListing('purchases');
             if (in_array('payment_option_id', $columns)) {
-                $updateData['payment_option_id'] = $newPaymentOptionId;
+                // Keep existing channel when payment form sends no new payment and no channel change.
+                if ($increment > $eps || $hasPaymentOptionInput) {
+                    $updateData['payment_option_id'] = $newPaymentOptionId;
+                }
             }
         } catch (\Exception $e) {
             Log::warning('payment_option_id column not found in purchases table. Migration may need to be run.');
@@ -1973,11 +1981,18 @@ class StockController extends Controller
         }
 
         $editRoute = $purchase->isPassthrough() ? 'admin.stock.edit-passthrough' : 'admin.stock.edit-purchase';
-        $successLabel = $purchase->isPassthrough() ? 'Passthrough updated successfully.' : 'Purchase updated successfully.';
+        if ($paymentDifference > $eps) {
+            $successLabel = $purchase->isPassthrough()
+                ? 'Payment saved. Passthrough updated.'
+                : 'Payment saved successfully.';
+        } else {
+            $successLabel = $purchase->isPassthrough() ? 'Passthrough updated successfully.' : 'Purchase updated successfully.';
+        }
 
         return redirect()
             ->route($editRoute, $purchase->id)
-            ->with('success', $successLabel);
+            ->with('success', $successLabel)
+            ->withFragment('payment-details');
     }
 
     public function destroyPurchasePayment(Request $request, $id, int $paymentId)
