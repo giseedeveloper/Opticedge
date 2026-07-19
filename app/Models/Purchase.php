@@ -39,6 +39,7 @@ class Purchase extends Model
     protected $casts = [
         'is_passthrough' => 'boolean',
         'date' => 'date',
+        'paid_date' => 'date',
         'expiry_date' => 'date',
     ];
 
