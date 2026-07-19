@@ -30,7 +30,8 @@ class ProductListItem extends Model
 
     public function purchase()
     {
-        return $this->belongsTo(Purchase::class);
+        // Include soft-deleted purchases so sold/history rows keep their purchase info.
+        return $this->belongsTo(Purchase::class)->withTrashed();
     }
 
     public function branch()
@@ -577,6 +578,7 @@ class ProductListItem extends Model
                                 ->from('purchases')
                                 ->whereColumn('purchases.stock_id', 'product_list.stock_id')
                                 ->whereColumn('purchases.product_id', 'product_list.product_id')
+                                ->whereNull('purchases.deleted_at')
                                 ->where($purchaseOk);
                         });
                 });

@@ -23,7 +23,7 @@ class PurchaseLine extends Model
 
     public function purchase(): BelongsTo
     {
-        return $this->belongsTo(Purchase::class);
+        return $this->belongsTo(Purchase::class)->withTrashed();
     }
 
     public function product(): BelongsTo

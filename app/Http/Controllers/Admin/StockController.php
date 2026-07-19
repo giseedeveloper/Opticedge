@@ -1875,58 +1875,50 @@ class StockController extends Controller
         }
         $newPaidDate = $validated['paid_date'] ?? null;
 
-        // Payment channel balances: delta on same channel; refund old + charge full cumulative on switch; refund when channel removed
+        // Channel balances follow payment history: each incremental payment charges
+        // only its own amount to the channel selected for that payment. Changing the
+        // header channel never refunds or re-charges previous payments — deleting a
+        // payment history row is what refunds that payment's channel.
         $oldOptId = $oldPaymentOption !== null ? (int) $oldPaymentOption : null;
         $newOptId = $newPaymentOptionId;
 
-        if ($newOptId === null && $oldOptId !== null && $oldPaidAmount > $eps) {
-            $oldOption = PaymentOption::find($oldOptId);
-            if ($oldOption) {
-                $oldOption->increment('balance', $oldPaidAmount);
-            }
-        } elseif ($oldOptId !== null && $newOptId !== null && $oldOptId !== $newOptId) {
-            if ($oldPaidAmount > $eps) {
-                $oldOption = PaymentOption::find($oldOptId);
-                if ($oldOption) {
-                    $oldOption->increment('balance', $oldPaidAmount);
-                }
-            }
-            if ($newPaidAmount > $eps) {
-                $paymentOption = PaymentOption::visible()->find($newOptId);
-                if (! $paymentOption) {
-                    return redirect()->back()
-                        ->withInput()
-                        ->withErrors(['payment_option_id' => 'Selected channel is not available for payments.']);
-                }
-                if ($paymentOption->balance + $eps >= $newPaidAmount) {
-                    $paymentOption->decrement('balance', $newPaidAmount);
-                } else {
-                    return redirect()->back()
-                        ->withInput()
-                        ->withErrors(['payment_option_id' => 'Insufficient balance in selected payment channel.']);
-                }
-            }
-        } elseif ($newOptId !== null) {
+        if ($increment > $eps) {
             $paymentOption = PaymentOption::visible()->find($newOptId);
             if (! $paymentOption) {
                 return redirect()->back()
                     ->withInput()
                     ->withErrors(['payment_option_id' => 'Selected channel is not available for payments.']);
             }
-            $deltaToApply = $paymentDifference;
-            if ($oldOptId === null && $paymentDifference <= $eps && $oldPaidAmount > $eps) {
-                $deltaToApply = $oldPaidAmount;
+            if ($paymentOption->balance + $eps < $increment) {
+                return redirect()->back()
+                    ->withInput()
+                    ->withErrors(['paid_amount' => 'Insufficient balance in selected payment channel for this payment.']);
             }
-            if ($deltaToApply > $eps) {
-                if ($paymentOption->balance + $eps >= $deltaToApply) {
-                    $paymentOption->decrement('balance', $deltaToApply);
-                } else {
+            $paymentOption->decrement('balance', $increment);
+        } elseif ($oldPaidAmount > $eps && $oldOptId !== $newOptId
+            && ! PurchasePayment::where('purchase_id', $purchase->id)->exists()
+        ) {
+            // Legacy purchases without per-payment history: attributing the old paid
+            // amount to a channel charges it; detaching the channel refunds it.
+            $paymentOption = null;
+            if ($newOptId !== null) {
+                $paymentOption = PaymentOption::visible()->find($newOptId);
+                if (! $paymentOption) {
                     return redirect()->back()
                         ->withInput()
-                        ->withErrors(['paid_amount' => 'Insufficient balance in selected payment channel for this payment.']);
+                        ->withErrors(['payment_option_id' => 'Selected channel is not available for payments.']);
                 }
-            } elseif ($deltaToApply < -$eps) {
-                $paymentOption->increment('balance', abs($deltaToApply));
+                if ($paymentOption->balance + $eps < $oldPaidAmount) {
+                    return redirect()->back()
+                        ->withInput()
+                        ->withErrors(['payment_option_id' => 'Insufficient balance in selected payment channel.']);
+                }
+            }
+            if ($oldOptId !== null) {
+                PaymentOption::find($oldOptId)?->increment('balance', $oldPaidAmount);
+            }
+            if ($paymentOption !== null) {
+                $paymentOption->decrement('balance', $oldPaidAmount);
             }
         }
 
@@ -2057,63 +2049,86 @@ class StockController extends Controller
             ->with('success', $successLabel);
     }
 
+    /**
+     * Soft-delete a purchase. Sales, credits, pending sales, sold devices and all
+     * hierarchy/transfer/return history are preserved. Only free (unsold, unlinked,
+     * unassigned, no history) warehouse IMEIs are removed and taken out of stock.
+     */
     public function destroyPurchase($id, bool $passthrough = false)
     {
         $purchase = ($passthrough ? Purchase::passthrough() : Purchase::stockPurchases())
-            ->with(['product', 'productListItems'])
+            ->with(['product', 'lines'])
             ->findOrFail($id);
-        $purchaseQty = (int) ($purchase->quantity ?? 0);
-        $productId = $purchase->product_id;
 
         try {
-            DB::transaction(function () use ($purchase, $id, $purchaseQty, $productId) {
-                if (! empty($purchase->payment_receipt_image) && Storage::disk('public')->exists($purchase->payment_receipt_image)) {
-                    try {
-                        Storage::disk('public')->delete($purchase->payment_receipt_image);
-                    } catch (\Throwable $e) {
-                        Log::warning('Purchase receipt delete failed: '.$e->getMessage());
+            DB::transaction(function () use ($purchase, $id) {
+                // Warehouse IMEIs with no sale/credit/assignment links and no
+                // transfer/return history. Deleting anything else would destroy
+                // history (directly or via ON DELETE CASCADE foreign keys).
+                $freeItems = ProductListItem::where('purchase_id', $id)
+                    ->whereNull('sold_at')
+                    ->whereNull('agent_sale_id')
+                    ->whereNull('pending_sale_id')
+                    ->whereNull('agent_credit_id')
+                    ->when(
+                        Schema::hasColumn('product_list', 'distribution_sale_id'),
+                        fn ($q) => $q->whereNull('distribution_sale_id')
+                    )
+                    ->whereDoesntHave('agentProductListAssignment')
+                    ->whereDoesntHave('regionalManagerProductListAssignment')
+                    ->whereDoesntHave('teamLeaderProductListAssignment')
+                    ->whereDoesntHave('agentProductTransferItems')
+                    ->whereDoesntHave('regionalManagerProductTransferItems')
+                    ->whereDoesntHave('teamLeaderProductTransferItems')
+                    ->whereDoesntHave('agentDeviceReturnItems')
+                    ->whereDoesntHave('teamLeaderDeviceReturnItems')
+                    ->whereDoesntHave('regionalManagerDeviceReturnItems')
+                    ->get(['id', 'product_id']);
+
+                // Stock contributed by this purchase that is still in the warehouse:
+                // free registered IMEIs plus unregistered slots (limit_remaining).
+                $decrementByProduct = [];
+
+                foreach ($freeItems as $item) {
+                    $pid = (int) ($item->product_id ?? $purchase->product_id ?? 0);
+                    if ($pid > 0) {
+                        $decrementByProduct[$pid] = ($decrementByProduct[$pid] ?? 0) + 1;
                     }
                 }
 
-                $items = ProductListItem::where('purchase_id', $id)->get();
-
-                $agentSaleIds = $items->pluck('agent_sale_id')->filter()->unique()->values();
-                foreach ($agentSaleIds as $saleId) {
-                    $sale = AgentSale::lockForUpdate()->find($saleId);
-                    if (! $sale) {
-                        continue;
+                if ($purchase->lines->isNotEmpty()) {
+                    foreach ($purchase->lines as $line) {
+                        $pid = (int) ($line->product_id ?? 0);
+                        $slots = max(0, (int) ($line->limit_remaining ?? 0));
+                        if ($pid > 0 && $slots > 0) {
+                            $decrementByProduct[$pid] = ($decrementByProduct[$pid] ?? 0) + $slots;
+                        }
                     }
-                    $qty = (int) ($sale->quantity_sold ?? 0);
-                    $saleProductId = $sale->product_id;
-                    $this->applyAgentSaleRemovalEffects($sale);
-                    DB::table('agent_sales')->where('id', $sale->id)->delete();
-                    if ($saleProductId && $qty > 0) {
-                        Product::whereKey($saleProductId)->increment('stock_quantity', $qty);
+                } elseif ($purchase->product_id) {
+                    $registered = ProductListItem::where('purchase_id', $id)->count();
+                    $slots = max(0, (int) ($purchase->quantity ?? 0) - $registered);
+                    if ($slots > 0) {
+                        $pid = (int) $purchase->product_id;
+                        $decrementByProduct[$pid] = ($decrementByProduct[$pid] ?? 0) + $slots;
                     }
                 }
 
-                $pendingIds = $items->pluck('pending_sale_id')->filter()->unique()->values();
-                foreach ($pendingIds as $pid) {
-                    DB::table('pending_sales')->where('id', $pid)->delete();
+                if ($freeItems->isNotEmpty()) {
+                    ProductListItem::whereIn('id', $freeItems->pluck('id'))->delete();
                 }
 
-                $creditIds = $items->pluck('agent_credit_id')->filter()->unique()->values();
-                foreach ($creditIds as $cid) {
-                    DB::table('agent_credits')->where('id', $cid)->delete();
-                }
-
-                DB::table('product_list')->where('purchase_id', $id)->delete();
-
-                DB::table('purchases')->where('id', $id)->delete();
-
-                if ($productId && $purchaseQty > 0) {
-                    $p = Product::lockForUpdate()->find($productId);
+                foreach ($decrementByProduct as $pid => $qty) {
+                    $p = Product::lockForUpdate()->find($pid);
                     if ($p) {
                         $p->update([
-                            'stock_quantity' => max(0, (int) $p->stock_quantity - $purchaseQty),
+                            'stock_quantity' => max(0, (int) $p->stock_quantity - (int) $qty),
                         ]);
                     }
                 }
+
+                // Soft delete: purchase stays in the database (deleted_at set) and
+                // can be restored. Receipt image is kept for the same reason.
+                $purchase->delete();
             });
         } catch (\RuntimeException $e) {
             return redirect()->route($passthrough ? 'admin.stock.passthrough' : 'admin.stock.purchases')
@@ -2127,8 +2142,8 @@ class StockController extends Controller
 
         $listRoute = $passthrough ? 'admin.stock.passthrough' : 'admin.stock.purchases';
         $successMessage = $passthrough
-            ? 'Passthrough deleted successfully.'
-            : 'Purchase deleted, including linked stock and agent sale / credit / pending data.';
+            ? 'Passthrough deleted. Linked history was preserved.'
+            : 'Purchase deleted. Sales, credits and device history were preserved; unsold stock was removed.';
 
         return redirect()->route($listRoute)->with('success', $successMessage);
     }

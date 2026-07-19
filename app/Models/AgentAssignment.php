@@ -39,7 +39,7 @@ class AgentAssignment extends Model
 
     public function purchase()
     {
-        return $this->belongsTo(Purchase::class);
+        return $this->belongsTo(Purchase::class)->withTrashed();
     }
 
     /** Quantity still available to sell */
