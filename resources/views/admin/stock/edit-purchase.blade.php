@@ -200,13 +200,13 @@
                                                     <td class="px-4 py-2 text-slate-600">{{ $payment->paymentOption ? $payment->paymentOption->name : 'N/A' }}</td>
                                                     <td class="px-4 py-2 text-right font-medium text-slate-900">{{ number_format($payment->amount, 2) }}</td>
                                                     <td class="px-4 py-2 text-right">
-                                                        <form action="{{ route($destroyPaymentRoute, ['id' => $purchase->id, 'paymentId' => $payment->id]) }}" method="POST"
-                                                            class="inline-block"
-                                                            onsubmit="return confirm('Delete this payment? The amount will be removed from the purchase and refunded to the payment channel.');">
-                                                            @csrf
-                                                            @method('DELETE')
-                                                            <button type="submit" class="text-red-600 hover:text-red-800 text-sm font-semibold">Delete</button>
-                                                        </form>
+                                                        {{-- Button submits the standalone delete form rendered outside the main form.
+                                                             A nested <form> here would be ignored by the browser and its _method=DELETE
+                                                             would hijack the main update form, deleting the whole purchase. --}}
+                                                        <button type="submit"
+                                                            form="delete-payment-{{ $payment->id }}"
+                                                            onclick="return confirm('Delete this payment? The amount will be removed from the purchase and refunded to the payment channel.');"
+                                                            class="text-red-600 hover:text-red-800 text-sm font-semibold">Delete</button>
                                                     </td>
                                                 </tr>
                                             @endforeach
@@ -233,6 +233,18 @@
                         <button type="submit" id="edit_purchase_submit" class="admin-prod-btn-primary px-8">Update purchase</button>
                     </div>
                 </form>
+
+                {{-- Payment-history delete forms live outside the main form (nested forms are invalid HTML). --}}
+                @if(isset($payments) && $payments->count() > 0)
+                    @foreach($payments as $payment)
+                        <form id="delete-payment-{{ $payment->id }}"
+                            action="{{ route($destroyPaymentRoute, ['id' => $purchase->id, 'paymentId' => $payment->id]) }}"
+                            method="POST" class="hidden">
+                            @csrf
+                            @method('DELETE')
+                        </form>
+                    @endforeach
+                @endif
         </div>
     </div>
 
