@@ -484,7 +484,7 @@
                                 <path stroke-linecap="round" stroke-linejoin="round"
                                     d="M7.5 21L3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" />
                             </svg>
-                            Pay out
+                            Agent Commission Disbursement
                         </a>
                         <a href="{{ route('admin.reports.index') }}"
                             @if (request()->routeIs('admin.reports.*')) aria-current="page" @endif
@@ -526,6 +526,16 @@
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                             </svg>
                             Store Settings
+                        </a>
+                        <a href="{{ route('admin.activity-logs.index') }}"
+                            @if (request()->routeIs('admin.activity-logs.*')) aria-current="page" @endif
+                            class="admin-sidebar-item {{ request()->routeIs('admin.activity-logs.*') ? 'admin-sidebar-item-active' : '' }}">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+                                stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round"
+                                    d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+                            </svg>
+                            System Log
                         </a>
                     </div>
                 </div>

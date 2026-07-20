@@ -30,6 +30,7 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->applyMailSettingsFromStoreSettings();
+        $this->registerActivityLogging();
 
         view()->composer('*', function ($view) {
             $cartCount = 0;
@@ -47,6 +48,85 @@ class AppServiceProvider extends ServiceProvider
             $view->with('cartCount', $cartCount);
             $view->with('portalPendingCounts', $portalPendingCounts);
         });
+    }
+
+    /**
+     * Attach the activity observer to the curated business models and record
+     * login / logout events, so the admin System Log captures user activity.
+     */
+    private function registerActivityLogging(): void
+    {
+        $models = [
+            \App\Models\User::class,
+            \App\Models\AgentSale::class,
+            \App\Models\AgentCredit::class,
+            \App\Models\AgentCreditPayment::class,
+            \App\Models\DistributionSale::class,
+            \App\Models\DistributionSalePayment::class,
+            \App\Models\Purchase::class,
+            \App\Models\PurchasePayment::class,
+            \App\Models\Product::class,
+            \App\Models\Category::class,
+            \App\Models\Branch::class,
+            \App\Models\Region::class,
+            \App\Models\Expense::class,
+            \App\Models\PaymentOption::class,
+            \App\Models\PaymentTransfer::class,
+            \App\Models\Order::class,
+            \App\Models\AgentProductTransfer::class,
+            \App\Models\RegionalManagerProductTransfer::class,
+            \App\Models\TeamLeaderProductTransfer::class,
+            \App\Models\AgentDeviceReturn::class,
+            \App\Models\RegionalManagerDeviceReturn::class,
+            \App\Models\TeamLeaderDeviceReturn::class,
+            \App\Models\ContractTerminationRequest::class,
+            \App\Models\CustomerNeed::class,
+            \App\Models\Setting::class,
+            \App\Models\SubadminRole::class,
+            \App\Models\Stock::class,
+        ];
+
+        foreach ($models as $model) {
+            if (class_exists($model)) {
+                $model::observe(\App\Observers\ActivityObserver::class);
+            }
+        }
+
+        \Illuminate\Support\Facades\Event::listen(
+            \Illuminate\Auth\Events\Login::class,
+            function (\Illuminate\Auth\Events\Login $event): void {
+                $user = $event->user;
+                if (! $user instanceof \App\Models\User) {
+                    return;
+                }
+
+                \App\Support\ActivityLogger::log(
+                    \App\Models\ActivityLog::EVENT_LOGIN,
+                    $user->name.' logged in',
+                    null,
+                    [],
+                    $user
+                );
+            }
+        );
+
+        \Illuminate\Support\Facades\Event::listen(
+            \Illuminate\Auth\Events\Logout::class,
+            function (\Illuminate\Auth\Events\Logout $event): void {
+                $user = $event->user;
+                if (! $user instanceof \App\Models\User) {
+                    return;
+                }
+
+                \App\Support\ActivityLogger::log(
+                    \App\Models\ActivityLog::EVENT_LOGOUT,
+                    $user->name.' logged out',
+                    null,
+                    [],
+                    $user
+                );
+            }
+        );
     }
 
     private function applyMailSettingsFromStoreSettings(): void

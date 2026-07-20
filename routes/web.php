@@ -363,6 +363,9 @@ Route::middleware(['auth', 'redirect.superadmin.from.admin', 'admin', 'tenant.su
         Route::get('payout/selcom/{selcompay}/wait', [App\Http\Controllers\Admin\CommissionSelcomPayoutController::class, 'wait'])->name('payout.selcom.wait');
         Route::get('payout/selcom/{selcompay}/status', [App\Http\Controllers\Admin\CommissionSelcomPayoutController::class, 'status'])->name('payout.selcom.status');
 
+        // System log (user activity audit)
+        Route::get('activity-logs', [App\Http\Controllers\Admin\ActivityLogController::class, 'index'])->name('activity-logs.index');
+
         // Payment Options
         Route::patch('payment-options/{payment_option}/toggle-visibility', [App\Http\Controllers\Admin\PaymentOptionController::class, 'toggleVisibility'])->name('payment-options.toggle-visibility');
         Route::patch('payment-options/{payment_option}/shrink-balance', [App\Http\Controllers\Admin\PaymentOptionController::class, 'shrinkBalance'])->name('payment-options.shrink-balance');
