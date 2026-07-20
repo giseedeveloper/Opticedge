@@ -46,18 +46,34 @@ class SelcomWebhookController extends Controller
 
         $status = $paymentStatus ? strtolower($paymentStatus) : 'pending';
         if (in_array($status, ['completed', 'cancelled', 'failed', 'rejected', 'usercancelled'], true)) {
-            $selcompay->update(['payment_status' => $status]);
+            try {
+                $selcompay->update(['payment_status' => $status]);
 
-            if ($status === 'completed' && Schema::hasColumn('selcompays', 'purpose')) {
-                $selcompay->refresh();
+                if ($status === 'completed' && Schema::hasColumn('selcompays', 'purpose')) {
+                    $selcompay->refresh();
 
-                if ($selcompay->purpose === Selcompay::PURPOSE_AGENT_COMMISSION_CHECKOUT) {
-                    app(AgentCommissionExpenseService::class)->bookFromSelcompay($selcompay);
+                    if ($selcompay->purpose === Selcompay::PURPOSE_AGENT_COMMISSION_CHECKOUT) {
+                        app(AgentCommissionExpenseService::class)->bookFromSelcompay($selcompay);
+                    }
+
+                    if ($selcompay->purpose === Selcompay::PURPOSE_VENDOR_SUBSCRIPTION) {
+                        app(VendorSubscriptionPaymentService::class)->handleWebhookCompleted($selcompay);
+                    }
+                }
+            } catch (\Illuminate\Database\QueryException $e) {
+                // MySQL errno 1062 = the uniq_completed_commission_payout guard rejecting a
+                // second completed payout for a commission line that is already settled.
+                // That is the intended protection against double-paying, so acknowledge the
+                // webhook (return OK) instead of erroring and triggering Selcom retries.
+                // Any other DB error is genuine — rethrow so Selcom retries.
+                if ((int) ($e->errorInfo[1] ?? 0) !== 1062) {
+                    throw $e;
                 }
 
-                if ($selcompay->purpose === Selcompay::PURPOSE_VENDOR_SUBSCRIPTION) {
-                    app(VendorSubscriptionPaymentService::class)->handleWebhookCompleted($selcompay);
-                }
+                Log::warning('Selcom webhook: duplicate commission completion rejected by DB guard', [
+                    'order_id' => $orderId,
+                    'error' => $e->getMessage(),
+                ]);
             }
         }
 
