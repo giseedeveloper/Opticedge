@@ -2,7 +2,7 @@
     <div class="mb-4 text-sm text-gray-600">
         <h2 class="text-xl font-bold text-gray-900 mb-4">{{ __('Registration Pending Approval') }}</h2>
         <p class="mb-4">
-            {{ __('Thank you for registering as a dealer. Your account is currently under review by our administrators.') }}
+            {{ __('Your dealer account is currently under review by an administrator. You will be able to sign in once it is approved.') }}
         </p>
         <p>
             {{ __('You will be notified once your account is approved. Please check your email later or contact support if you have questions.') }}

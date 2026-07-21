@@ -134,6 +134,18 @@ class StockController extends Controller
     }
 
     /**
+     * Stock-in-hand matrix: model rows x current-holder columns (Admin / Regional Manager /
+     * Team Leader / Agent), quantity per cell. Holder = deepest hierarchy assignment on the
+     * IMEI row (see StockSummaryInsightsService::stockInHandMatrix()).
+     */
+    public function stockMatrix(StockSummaryInsightsService $insights)
+    {
+        $matrix = $insights->stockInHandMatrix();
+
+        return view('admin.stock.stock-matrix', $matrix);
+    }
+
+    /**
      * Agents matching aging (no sales in 7/14 days) or low stock (<=2 unsold) filters.
      */
     public function agentStockAlerts(Request $request, StockSummaryInsightsService $insights)

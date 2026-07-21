@@ -82,7 +82,6 @@ Route::get('dashboard', function () {
 })->middleware(['auth', 'verified', 'active'])->name('dashboard');
 
 Route::middleware('guest')->group(function () {
-    Volt::route('register/dealer', 'pages.auth.dealer-register')->name('dealer.register');
     Route::get('register/dealer/pending', [App\Http\Controllers\DealerRegisterController::class , 'pending'])->name('dealer.pending');
     Volt::route('register/agent', 'pages.auth.agent-register')->name('agent.register');
 
@@ -384,6 +383,7 @@ Route::middleware(['auth', 'redirect.superadmin.from.admin', 'admin', 'tenant.su
             Route::get('imei/{productListItem}', [App\Http\Controllers\Admin\StockController::class, 'showImeiItem'])->name('imei-item');
             Route::delete('imei/{productListItem}', [App\Http\Controllers\Admin\StockController::class, 'destroyLostImei'])->name('imei-item.destroy');
             Route::get('stocks', [App\Http\Controllers\Admin\StockController::class, 'stocks'])->name('stocks');
+            Route::get('stock-matrix', [App\Http\Controllers\Admin\StockController::class, 'stockMatrix'])->name('stock-matrix');
             Route::get('agent-stock-alerts', [App\Http\Controllers\Admin\StockController::class, 'agentStockAlerts'])->name('agent-stock-alerts');
             Route::get('add-product/purchases/{purchase}/models', [App\Http\Controllers\Admin\StockController::class, 'modelsForPurchaseAddProduct'])->name('add-product.purchase.models');
             Route::get('stocks/{stock}/models', [App\Http\Controllers\Admin\StockController::class, 'modelsForStock'])->name('stocks.models');

@@ -18,6 +18,7 @@ class SuperadminPlatformSettingApiController extends Controller
             PlatformSettingController::SELCOM_KEYS,
             PlatformSettingController::MAIL_KEYS,
             PlatformSettingController::AUTH_KEYS,
+            PlatformSettingController::AGENT_SUBSCRIPTION_KEYS,
         );
 
         $settings = Setting::query()
@@ -45,10 +46,20 @@ class SuperadminPlatformSettingApiController extends Controller
             'mail_from_address' => 'nullable|email|max:255',
             'mail_from_name' => 'nullable|string|max:255',
             'require_email_verification_on_login' => 'nullable|in:0,1',
+            'agent_subscription_enabled' => 'nullable|in:0,1',
+            'agent_subscription_monthly_amount' => 'nullable|numeric|min:0',
         ]);
 
         if (! array_key_exists('require_email_verification_on_login', $data)) {
             $data['require_email_verification_on_login'] = '0';
+        }
+
+        if (! array_key_exists('agent_subscription_enabled', $data)) {
+            $data['agent_subscription_enabled'] = '0';
+        }
+
+        if (! array_key_exists('agent_subscription_monthly_amount', $data) || $data['agent_subscription_monthly_amount'] === null) {
+            $data['agent_subscription_monthly_amount'] = '0';
         }
 
         foreach ($data as $key => $value) {

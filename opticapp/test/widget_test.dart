@@ -4,16 +4,16 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:opticapp/api/client.dart';
 
 void main() {
-  test('uses opticedgeafrica.net as the default API base URL', () async {
+  test('uses stage.opticedgeafrica.net as the default API base URL', () async {
     SharedPreferences.setMockInitialValues({});
 
     await setServerSettingsApiUrl(null);
 
     expect(await resolveBaseUrl(), kInternalApiBaseUrl);
-    expect(await resolveBaseUrl(), 'https://opticedgeafrica.net/api');
+    expect(await resolveBaseUrl(), 'https://stage.opticedgeafrica.net/api');
   });
 
-  test('canonicalizes staging API host to production default', () async {
+  test('keeps staging API host when set in server settings', () async {
     SharedPreferences.setMockInitialValues({});
 
     await setServerSettingsApiUrl('https://stage.opticedgeafrica.net/api');

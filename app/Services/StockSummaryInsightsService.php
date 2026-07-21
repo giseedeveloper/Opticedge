@@ -92,6 +92,163 @@ class StockSummaryInsightsService
     }
 
     /**
+     * Stock-in-hand matrix: rows = device model, columns = current holder
+     * (Admin warehouse / Regional Manager / Team Leader / Agent), cell = quantity.
+     *
+     * Holder is derived the same way as {@see inventoryByRole()}: an unsold device
+     * is "with" the deepest hierarchy level it has an assignment row for (agent >
+     * team leader > regional manager), otherwise it is still in the admin warehouse.
+     *
+     * @return array{
+     *     models: list<string>,
+     *     holders: list<array{key:string, role:string, id:?int, label:string}>,
+     *     matrix: array<string, array<string, int>>,
+     *     row_totals: array<string, int>,
+     *     column_totals: array<string, int>,
+     *     grand_total: int,
+     * }
+     */
+    public function stockInHandMatrix(): array
+    {
+        $empty = [
+            'models' => [],
+            'holders' => [],
+            'matrix' => [],
+            'row_totals' => [],
+            'column_totals' => [],
+            'grand_total' => 0,
+        ];
+
+        if (! Schema::hasTable('product_list')) {
+            return $empty;
+        }
+
+        // Admin warehouse: unsold devices with no hierarchy assignment at all.
+        $adminRows = ProductListItem::query()
+            ->whereNull('sold_at')
+            ->whereDoesntHave('regionalManagerProductListAssignment')
+            ->whereDoesntHave('teamLeaderProductListAssignment')
+            ->whereDoesntHave('agentProductListAssignment')
+            ->selectRaw('product_list.model as model_name, COUNT(*) as qty')
+            ->groupBy('product_list.model')
+            ->get();
+
+        // Regional manager: has an RM assignment, but not yet passed down to a TL/agent.
+        $regionalManagerRows = Schema::hasTable('regional_manager_product_list_assignments')
+            ? ProductListItem::query()
+                ->join('regional_manager_product_list_assignments as rmpla', 'rmpla.product_list_id', '=', 'product_list.id')
+                ->whereNull('product_list.sold_at')
+                ->whereDoesntHave('teamLeaderProductListAssignment')
+                ->whereDoesntHave('agentProductListAssignment')
+                ->selectRaw('rmpla.regional_manager_id as holder_id, product_list.model as model_name, COUNT(*) as qty')
+                ->groupBy('rmpla.regional_manager_id', 'product_list.model')
+                ->get()
+            : collect();
+
+        // Team leader: has a TL assignment, but not yet passed down to an agent.
+        $teamLeaderRows = Schema::hasTable('team_leader_product_list_assignments')
+            ? ProductListItem::query()
+                ->join('team_leader_product_list_assignments as tlpla', 'tlpla.product_list_id', '=', 'product_list.id')
+                ->whereNull('product_list.sold_at')
+                ->whereDoesntHave('agentProductListAssignment')
+                ->selectRaw('tlpla.team_leader_id as holder_id, product_list.model as model_name, COUNT(*) as qty')
+                ->groupBy('tlpla.team_leader_id', 'product_list.model')
+                ->get()
+            : collect();
+
+        // Agent: has an agent assignment (terminal end of the hierarchy).
+        $agentRows = ProductListItem::query()
+            ->join('agent_product_list_assignments as apla', 'apla.product_list_id', '=', 'product_list.id')
+            ->whereNull('product_list.sold_at')
+            ->selectRaw('apla.agent_id as holder_id, product_list.model as model_name, COUNT(*) as qty')
+            ->groupBy('apla.agent_id', 'product_list.model')
+            ->get();
+
+        $userIds = collect()
+            ->merge($regionalManagerRows->pluck('holder_id'))
+            ->merge($teamLeaderRows->pluck('holder_id'))
+            ->merge($agentRows->pluck('holder_id'))
+            ->filter()
+            ->unique()
+            ->values();
+
+        $userNames = $userIds->isEmpty()
+            ? collect()
+            : User::query()->whereIn('id', $userIds->all())->pluck('name', 'id');
+
+        $matrix = [];
+        $models = [];
+        $holders = [
+            'admin' => ['key' => 'admin', 'role' => 'admin', 'id' => null, 'label' => 'Admin / Warehouse'],
+        ];
+
+        $applyRows = function (Collection $rows, string $role, string $keyPrefix, ?string $labelPrefix) use (&$matrix, &$models, &$holders, $userNames) {
+            foreach ($rows as $row) {
+                $model = (string) ($row->model_name ?: 'Unspecified model');
+                $qty = (int) $row->qty;
+
+                if ($labelPrefix === null) {
+                    $holderKey = 'admin';
+                } else {
+                    $holderId = (int) $row->holder_id;
+                    $holderKey = $keyPrefix.'_'.$holderId;
+                    if (! isset($holders[$holderKey])) {
+                        $name = $userNames[$holderId] ?? ($labelPrefix.' #'.$holderId);
+                        $holders[$holderKey] = [
+                            'key' => $holderKey,
+                            'role' => $role,
+                            'id' => $holderId,
+                            'label' => $labelPrefix.': '.$name,
+                        ];
+                    }
+                }
+
+                $models[$model] = true;
+                $matrix[$model][$holderKey] = ($matrix[$model][$holderKey] ?? 0) + $qty;
+            }
+        };
+
+        $applyRows($adminRows, 'admin', 'admin', null);
+        $applyRows($regionalManagerRows, 'regional_manager', 'rm', 'Regional manager');
+        $applyRows($teamLeaderRows, 'team_leader', 'tl', 'Team leader');
+        $applyRows($agentRows, 'agent', 'agent', 'Agent');
+
+        $modelList = collect(array_keys($models))->sort(SORT_NATURAL | SORT_FLAG_CASE)->values()->all();
+
+        // Order holder columns: admin first, then RM, then TL, then agents (alphabetically within each group).
+        $holderOrder = ['admin', 'regional_manager', 'team_leader', 'agent'];
+        $holderList = collect($holders)
+            ->sortBy(fn ($h) => [array_search($h['role'], $holderOrder, true), $h['label']])
+            ->values()
+            ->all();
+
+        $rowTotals = [];
+        $columnTotals = [];
+        $grandTotal = 0;
+
+        foreach ($modelList as $model) {
+            $rowTotal = 0;
+            foreach ($holderList as $holder) {
+                $qty = $matrix[$model][$holder['key']] ?? 0;
+                $matrix[$model][$holder['key']] = $qty;
+                $rowTotal += $qty;
+                $columnTotals[$holder['key']] = ($columnTotals[$holder['key']] ?? 0) + $qty;
+            }
+            $rowTotals[$model] = $rowTotal;
+            $grandTotal += $rowTotal;
+        }
+
+        return [
+            'models' => $modelList,
+            'holders' => $holderList,
+            'matrix' => $matrix,
+            'row_totals' => $rowTotals,
+            'column_totals' => $columnTotals,
+            'grand_total' => $grandTotal,
+        ];
+    }
+
+    /**
      * agent_id => unsold IMEI count (only agents with at least 1 unsold device).
      *
      * @return Collection<int, int>

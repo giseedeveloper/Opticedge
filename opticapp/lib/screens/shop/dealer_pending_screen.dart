@@ -26,7 +26,7 @@ class DealerPendingScreen extends StatelessWidget {
               ),
               const SizedBox(height: 12),
               Text(
-                'Your dealer registration has been submitted. An administrator must approve your account before you can access the shop.',
+                'Your dealer account is waiting for administrator approval before you can access the shop.',
                 textAlign: TextAlign.center,
                 style: TextStyle(color: Colors.grey.shade700, height: 1.4),
               ),

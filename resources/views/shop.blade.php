@@ -10,10 +10,6 @@
                 <p class="text-lg text-gray-700 font-medium">
                     Shop the latest smartphones with fast delivery, secure payments, and exclusive offers.
                 </p>
-                <a href="{{ route('dealer.register') }}"
-                    class="inline-block bg-[#fa8900] hover:bg-[#e87f00] text-white px-8 py-3 rounded-full font-bold shadow-md transition-transform transform hover:scale-105">
-                    Register as a Dealer
-                </a>
             </div>
             <img src="https://images.unsplash.com/photo-1610945415295-d9bbf067e59c?q=80&w=1000&auto=format&fit=crop"
                 class="absolute right-0 top-0 h-full w-1/2 object-cover opacity-50"

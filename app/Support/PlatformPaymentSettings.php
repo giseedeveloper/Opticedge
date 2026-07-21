@@ -25,13 +25,22 @@ class PlatformPaymentSettings
             : self::MODE_DEMO;
     }
 
+    /**
+     * When false, vendors may register and subscribe for free (demo / no charge).
+     * When true, vendors must pay via Selcom to complete subscription.
+     */
+    public static function isVendorSubscriptionRequired(): bool
+    {
+        return self::vendorSubscriptionPaymentMode() === self::MODE_LIVE;
+    }
+
     public static function isVendorSubscriptionDemo(): bool
     {
-        return self::vendorSubscriptionPaymentMode() === self::MODE_DEMO;
+        return ! self::isVendorSubscriptionRequired();
     }
 
     public static function isVendorSubscriptionLive(): bool
     {
-        return self::vendorSubscriptionPaymentMode() === self::MODE_LIVE;
+        return self::isVendorSubscriptionRequired();
     }
 }

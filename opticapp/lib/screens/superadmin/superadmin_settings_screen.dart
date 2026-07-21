@@ -27,10 +27,13 @@ class _SuperadminSettingsScreenState extends State<SuperadminSettingsScreen> {
   final _mailPassword = TextEditingController();
   final _mailFromAddress = TextEditingController();
   final _mailFromName = TextEditingController();
+  final _agentSubscriptionAmount = TextEditingController();
 
   String _paymentMode = 'demo';
   String _selcomIsLive = '0';
   bool _requireEmailVerification = false;
+  bool _agentSubscriptionEnabled = false;
+  bool _vendorSubscriptionRequired = false;
 
   @override
   void initState() {
@@ -49,11 +52,13 @@ class _SuperadminSettingsScreenState extends State<SuperadminSettingsScreen> {
     _mailPassword.dispose();
     _mailFromAddress.dispose();
     _mailFromName.dispose();
+    _agentSubscriptionAmount.dispose();
     super.dispose();
   }
 
   void _applySettings(Map<String, dynamic> s) {
     _paymentMode = s['vendor_subscription_payment_mode']?.toString() ?? 'demo';
+    _vendorSubscriptionRequired = _paymentMode == 'live';
     _selcomVendorId.text = s['selcom_vendor_id']?.toString() ?? '';
     _selcomApiKey.text = s['selcom_api_key']?.toString() ?? '';
     _selcomApiSecret.text = s['selcom_api_secret']?.toString() ?? '';
@@ -65,6 +70,8 @@ class _SuperadminSettingsScreenState extends State<SuperadminSettingsScreen> {
     _mailFromAddress.text = s['mail_from_address']?.toString() ?? '';
     _mailFromName.text = s['mail_from_name']?.toString() ?? '';
     _requireEmailVerification = s['require_email_verification_on_login']?.toString() == '1';
+    _agentSubscriptionEnabled = s['agent_subscription_enabled']?.toString() == '1';
+    _agentSubscriptionAmount.text = s['agent_subscription_monthly_amount']?.toString() ?? '0';
   }
 
   Future<void> _load() async {
@@ -93,7 +100,7 @@ class _SuperadminSettingsScreenState extends State<SuperadminSettingsScreen> {
     setState(() => _saving = true);
     try {
       await updateSuperadminSettings({
-        'vendor_subscription_payment_mode': _paymentMode,
+        'vendor_subscription_payment_mode': _vendorSubscriptionRequired ? 'live' : 'demo',
         'selcom_vendor_id': _selcomVendorId.text.trim(),
         'selcom_api_key': _selcomApiKey.text.trim(),
         'selcom_api_secret': _selcomApiSecret.text.trim(),
@@ -105,6 +112,9 @@ class _SuperadminSettingsScreenState extends State<SuperadminSettingsScreen> {
         'mail_from_address': _mailFromAddress.text.trim(),
         'mail_from_name': _mailFromName.text.trim(),
         'require_email_verification_on_login': _requireEmailVerification ? '1' : '0',
+        'agent_subscription_enabled': _agentSubscriptionEnabled ? '1' : '0',
+        'agent_subscription_monthly_amount':
+            double.tryParse(_agentSubscriptionAmount.text.trim()) ?? 0,
       });
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Settings saved.')));
@@ -151,16 +161,19 @@ class _SuperadminSettingsScreenState extends State<SuperadminSettingsScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          Text('Payment mode', style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
+                          Text('Vendor subscription', style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
                           const SizedBox(height: 8),
-                          DropdownButtonFormField<String>(
-                            value: _paymentMode,
-                            decoration: const InputDecoration(border: OutlineInputBorder()),
-                            items: const [
-                              DropdownMenuItem(value: 'demo', child: Text('Demo')),
-                              DropdownMenuItem(value: 'live', child: Text('Live')),
-                            ],
-                            onChanged: (v) => setState(() => _paymentMode = v ?? 'demo'),
+                          SwitchListTile(
+                            contentPadding: EdgeInsets.zero,
+                            title: const Text('Require paid vendor subscription'),
+                            subtitle: const Text(
+                              'Off: vendors register and subscribe for free. On: vendors must pay via Selcom to subscribe.',
+                            ),
+                            value: _vendorSubscriptionRequired,
+                            onChanged: (value) => setState(() {
+                              _vendorSubscriptionRequired = value;
+                              _paymentMode = value ? 'live' : 'demo';
+                            }),
                           ),
                           const SizedBox(height: 16),
                           Text('Selcom', style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
@@ -193,6 +206,27 @@ class _SuperadminSettingsScreenState extends State<SuperadminSettingsScreen> {
                             ),
                             value: _requireEmailVerification,
                             onChanged: (value) => setState(() => _requireEmailVerification = value),
+                          ),
+                          const SizedBox(height: 16),
+                          Text('Agent subscription', style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
+                          const SizedBox(height: 8),
+                          SwitchListTile(
+                            contentPadding: EdgeInsets.zero,
+                            title: const Text('Require agent monthly subscription'),
+                            subtitle: const Text(
+                              'When on, agents must pay the monthly fee before selling or using agent services. Off = normal access.',
+                            ),
+                            value: _agentSubscriptionEnabled,
+                            onChanged: (value) => setState(() => _agentSubscriptionEnabled = value),
+                          ),
+                          const SizedBox(height: 8),
+                          TextField(
+                            controller: _agentSubscriptionAmount,
+                            keyboardType: TextInputType.number,
+                            decoration: const InputDecoration(
+                              labelText: 'Monthly amount (TZS)',
+                              border: OutlineInputBorder(),
+                            ),
                           ),
                           const SizedBox(height: 16),
                           Text('Mail', style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),

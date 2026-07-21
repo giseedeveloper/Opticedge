@@ -113,9 +113,4 @@ new #[Layout('layouts.guest')] class extends Component {
         </div>
     </form>
 
-    <div class="mt-4 text-center">
-        <a href="{{ route('dealer.register') }}" class="text-xs text-slate-500 hover:text-[#fa8900] hover:underline">
-            Want to become a seller? Register as a Dealer
-        </a>
-    </div>
 </div>

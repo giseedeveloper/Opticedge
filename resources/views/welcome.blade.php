@@ -108,11 +108,7 @@
                         d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H4.125C3.504 4.875 3 5.379 3 6v1.5c0 .621.504 1.125 1.125 1.125z" />
                 </svg>
                 <p class="mt-4 font-medium text-[#232f3e]">Packages coming soon</p>
-                <p class="mt-1 text-sm text-slate-600">Register your business and we will match you with a plan.</p>
-                <a href="{{ route('dealer.register') }}"
-                    class="cursor-pointer inline-flex mt-6 px-6 py-3 rounded-xl bg-[#fa8900] hover:bg-[#e07800] text-white font-bold transition-colors duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#fa8900]">
-                    Register your business
-                </a>
+                <p class="mt-1 text-sm text-slate-600">Check back soon — subscription packages will appear here.</p>
             </div>
         @else
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">

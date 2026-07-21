@@ -5,16 +5,21 @@
         <div class="mb-8">
             <p class="admin-prod-eyebrow">Platform</p>
             <h1 class="admin-prod-title">Platform settings</h1>
-            <p class="admin-prod-subtitle">Vendor signup payments, Selcom gateway, authentication, and system email.</p>
+            <p class="admin-prod-subtitle">Vendor signup payments, agent subscription, Selcom gateway, authentication, and system email.</p>
         </div>
 
         @include('superadmin.partials.flash')
 
-        <div class="mb-5 inline-flex rounded-xl bg-white/70 p-1 border border-white/80">
+        <div class="mb-5 inline-flex flex-wrap rounded-xl bg-white/70 p-1 border border-white/80">
             <button type="button" @click="tab = 'selcom'"
                 :class="tab === 'selcom' ? 'bg-[#fa8900] text-white' : 'text-slate-600'"
                 class="px-4 py-2 rounded-lg text-sm font-semibold transition-colors duration-200">
                 Selcom
+            </button>
+            <button type="button" @click="tab = 'agents'"
+                :class="tab === 'agents' ? 'bg-[#fa8900] text-white' : 'text-slate-600'"
+                class="px-4 py-2 rounded-lg text-sm font-semibold transition-colors duration-200">
+                Agents
             </button>
             <button type="button" @click="tab = 'email'"
                 :class="tab === 'email' ? 'bg-[#fa8900] text-white' : 'text-slate-600'"
@@ -33,24 +38,30 @@
 
             <div x-show="tab === 'selcom'" x-cloak class="admin-clay-panel admin-prod-form-shell overflow-hidden">
                 <div class="admin-prod-form-head">
-                    <h2 class="admin-prod-form-title">Vendor subscription payments</h2>
+                    <h2 class="admin-prod-form-title">Vendor subscription</h2>
                     <p class="admin-prod-form-hint">Controls the public package signup flow at <code class="text-xs">/subscribe/{package}</code>.</p>
                 </div>
-                <div class="admin-prod-form-body space-y-6">
+                <div class="admin-prod-form-body space-y-4">
                     @php
-                        $paymentMode = $settings['vendor_subscription_payment_mode'] ?? 'demo';
+                        $vendorSubscriptionRequired = ($settings['vendor_subscription_payment_mode'] ?? 'demo') === 'live';
                     @endphp
-                    <div>
-                        <label for="vendor_subscription_payment_mode" class="admin-prod-label">Payment mode</label>
-                        <select name="vendor_subscription_payment_mode" id="vendor_subscription_payment_mode" class="admin-prod-select">
-                            <option value="demo" @selected($paymentMode === 'demo')>Demo — instant success (no mobile money push)</option>
-                            <option value="live" @selected($paymentMode === 'live')>Live — Selcom API + USSD approval required</option>
-                        </select>
-                        <p class="text-xs text-slate-500 mt-2">
-                            <strong>Demo:</strong> user picks a package and completes signup without real payment.<br>
-                            <strong>Live:</strong> Selcom credentials below must be set; customer must approve payment on their phone.
-                        </p>
-                    </div>
+                    <input type="hidden" name="vendor_subscription_payment_mode" value="demo">
+                    <label class="flex items-start justify-between gap-4 cursor-pointer rounded-xl border border-slate-200/80 bg-white/60 px-4 py-4">
+                        <span class="min-w-0">
+                            <span class="block text-sm font-semibold text-slate-900">Require paid vendor subscription</span>
+                            <span class="mt-1 block text-xs text-slate-500 leading-relaxed">
+                                <strong>Off:</strong> vendors can register and subscribe for free.<br>
+                                <strong>On:</strong> vendors must pay (Selcom) to complete registration and subscribe. Set Selcom credentials below.
+                            </span>
+                        </span>
+                        <span class="relative inline-flex h-7 w-12 shrink-0 items-center">
+                            <input type="checkbox" name="vendor_subscription_payment_mode" value="live"
+                                @checked($vendorSubscriptionRequired)
+                                class="peer sr-only">
+                            <span class="absolute inset-0 rounded-full bg-slate-300 transition-colors peer-checked:bg-[#fa8900]"></span>
+                            <span class="absolute left-0.5 h-6 w-6 rounded-full bg-white shadow transition-transform peer-checked:translate-x-5"></span>
+                        </span>
+                    </label>
                 </div>
             </div>
 
@@ -172,6 +183,47 @@
                         <p x-show="card.message" x-cloak class="mt-3 text-sm rounded-xl px-3 py-2"
                             :class="card.ok ? 'bg-emerald-50 text-emerald-800' : 'bg-red-50 text-red-800'"
                             x-text="card.message"></p>
+                    </div>
+                </div>
+            </div>
+
+            <div x-show="tab === 'agents'" x-cloak class="admin-clay-panel admin-prod-form-shell overflow-hidden">
+                <div class="admin-prod-form-head">
+                    <h2 class="admin-prod-form-title">Agent subscription</h2>
+                    <p class="admin-prod-form-hint">
+                        When enabled, agents assigned to a vendor must pay the monthly fee before they can sell or use agent services.
+                        When disabled, agents work as usual with no subscription paywall.
+                    </p>
+                </div>
+                <div class="admin-prod-form-body space-y-4">
+                    @php
+                        $agentSubscriptionEnabled = ($settings['agent_subscription_enabled'] ?? '0') === '1';
+                        $agentSubscriptionAmount = $settings['agent_subscription_monthly_amount'] ?? '0';
+                    @endphp
+                    <input type="hidden" name="agent_subscription_enabled" value="0">
+                    <label class="flex items-start justify-between gap-4 cursor-pointer rounded-xl border border-slate-200/80 bg-white/60 px-4 py-4">
+                        <span class="min-w-0">
+                            <span class="block text-sm font-semibold text-slate-900">Require agent monthly subscription</span>
+                            <span class="mt-1 block text-xs text-slate-500 leading-relaxed">
+                                Agents cannot sell or use agent services until they have paid the monthly billing set below.
+                            </span>
+                        </span>
+                        <span class="relative inline-flex h-7 w-12 shrink-0 items-center">
+                            <input type="checkbox" name="agent_subscription_enabled" value="1"
+                                @checked($agentSubscriptionEnabled)
+                                class="peer sr-only">
+                            <span class="absolute inset-0 rounded-full bg-slate-300 transition-colors peer-checked:bg-[#fa8900]"></span>
+                            <span class="absolute left-0.5 h-6 w-6 rounded-full bg-white shadow transition-transform peer-checked:translate-x-5"></span>
+                        </span>
+                    </label>
+                    <div>
+                        <label for="agent_subscription_monthly_amount" class="admin-prod-label">Monthly amount (TZS)</label>
+                        <input type="number" name="agent_subscription_monthly_amount" id="agent_subscription_monthly_amount"
+                            value="{{ $agentSubscriptionAmount }}"
+                            min="0" step="1" class="admin-prod-input" placeholder="0">
+                        <p class="text-xs text-slate-500 mt-2">
+                            Fee each agent must pay every month when subscription is on.
+                        </p>
                     </div>
                 </div>
             </div>

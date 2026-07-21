@@ -79,7 +79,6 @@ Route::post('/auth/google', [AuthController::class, 'loginWithGoogle']);
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/register/guest', [AuthController::class, 'registerGuest']);
 Route::post('/register/agent', [AuthController::class, 'registerAgent']);
-Route::post('/register/dealer', [AuthController::class, 'registerDealer']);
 Route::post('/password/forgot', [AuthController::class, 'forgotPassword']);
 Route::post('/password/reset', [AuthController::class, 'resetPassword']);
 

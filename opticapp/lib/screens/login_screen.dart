@@ -17,7 +17,7 @@ const Color _authMuted = Color(0xFF6B7280);
 const String _kAppIconAsset = 'assets/icons/app_icon.png';
 const String _kGoogleLogoAsset = 'assets/icons/google_logo.svg';
 
-enum _AuthView { signIn, signUp, signUpAgent, signUpDealer, forgot }
+enum _AuthView { signIn, signUp, signUpAgent, forgot }
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -30,7 +30,6 @@ class _LoginScreenState extends State<LoginScreen> {
   final _signInFormKey = GlobalKey<FormState>();
   final _signUpFormKey = GlobalKey<FormState>();
   final _agentFormKey = GlobalKey<FormState>();
-  final _dealerFormKey = GlobalKey<FormState>();
   final _forgotFormKey = GlobalKey<FormState>();
 
   final _signInEmailController = TextEditingController();
@@ -45,12 +44,6 @@ class _LoginScreenState extends State<LoginScreen> {
   final _agentPhoneController = TextEditingController();
   final _agentPasswordController = TextEditingController();
 
-  final _dealerBusinessController = TextEditingController();
-  final _dealerContactController = TextEditingController();
-  final _dealerEmailController = TextEditingController();
-  final _dealerPhoneController = TextEditingController();
-  final _dealerPasswordController = TextEditingController();
-
   final _forgotEmailController = TextEditingController();
 
   _AuthView _view = _AuthView.signIn;
@@ -59,7 +52,6 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _obscureSignInPassword = true;
   bool _obscureSignUpPassword = true;
   bool _obscureAgentPassword = true;
-  bool _obscureDealerPassword = true;
 
   Color _brandPrimary(BuildContext context) => Theme.of(context).colorScheme.primary;
 
@@ -178,11 +170,6 @@ class _LoginScreenState extends State<LoginScreen> {
     _agentEmailController.dispose();
     _agentPhoneController.dispose();
     _agentPasswordController.dispose();
-    _dealerBusinessController.dispose();
-    _dealerContactController.dispose();
-    _dealerEmailController.dispose();
-    _dealerPhoneController.dispose();
-    _dealerPasswordController.dispose();
     _forgotEmailController.dispose();
     super.dispose();
   }
@@ -419,75 +406,6 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  Widget _signupModeLinks() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Text(
-          'Sign up as',
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-            color: _authMuted,
-            letterSpacing: 0.2,
-          ),
-        ),
-        const SizedBox(height: 10),
-        Row(
-          children: [
-            Expanded(
-              child: OutlinedButton.icon(
-                onPressed: () => setState(() {
-                  _view = _AuthView.signUpAgent;
-                  _error = null;
-                }),
-                icon: Icon(Icons.support_agent_rounded, size: 18, color: _brandPrimary(context)),
-                label: const Text('Agent'),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: _view == _AuthView.signUpAgent ? _brandPrimary(context) : _authTitle,
-                  backgroundColor: _view == _AuthView.signUpAgent
-                      ? _brandPrimary(context).withValues(alpha: 0.08)
-                      : Colors.white,
-                  side: BorderSide(
-                    color: _view == _AuthView.signUpAgent
-                        ? _brandPrimary(context)
-                        : Colors.grey.shade300,
-                  ),
-                  padding: const EdgeInsets.symmetric(vertical: 10),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: OutlinedButton.icon(
-                onPressed: () => setState(() {
-                  _view = _AuthView.signUpDealer;
-                  _error = null;
-                }),
-                icon: Icon(Icons.storefront_outlined, size: 18, color: _brandPrimary(context)),
-                label: const Text('Dealer'),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: _view == _AuthView.signUpDealer ? _brandPrimary(context) : _authTitle,
-                  backgroundColor: _view == _AuthView.signUpDealer
-                      ? _brandPrimary(context).withValues(alpha: 0.08)
-                      : Colors.white,
-                  side: BorderSide(
-                    color: _view == _AuthView.signUpDealer
-                        ? _brandPrimary(context)
-                        : Colors.grey.shade300,
-                  ),
-                  padding: const EdgeInsets.symmetric(vertical: 10),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
   Widget _signInBody() {
     return Form(
       key: _signInFormKey,
@@ -685,166 +603,98 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  Widget _agentOrDealerSignUpPlaceholder() {
-    final isAgent = _view == _AuthView.signUpAgent;
+  Widget _agentSignUpBody() {
     return Form(
-      key: isAgent ? _agentFormKey : _dealerFormKey,
+      key: _agentFormKey,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           _authHeader(
-            title: isAgent ? 'Create your account' : 'Dealer sign up',
-            subtitle: isAgent
-                ? 'Enter your details to get started. Your manager will activate your account.'
-                : 'Submit your business details. Our team will review and approve your account.',
+            title: 'Create your account',
+            subtitle: 'Enter your details to get started. Your manager will activate your account.',
           ),
           const SizedBox(height: 20),
           if (_error != null) ...[
             _errorBanner(_error!),
             const SizedBox(height: 18),
           ],
-          if (isAgent) ...[
-            TextFormField(
-              controller: _agentNameController,
-              textInputAction: TextInputAction.next,
-              decoration: _fieldDecoration(
-                hint: 'Full name',
-                prefixIcon: const Icon(Icons.person_outline_rounded, size: 22, color: _authMuted),
-              ),
-              validator: (v) => v == null || v.isEmpty ? 'Enter your name' : null,
+          TextFormField(
+            controller: _agentNameController,
+            textInputAction: TextInputAction.next,
+            decoration: _fieldDecoration(
+              hint: 'Full name',
+              prefixIcon: const Icon(Icons.person_outline_rounded, size: 22, color: _authMuted),
             ),
-            const SizedBox(height: 14),
-            TextFormField(
-              controller: _agentEmailController,
-              keyboardType: TextInputType.emailAddress,
-              textInputAction: TextInputAction.next,
-              decoration: _fieldDecoration(
-                hint: 'Email address',
-                prefixIcon: const Icon(Icons.mail_outline_rounded, size: 22, color: _authMuted),
-              ),
-              validator: (v) => v == null || v.isEmpty ? 'Enter your email' : null,
+            validator: (v) => v == null || v.isEmpty ? 'Enter your name' : null,
+          ),
+          const SizedBox(height: 14),
+          TextFormField(
+            controller: _agentEmailController,
+            keyboardType: TextInputType.emailAddress,
+            textInputAction: TextInputAction.next,
+            decoration: _fieldDecoration(
+              hint: 'Email address',
+              prefixIcon: const Icon(Icons.mail_outline_rounded, size: 22, color: _authMuted),
             ),
-            const SizedBox(height: 14),
-            TextFormField(
-              controller: _agentPhoneController,
-              keyboardType: TextInputType.phone,
-              textInputAction: TextInputAction.next,
-              decoration: _fieldDecoration(
-                hint: 'Phone (optional)',
-                prefixIcon: const Icon(Icons.phone_outlined, size: 22, color: _authMuted),
-              ),
+            validator: (v) => v == null || v.isEmpty ? 'Enter your email' : null,
+          ),
+          const SizedBox(height: 14),
+          TextFormField(
+            controller: _agentPhoneController,
+            keyboardType: TextInputType.phone,
+            textInputAction: TextInputAction.next,
+            decoration: _fieldDecoration(
+              hint: 'Phone (optional)',
+              prefixIcon: const Icon(Icons.phone_outlined, size: 22, color: _authMuted),
             ),
-            const SizedBox(height: 14),
-            TextFormField(
-              controller: _agentPasswordController,
-              obscureText: _obscureAgentPassword,
-              textInputAction: TextInputAction.done,
-              decoration: _fieldDecoration(
-                hint: 'Password',
-                prefixIcon: const Icon(Icons.lock_outline_rounded, size: 22, color: _authMuted),
-                suffixIcon: IconButton(
-                  icon: Icon(
-                    _obscureAgentPassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
-                    color: _authMuted,
-                  ),
-                  onPressed: () => setState(() => _obscureAgentPassword = !_obscureAgentPassword),
+          ),
+          const SizedBox(height: 14),
+          TextFormField(
+            controller: _agentPasswordController,
+            obscureText: _obscureAgentPassword,
+            textInputAction: TextInputAction.done,
+            decoration: _fieldDecoration(
+              hint: 'Password',
+              prefixIcon: const Icon(Icons.lock_outline_rounded, size: 22, color: _authMuted),
+              suffixIcon: IconButton(
+                icon: Icon(
+                  _obscureAgentPassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                  color: _authMuted,
                 ),
+                onPressed: () => setState(() => _obscureAgentPassword = !_obscureAgentPassword),
               ),
-              validator: (v) => v == null || v.length < 8 ? 'Password must be at least 8 characters' : null,
             ),
-          ] else ...[
-            TextFormField(
-              controller: _dealerBusinessController,
-              textInputAction: TextInputAction.next,
-              decoration: _fieldDecoration(
-                hint: 'Business name',
-                prefixIcon: const Icon(Icons.storefront_outlined, size: 22, color: _authMuted),
-              ),
-              validator: (v) => v == null || v.isEmpty ? 'Enter business name' : null,
-            ),
-            const SizedBox(height: 14),
-            TextFormField(
-              controller: _dealerContactController,
-              textInputAction: TextInputAction.next,
-              decoration: _fieldDecoration(
-                hint: 'Contact name',
-                prefixIcon: const Icon(Icons.person_outline_rounded, size: 22, color: _authMuted),
-              ),
-              validator: (v) => v == null || v.isEmpty ? 'Enter contact name' : null,
-            ),
-            const SizedBox(height: 14),
-            TextFormField(
-              controller: _dealerEmailController,
-              keyboardType: TextInputType.emailAddress,
-              textInputAction: TextInputAction.next,
-              decoration: _fieldDecoration(
-                hint: 'Email address',
-                prefixIcon: const Icon(Icons.mail_outline_rounded, size: 22, color: _authMuted),
-              ),
-              validator: (v) => v == null || v.isEmpty ? 'Enter your email' : null,
-            ),
-            const SizedBox(height: 14),
-            TextFormField(
-              controller: _dealerPasswordController,
-              obscureText: _obscureDealerPassword,
-              textInputAction: TextInputAction.done,
-              decoration: _fieldDecoration(
-                hint: 'Password',
-                prefixIcon: const Icon(Icons.lock_outline_rounded, size: 22, color: _authMuted),
-                suffixIcon: IconButton(
-                  icon: Icon(
-                    _obscureDealerPassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
-                    color: _authMuted,
-                  ),
-                  onPressed: () => setState(() => _obscureDealerPassword = !_obscureDealerPassword),
-                ),
-              ),
-              validator: (v) => v == null || v.length < 8 ? 'Password must be at least 8 characters' : null,
-            ),
-          ],
+            validator: (v) => v == null || v.length < 8 ? 'Password must be at least 8 characters' : null,
+          ),
           const SizedBox(height: 20),
           _primaryButton(
             label: 'Create account',
             onPressed: _loading
                 ? null
                 : () async {
-                    final form = isAgent ? _agentFormKey : _dealerFormKey;
-                    if (!form.currentState!.validate()) return;
+                    if (!_agentFormKey.currentState!.validate()) return;
                     setState(() {
                       _loading = true;
                       _error = null;
                     });
                     try {
-                      if (isAgent) {
-                        final result = await registerGuest(
-                          name: _agentNameController.text.trim(),
-                          email: _agentEmailController.text.trim(),
-                          password: _agentPasswordController.text,
-                          passwordConfirmation: _agentPasswordController.text,
-                          phone: _agentPhoneController.text.trim(),
-                        );
-                        if (!mounted) return;
-                        final token = result['token'] as String?;
-                        if (token != null) {
-                          await _completeAuthSuccess();
-                        } else {
-                          _snack(result['message']?.toString() ?? 'Account created. Sign in with your email and password.');
-                          setState(() {
-                            _view = _AuthView.signIn;
-                            _loading = false;
-                          });
-                        }
+                      final result = await registerGuest(
+                        name: _agentNameController.text.trim(),
+                        email: _agentEmailController.text.trim(),
+                        password: _agentPasswordController.text,
+                        passwordConfirmation: _agentPasswordController.text,
+                        phone: _agentPhoneController.text.trim(),
+                      );
+                      if (!mounted) return;
+                      final token = result['token'] as String?;
+                      if (token != null) {
+                        await _completeAuthSuccess();
                       } else {
-                        await registerDealer(
-                          name: _dealerContactController.text.trim(),
-                          email: _dealerEmailController.text.trim(),
-                          password: _dealerPasswordController.text,
-                          passwordConfirmation: _dealerPasswordController.text,
-                          businessName: _dealerBusinessController.text.trim(),
-                          phone: _dealerPhoneController.text.trim(),
-                        );
-                        if (!mounted) return;
-                        Navigator.pushReplacementNamed(context, '/shop/dealer-pending');
+                        _snack(result['message']?.toString() ?? 'Account created. Sign in with your email and password.');
+                        setState(() {
+                          _view = _AuthView.signIn;
+                          _loading = false;
+                        });
                       }
                     } catch (e) {
                       if (!mounted) return;
@@ -856,13 +706,9 @@ class _LoginScreenState extends State<LoginScreen> {
                   },
           ),
           const SizedBox(height: 18),
-          if (isAgent) ...[
-            _orDivider(),
-            const SizedBox(height: 18),
-            _googleSignInButton(),
-          ],
-          const SizedBox(height: 20),
-          _signupModeLinks(),
+          _orDivider(),
+          const SizedBox(height: 18),
+          _googleSignInButton(),
           const SizedBox(height: 16),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -944,7 +790,6 @@ class _LoginScreenState extends State<LoginScreen> {
     switch (_view) {
       case _AuthView.signUp:
       case _AuthView.signUpAgent:
-      case _AuthView.signUpDealer:
         return false;
       case _AuthView.signIn:
       case _AuthView.forgot:
@@ -963,8 +808,7 @@ class _LoginScreenState extends State<LoginScreen> {
         body = _signUpBody();
         break;
       case _AuthView.signUpAgent:
-      case _AuthView.signUpDealer:
-        body = _agentOrDealerSignUpPlaceholder();
+        body = _agentSignUpBody();
         break;
       case _AuthView.forgot:
         body = _forgotBody();

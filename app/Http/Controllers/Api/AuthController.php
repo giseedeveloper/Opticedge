@@ -202,33 +202,6 @@ class AuthController extends Controller
         ], 201);
     }
 
-    public function registerDealer(Request $request)
-    {
-        $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'email' => 'required|string|email|max:255|unique:users',
-            'password' => 'required|string|min:8|confirmed',
-            'phone' => 'nullable|string|max:100',
-            'business_name' => 'required|string|max:255',
-        ]);
-
-        $user = \App\Models\User::create([
-            'name' => $validated['name'],
-            'email' => $validated['email'],
-            'password' => \Illuminate\Support\Facades\Hash::make($validated['password']),
-            'phone' => $validated['phone'] ?? null,
-            'business_name' => $validated['business_name'],
-            'role' => 'dealer',
-            'status' => 'pending',
-        ]);
-
-        app(\App\Services\NotificationDispatchService::class)->registrationPending($user, 'dealer');
-
-        return response()->json([
-            'message' => 'Dealer registration submitted. You will be notified when approved.',
-        ], 201);
-    }
-
     public function forgotPassword(Request $request)
     {
         $request->validate(['email' => 'required|email']);
