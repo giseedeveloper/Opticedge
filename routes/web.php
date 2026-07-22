@@ -135,6 +135,7 @@ Route::middleware(['auth', 'superadmin'])->prefix('superadmin')->name('superadmi
     Route::view('profile', 'superadmin.profile.index')->name('profile');
 
     Route::get('dashboard', App\Http\Controllers\Superadmin\DashboardController::class)->name('dashboard');
+    Route::get('selcom-business/balance', App\Http\Controllers\Superadmin\SelcomBusinessBalanceController::class)->name('selcom-business.balance');
 
     Route::resource('tenants', App\Http\Controllers\Superadmin\TenantController::class)->except(['show', 'destroy']);
     Route::patch('tenants/{tenant}/suspend', [App\Http\Controllers\Superadmin\TenantController::class, 'suspend'])->name('tenants.suspend');
@@ -166,6 +167,8 @@ Route::middleware(['auth', 'superadmin'])->prefix('superadmin')->name('superadmi
     Route::post('settings/test-selcom-mobile', [App\Http\Controllers\Superadmin\PlatformSettingController::class, 'testSelcomMobile'])->name('settings.test-selcom-mobile');
     Route::post('settings/test-selcom-card', [App\Http\Controllers\Superadmin\PlatformSettingController::class, 'testSelcomCard'])->name('settings.test-selcom-card');
     Route::post('settings/test-selcom-status', [App\Http\Controllers\Superadmin\PlatformSettingController::class, 'testSelcomStatus'])->name('settings.test-selcom-status');
+    Route::post('settings/test-business-disburse', [App\Http\Controllers\Superadmin\PlatformSettingController::class, 'testBusinessDisburse'])->name('settings.test-business-disburse');
+    Route::post('settings/test-business-disburse-status', [App\Http\Controllers\Superadmin\PlatformSettingController::class, 'testBusinessDisburseStatus'])->name('settings.test-business-disburse-status');
 });
 
 Route::middleware(['auth', 'redirect.superadmin.from.admin', 'admin', 'tenant.subscription', 'subadmin.ability'])->prefix('admin')->name('admin.')->group(function () {
@@ -358,6 +361,15 @@ Route::middleware(['auth', 'redirect.superadmin.from.admin', 'admin', 'tenant.su
         Route::resource('expenses', App\Http\Controllers\Admin\ExpenseController::class)->except(['show']);
 
         Route::get('payout', [App\Http\Controllers\Admin\PayoutController::class, 'index'])->name('payout.index');
+
+        // LIVE agent commission disbursement via the Selcom Business API (money out).
+        Route::post('payout/agent-commission/business/{source}/{id}/pay', [App\Http\Controllers\Admin\CommissionBusinessPayoutController::class, 'pay'])
+            ->whereIn('source', ['credit', 'sale'])->whereNumber('id')->name('payout.business.pay');
+        Route::post('payout/agent-commission/business-bulk', [App\Http\Controllers\Admin\CommissionBusinessPayoutController::class, 'bulkStart'])->name('payout.business.bulk');
+        Route::get('payout/business/{selcompay}/wait', [App\Http\Controllers\Admin\CommissionBusinessPayoutController::class, 'wait'])->name('payout.business.wait');
+        Route::get('payout/business/{selcompay}/status', [App\Http\Controllers\Admin\CommissionBusinessPayoutController::class, 'status'])->name('payout.business.status');
+
+        // Selcom Checkout (pull) — kept as the dev/test flow; not wired to the Pay out page buttons.
         Route::post('payout/agent-commission/selcom-bulk', [App\Http\Controllers\Admin\CommissionSelcomPayoutController::class, 'bulkStart'])->name('payout.commission-selcom.bulk');
         Route::get('payout/selcom/{selcompay}/wait', [App\Http\Controllers\Admin\CommissionSelcomPayoutController::class, 'wait'])->name('payout.selcom.wait');
         Route::get('payout/selcom/{selcompay}/status', [App\Http\Controllers\Admin\CommissionSelcomPayoutController::class, 'status'])->name('payout.selcom.status');

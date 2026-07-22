@@ -25,14 +25,58 @@
                     </select>
                 </div>
             </div>
+            <div class="grid gap-4 sm:grid-cols-2">
+                <div>
+                    <label class="admin-prod-label" for="profit">Profit (TZS)</label>
+                    <input id="profit" type="number" name="profit" min="0" step="0.01" class="admin-prod-input w-full"
+                        value="{{ old('profit', 0) }}">
+                </div>
+                <div>
+                    <label class="admin-prod-label" for="trial_days">Trial (days)</label>
+                    <input id="trial_days" type="number" name="trial_days" min="0" step="1" class="admin-prod-input w-full"
+                        placeholder="0 = no trial" value="{{ old('trial_days') }}">
+                </div>
+            </div>
+
+            <fieldset class="rounded-2xl border border-white/80 bg-white/40 p-4">
+                <legend class="admin-prod-label px-1">Limits <span class="text-slate-400 font-normal">(leave blank = unlimited)</span></legend>
+                <div class="grid gap-4 sm:grid-cols-3">
+                    <div>
+                        <label class="admin-prod-label" for="max_agents">Field agents</label>
+                        <input id="max_agents" type="number" name="max_agents" min="0" step="1" class="admin-prod-input w-full"
+                            placeholder="Unlimited" value="{{ old('max_agents') }}">
+                    </div>
+                    <div>
+                        <label class="admin-prod-label" for="max_admins">Admins</label>
+                        <input id="max_admins" type="number" name="max_admins" min="0" step="1" class="admin-prod-input w-full"
+                            placeholder="Unlimited" value="{{ old('max_admins') }}">
+                    </div>
+                    <div>
+                        <label class="admin-prod-label" for="max_users">Total users</label>
+                        <input id="max_users" type="number" name="max_users" min="0" step="1" class="admin-prod-input w-full"
+                            placeholder="Unlimited" value="{{ old('max_users') }}">
+                    </div>
+                </div>
+            </fieldset>
+
             <div>
-                <label class="admin-prod-label" for="description">Description</label>
+                <label class="admin-prod-label" for="description">Best for / Description</label>
                 <textarea id="description" name="description" class="admin-prod-input w-full">{{ old('description') }}</textarea>
             </div>
-            <div>
-                <label class="admin-prod-label" for="features_json">Features JSON</label>
-                <textarea id="features_json" name="features_json" class="admin-prod-input w-full font-mono text-xs" placeholder='{"feature": true}'>{{ old('features_json') }}</textarea>
-            </div>
+
+            @php $selectedFeatures = old('features', []); @endphp
+            <fieldset class="rounded-2xl border border-white/80 bg-white/40 p-4">
+                <legend class="admin-prod-label px-1">Key features</legend>
+                <div class="grid gap-2 sm:grid-cols-2">
+                    @foreach (\App\Models\Package::FEATURES as $key => $label)
+                        <label class="flex items-center gap-2 text-sm text-slate-700">
+                            <input type="checkbox" name="features[{{ $key }}]" value="1" @checked(! empty($selectedFeatures[$key]))>
+                            {{ $label }}
+                        </label>
+                    @endforeach
+                </div>
+            </fieldset>
+
             <label class="flex items-center gap-2">
                 <input type="checkbox" name="is_active" value="1" @checked(old('is_active', true))> Active
             </label>

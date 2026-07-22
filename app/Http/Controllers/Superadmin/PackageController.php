@@ -67,9 +67,14 @@ class PackageController extends Controller
             'name' => 'required|string|max:255',
             'slug' => $slugRule,
             'price' => 'nullable|numeric|min:0',
+            'profit' => 'nullable|numeric|min:0',
             'interval' => 'required|string|in:'.implode(',', array_keys(Package::INTERVALS)),
+            'trial_days' => 'nullable|integer|min:0',
+            'max_users' => 'nullable|integer|min:0',
+            'max_agents' => 'nullable|integer|min:0',
+            'max_admins' => 'nullable|integer|min:0',
             'description' => 'nullable|string',
-            'features_json' => 'nullable|string',
+            'features' => 'nullable|array',
             'is_active' => 'boolean',
         ]);
     }
@@ -96,24 +101,35 @@ class PackageController extends Controller
             'name' => $validated['name'],
             'slug' => $validated['slug'] ?? $existingSlug ?? Str::slug($validated['name']),
             'price' => $validated['price'] ?? 0,
+            'profit' => $validated['profit'] ?? 0,
             'interval' => $validated['interval'],
+            'trial_days' => $validated['trial_days'] ?? null,
+            'max_users' => $validated['max_users'] ?? null,
+            'max_agents' => $validated['max_agents'] ?? null,
+            'max_admins' => $validated['max_admins'] ?? null,
             'description' => $validated['description'] ?? null,
             'is_active' => $request->boolean('is_active'),
-            'features_json' => $this->parseFeaturesJson($validated['features_json'] ?? null),
+            'features_json' => $this->buildFeatures($request),
         ];
     }
 
     /**
-     * @return array<string, mixed>|null
+     * Build the features_json map from submitted checkboxes, limited to the
+     * canonical Package::FEATURES catalog. Only enabled flags are stored.
+     *
+     * @return array<string, bool>
      */
-    private function parseFeaturesJson(?string $raw): ?array
+    private function buildFeatures(Request $request): array
     {
-        if ($raw === null || trim($raw) === '') {
-            return null;
+        $submitted = (array) $request->input('features', []);
+        $features = [];
+
+        foreach (array_keys(Package::FEATURES) as $key) {
+            if (! empty($submitted[$key])) {
+                $features[$key] = true;
+            }
         }
 
-        $decoded = json_decode($raw, true);
-
-        return is_array($decoded) ? $decoded : null;
+        return $features;
     }
 }

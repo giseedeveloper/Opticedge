@@ -96,6 +96,42 @@
                         <p class="text-xs text-slate-500 mt-2">Use <strong>Live</strong> for production Selcom gateway; <strong>Test</strong> for Selcom sandbox (still requires real USSD when vendor signup is in Live mode).</p>
                     </div>
 
+                    <div class="pt-4 border-t border-white/60 space-y-6">
+                        <div>
+                            <h3 class="admin-prod-form-title !text-base">Selcom Business (agent commission payout)</h3>
+                            <p class="admin-prod-form-hint">Separate disbursement product used by <strong>Admin → Pay out</strong> to send commission to agents' wallets. Uses an RSA private key (.pem) uploaded to the server; the API key below is the public identifier that pairs with it.</p>
+                        </div>
+                        <div>
+                            <label for="selcom_biz_api_key" class="admin-prod-label">Business API key</label>
+                            <input type="text" name="selcom_biz_api_key" id="selcom_biz_api_key"
+                                value="{{ $settings['selcom_biz_api_key'] ?? '' }}" class="admin-prod-input" autocomplete="off">
+                        </div>
+                        <div>
+                            <label for="selcom_biz_account_number" class="admin-prod-label">Business account number</label>
+                            <input type="text" name="selcom_biz_account_number" id="selcom_biz_account_number"
+                                value="{{ $settings['selcom_biz_account_number'] ?? '' }}" class="admin-prod-input" autocomplete="off">
+                            <p class="text-xs text-slate-500 mt-2">The account/wallet that funds payouts. Used for the balance shown on the superadmin dashboard.</p>
+                        </div>
+                        <div>
+                            <label for="selcom_biz_private_key_path" class="admin-prod-label">Private key (.pem) path on server</label>
+                            <input type="text" name="selcom_biz_private_key_path" id="selcom_biz_private_key_path"
+                                value="{{ $settings['selcom_biz_private_key_path'] ?? '' }}"
+                                placeholder="{{ config('selcom_business.private_key_path') }}" class="admin-prod-input" autocomplete="off">
+                            @php $bizKeyPath = $settings['selcom_biz_private_key_path'] ?? config('selcom_business.private_key_path'); @endphp
+                            <p class="text-xs mt-2 {{ (is_string($bizKeyPath) && is_file($bizKeyPath)) ? 'text-emerald-700' : 'text-red-700' }}">
+                                {{ (is_string($bizKeyPath) && is_file($bizKeyPath)) ? '✓ Key file found on server.' : '⚠ Key file not found — upload the .pem to this path (never commit it).' }}
+                            </p>
+                        </div>
+                        <div>
+                            <label for="selcom_biz_is_live" class="admin-prod-label">Business environment</label>
+                            <select name="selcom_biz_is_live" id="selcom_biz_is_live" class="admin-prod-select">
+                                <option value="0" @selected(($settings['selcom_biz_is_live'] ?? '0') == '0')>Sandbox (sandbox.selcom.business — no real money)</option>
+                                <option value="1" @selected(($settings['selcom_biz_is_live'] ?? '0') == '1')>Live (api.selcom.business — real money moves)</option>
+                            </select>
+                            <p class="text-xs text-slate-500 mt-2">Keep on <strong>Sandbox</strong> until tested. Switching to <strong>Live</strong> means every <em>Pay</em> on the payout page sends real commission to the agent.</p>
+                        </div>
+                    </div>
+
                     <div class="pt-2 border-t border-white/60" x-data="selcomApiTest()">
                         <p class="admin-prod-label mb-2">API connection test</p>
                         <button type="button" @click="runTest" :disabled="testing"
@@ -184,6 +220,63 @@
                             :class="card.ok ? 'bg-emerald-50 text-emerald-800' : 'bg-red-50 text-red-800'"
                             x-text="card.message"></p>
                     </div>
+                </div>
+            </div>
+
+            <div x-show="tab === 'selcom'" x-cloak class="admin-clay-panel admin-prod-form-shell overflow-hidden mt-6"
+                x-data="businessDisburseTest()">
+                <div class="admin-prod-form-head">
+                    <h2 class="admin-prod-form-title">Test disbursement (Selcom Business)</h2>
+                    <p class="admin-prod-form-hint">Send a one-off payout to a wallet to confirm the Business API, key and account work. Pick the environment per test — <strong>Sandbox</strong> moves no real money; <strong>Live</strong> sends real money immediately.</p>
+                </div>
+                <div class="admin-prod-form-body space-y-5">
+                    <div>
+                        <label for="biz_test_env" class="admin-prod-label">Environment</label>
+                        <select id="biz_test_env" x-model="env" class="admin-prod-select">
+                            <option value="sandbox">Sandbox (sandbox.selcom.business — no real money)</option>
+                            <option value="live">Live (api.selcom.business — real money moves)</option>
+                        </select>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div>
+                            <label for="biz_test_phone" class="text-xs font-medium text-slate-600">Recipient phone</label>
+                            <input type="text" id="biz_test_phone" x-model="phone" placeholder="0712345678"
+                                class="admin-prod-input" autocomplete="off">
+                        </div>
+                        <div>
+                            <label for="biz_test_amount" class="text-xs font-medium text-slate-600">Amount (TZS)</label>
+                            <input type="number" id="biz_test_amount" x-model="amount" min="1" class="admin-prod-input">
+                        </div>
+                        <div>
+                            <label for="biz_test_name" class="text-xs font-medium text-slate-600">Recipient name (optional)</label>
+                            <input type="text" id="biz_test_name" x-model="name" placeholder="Test recipient"
+                                class="admin-prod-input" autocomplete="off">
+                        </div>
+                    </div>
+
+                    <div x-show="env === 'live'" x-cloak class="rounded-xl bg-red-50 text-red-800 text-xs px-3 py-2">
+                        ⚠ Live mode sends <strong>real money</strong> to the recipient wallet. Use a small amount and a number you control.
+                    </div>
+
+                    <div class="flex flex-wrap items-center gap-2">
+                        <button type="button" @click="send" :disabled="sending"
+                            class="admin-prod-btn-primary text-sm px-6 disabled:opacity-60">
+                            <span x-show="!sending">Send test disbursement</span>
+                            <span x-show="sending" x-cloak>Sending…</span>
+                        </button>
+                        <button type="button" x-show="transId" x-cloak @click="checkStatus" :disabled="checking"
+                            class="admin-prod-btn-ghost text-sm disabled:opacity-60">
+                            <span x-show="!checking">Check status</span>
+                            <span x-show="checking" x-cloak>Checking…</span>
+                        </button>
+                    </div>
+
+                    <template x-if="transId">
+                        <p class="text-xs text-slate-500">Reference: <span class="font-variant-numeric" x-text="transId"></span></p>
+                    </template>
+                    <p x-show="message" x-cloak class="text-sm rounded-xl px-3 py-2"
+                        :class="ok ? 'bg-emerald-50 text-emerald-800' : 'bg-red-50 text-red-800'"
+                        x-text="message"></p>
                 </div>
             </div>
 
@@ -325,6 +418,72 @@
     @push('scripts')
         <script>
             document.addEventListener('alpine:init', () => {
+                Alpine.data('businessDisburseTest', () => ({
+                    env: 'sandbox',
+                    phone: '',
+                    amount: 1000,
+                    name: '',
+                    sending: false,
+                    checking: false,
+                    ok: false,
+                    message: '',
+                    transId: '',
+                    csrf() {
+                        return document.querySelector('meta[name="csrf-token"]').content;
+                    },
+                    async send() {
+                        if (this.sending) return;
+                        if (this.env === 'live' && !confirm('Send a REAL money disbursement of ' + this.amount + ' TZS to ' + this.phone + '?')) {
+                            return;
+                        }
+                        this.sending = true;
+                        this.message = '';
+                        this.transId = '';
+                        try {
+                            const res = await fetch(@json(route('superadmin.settings.test-business-disburse')), {
+                                method: 'POST',
+                                headers: {
+                                    'X-CSRF-TOKEN': this.csrf(),
+                                    'Accept': 'application/json',
+                                    'Content-Type': 'application/json',
+                                },
+                                body: JSON.stringify({ env: this.env, phone: this.phone, amount: this.amount, name: this.name }),
+                            });
+                            const data = await res.json();
+                            this.ok = !!data.ok;
+                            this.message = data.message || (data.ok ? 'Submitted.' : 'Test failed.');
+                            if (data.trans_id) this.transId = data.trans_id;
+                        } catch {
+                            this.ok = false;
+                            this.message = 'Could not reach the server.';
+                        } finally {
+                            this.sending = false;
+                        }
+                    },
+                    async checkStatus() {
+                        if (this.checking || !this.transId) return;
+                        this.checking = true;
+                        try {
+                            const res = await fetch(@json(route('superadmin.settings.test-business-disburse-status')), {
+                                method: 'POST',
+                                headers: {
+                                    'X-CSRF-TOKEN': this.csrf(),
+                                    'Accept': 'application/json',
+                                    'Content-Type': 'application/json',
+                                },
+                                body: JSON.stringify({ env: this.env, trans_id: this.transId }),
+                            });
+                            const data = await res.json();
+                            this.ok = !!data.ok;
+                            this.message = data.message || 'No status returned.';
+                        } catch {
+                            this.ok = false;
+                            this.message = 'Could not reach the server.';
+                        } finally {
+                            this.checking = false;
+                        }
+                    },
+                }));
                 Alpine.data('selcomApiTest', () => ({
                     testing: false,
                     resultMessage: '',

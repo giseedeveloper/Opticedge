@@ -11,6 +11,9 @@ class Selcompay extends Model
     /** Checkout (create-order-minimal + wallet-payment) for agent commission lines. */
     public const PURPOSE_AGENT_COMMISSION_CHECKOUT = 'agent_commission_checkout';
 
+    /** Selcom Business disbursement (transaction/process) that sends commission TO the agent. */
+    public const PURPOSE_AGENT_COMMISSION_DISBURSE = 'agent_commission_disburse';
+
     /** Vendor package subscription during public signup. */
     public const PURPOSE_VENDOR_SUBSCRIPTION = 'vendor_subscription';
 

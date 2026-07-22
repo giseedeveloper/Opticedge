@@ -32,10 +32,7 @@
         ],
     ];
 
-    $featureLabels = [
-        'command_center' => 'Command center',
-        'multi_branch' => 'Multi-branch',
-    ];
+    $featureLabels = \App\Models\Package::FEATURES;
 @endphp
 
 <x-marketing-layout title="OpticEdge Africa — Phone distribution platform">

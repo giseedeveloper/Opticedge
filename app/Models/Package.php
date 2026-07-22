@@ -14,6 +14,23 @@ class Package extends Model
         'one_time' => 'One-time',
     ];
 
+    /**
+     * Canonical catalog of feature flags a package can grant.
+     * Keys are stored in features_json; values are the display labels.
+     */
+    public const FEATURES = [
+        'imei_tracking' => 'IMEI Tracking',
+        'sales' => 'Sales',
+        'stock_governance' => 'Stock Governance',
+        'stock_aging' => 'Stock Aging',
+        'automatic_receipting' => 'Automatic Receipting',
+        'commissions' => 'Commissions (incl. Bulk)',
+        'stock_transfers' => 'Stock Transfers',
+        'distribution_module' => 'Distribution Module',
+        'command_center' => 'Command center',
+        'multi_branch' => 'Multi-branch',
+    ];
+
     protected $fillable = [
         'name',
         'slug',
@@ -22,6 +39,9 @@ class Package extends Model
         'profit',
         'features_json',
         'max_users',
+        'max_agents',
+        'max_admins',
+        'trial_days',
         'description',
         'is_active',
     ];
@@ -32,8 +52,51 @@ class Package extends Model
             'price' => 'decimal:2',
             'profit' => 'decimal:2',
             'features_json' => 'array',
+            'max_users' => 'integer',
+            'max_agents' => 'integer',
+            'max_admins' => 'integer',
+            'trial_days' => 'integer',
             'is_active' => 'boolean',
         ];
+    }
+
+    /**
+     * Whether this package grants the given feature flag.
+     */
+    public function hasFeature(string $key): bool
+    {
+        return (bool) ($this->features_json[$key] ?? false);
+    }
+
+    /**
+     * Human labels for every enabled feature flag on this package.
+     *
+     * @return array<int, string>
+     */
+    public function enabledFeatureLabels(): array
+    {
+        $labels = [];
+        foreach ((array) $this->features_json as $key => $enabled) {
+            if (! $enabled) {
+                continue;
+            }
+            $labels[] = self::FEATURES[$key] ?? ucfirst(str_replace('_', ' ', (string) $key));
+        }
+
+        return $labels;
+    }
+
+    /**
+     * Display a numeric limit, treating null as unlimited.
+     */
+    public function limitLabel(?int $value): string
+    {
+        return $value === null ? 'Unlimited' : number_format($value);
+    }
+
+    public function trialLabel(): string
+    {
+        return $this->trial_days ? $this->trial_days.'-day trial' : 'No trial';
     }
 
     public function intervalLabel(): string

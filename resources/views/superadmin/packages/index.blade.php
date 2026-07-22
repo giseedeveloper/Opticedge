@@ -15,7 +15,7 @@
 
         <div class="admin-clay-panel overflow-hidden">
             <div class="admin-prod-table-wrap admin-prod-table-wrap--flush overflow-x-auto">
-                <table class="min-w-[720px]">
+                <table class="min-w-[900px]">
                     <thead>
                         <tr>
                             <th scope="col" class="admin-prod-th">Name</th>
@@ -23,6 +23,9 @@
                             <th scope="col" class="admin-prod-th">Price</th>
                             <th scope="col" class="admin-prod-th">Profit</th>
                             <th scope="col" class="admin-prod-th">Interval</th>
+                            <th scope="col" class="admin-prod-th">Agents</th>
+                            <th scope="col" class="admin-prod-th">Admins</th>
+                            <th scope="col" class="admin-prod-th">Trial</th>
                             <th scope="col" class="admin-prod-th">Vendors</th>
                             <th scope="col" class="admin-prod-th admin-prod-th--end">Actions</th>
                         </tr>
@@ -37,6 +40,9 @@
                                 <td>
                                     <span class="admin-prod-count-pill admin-prod-count-pill--info">{{ $package->intervalLabel() }}</span>
                                 </td>
+                                <td class="text-slate-600 whitespace-nowrap">{{ $package->limitLabel($package->max_agents) }}</td>
+                                <td class="text-slate-600 whitespace-nowrap">{{ $package->limitLabel($package->max_admins) }}</td>
+                                <td class="text-slate-600 whitespace-nowrap">{{ $package->trialLabel() }}</td>
                                 <td>
                                     <span class="admin-prod-count-pill admin-prod-count-pill--neutral">{{ $package->tenants_count }}</span>
                                 </td>
@@ -54,7 +60,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="7" class="admin-prod-muted py-8 text-center">No packages yet.</td>
+                                <td colspan="10" class="admin-prod-muted py-8 text-center">No packages yet.</td>
                             </tr>
                         @endforelse
                     </tbody>

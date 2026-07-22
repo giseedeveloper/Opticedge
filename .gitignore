@@ -7,3 +7,7 @@
 opticapp/android/app/google-services.json
 opticapp/ios/Runner/GoogleService-Info.plist
 storage/app/firebase-credentials.json
+
+# Selcom Business API private keys (RSA .pem — never commit)
+*.pem
+storage/app/selcom/

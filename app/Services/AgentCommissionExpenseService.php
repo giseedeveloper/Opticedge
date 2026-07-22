@@ -17,11 +17,15 @@ class AgentCommissionExpenseService
     private const EPS = 0.0001;
 
     /**
-     * Book expense after Selcom commission checkout completes.
+     * Book expense after a Selcom commission payout completes — whether via the
+     * Checkout (dev) flow or the Business disbursement (live) flow.
      */
     public function bookFromSelcompay(Selcompay $selcompay): void
     {
-        if ($selcompay->purpose !== Selcompay::PURPOSE_AGENT_COMMISSION_CHECKOUT) {
+        if (! in_array($selcompay->purpose, [
+            Selcompay::PURPOSE_AGENT_COMMISSION_CHECKOUT,
+            Selcompay::PURPOSE_AGENT_COMMISSION_DISBURSE,
+        ], true)) {
             return;
         }
 

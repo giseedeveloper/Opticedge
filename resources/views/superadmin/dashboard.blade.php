@@ -15,6 +15,44 @@
             </div>
         </div>
 
+        <div class="admin-clay-panel p-5 mb-6" x-data="selcomBusinessBalance()" x-init="load()">
+            <div class="flex flex-wrap items-start justify-between gap-4">
+                <div class="min-w-0">
+                    <div class="flex items-center gap-2">
+                        <p class="text-xs font-bold uppercase tracking-wide text-slate-500">Selcom Business balance</p>
+                        <template x-if="loaded && live !== null">
+                            <span class="text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full"
+                                :class="live ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-600'"
+                                x-text="live ? 'Live' : 'Sandbox'"></span>
+                        </template>
+                    </div>
+
+                    <div x-show="loading" class="mt-2 h-9 w-40 animate-pulse rounded bg-slate-200/80"></div>
+
+                    <template x-if="!loading && ok">
+                        <p class="mt-2 text-3xl font-extrabold tracking-tight text-[#232f3e]">
+                            <span x-text="currency"></span>
+                            <span x-text="formatted"></span>
+                        </p>
+                    </template>
+
+                    <template x-if="!loading && !ok">
+                        <p class="mt-2 text-sm text-amber-700 max-w-md" x-text="message"></p>
+                    </template>
+
+                    <template x-if="!loading && ok && account">
+                        <p class="mt-1 text-xs text-slate-500">Account <span class="font-variant-numeric" x-text="account"></span></p>
+                    </template>
+                </div>
+
+                <button type="button" @click="load()" :disabled="loading"
+                    class="admin-prod-btn-ghost text-sm shrink-0 disabled:opacity-60">
+                    <span x-show="!loading">Refresh</span>
+                    <span x-show="loading" x-cloak>Checking…</span>
+                </button>
+            </div>
+        </div>
+
         <div class="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7">
             <div class="admin-clay-panel p-5">
                 <p class="text-xs font-bold uppercase tracking-wide text-slate-500">Vendors</p>
@@ -144,4 +182,51 @@
             </div>
         </div>
     </div>
+
+    @push('scripts')
+        <script>
+            document.addEventListener('alpine:init', () => {
+                Alpine.data('selcomBusinessBalance', () => ({
+                    loading: false,
+                    loaded: false,
+                    ok: false,
+                    message: '',
+                    currency: 'TZS',
+                    formatted: '',
+                    account: '',
+                    live: null,
+                    url: @json(route('superadmin.selcom-business.balance')),
+
+                    load() {
+                        if (this.loading) return;
+                        this.loading = true;
+                        fetch(this.url, { headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' } })
+                            .then(res => res.json())
+                            .then(data => {
+                                this.ok = data.ok === true;
+                                this.message = data.message || '';
+                                this.live = ('live' in data) ? data.live : null;
+                                if (this.ok) {
+                                    this.currency = data.currency || 'TZS';
+                                    this.account = data.account_number || '';
+                                    const amount = (data.available_balance === null || data.available_balance === undefined)
+                                        ? null : Number(data.available_balance);
+                                    this.formatted = amount === null || isNaN(amount)
+                                        ? '—'
+                                        : amount.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+                                }
+                            })
+                            .catch(() => {
+                                this.ok = false;
+                                this.message = 'Could not reach the server.';
+                            })
+                            .finally(() => {
+                                this.loading = false;
+                                this.loaded = true;
+                            });
+                    }
+                }));
+            });
+        </script>
+    @endpush
 </x-superadmin-layout>

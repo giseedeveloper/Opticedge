@@ -62,7 +62,7 @@ class PayoutController extends Controller
         $completedSelcomKeys = [];
         if (Schema::hasTable('selcompays') && Schema::hasColumn('selcompays', 'purpose')) {
             $completedSelcomKeys = Selcompay::query()
-                ->where('purpose', Selcompay::PURPOSE_AGENT_COMMISSION_CHECKOUT)
+                ->where('purpose', Selcompay::PURPOSE_AGENT_COMMISSION_DISBURSE)
                 ->where('payment_status', 'completed')
                 ->whereNotNull('payout_source_type')
                 ->whereNotNull('payout_source_id')
@@ -74,7 +74,7 @@ class PayoutController extends Controller
             $completedSelcomKeys = array_fill_keys($completedSelcomKeys, true);
 
             $latestSelcom = Selcompay::query()
-                ->where('purpose', Selcompay::PURPOSE_AGENT_COMMISSION_CHECKOUT)
+                ->where('purpose', Selcompay::PURPOSE_AGENT_COMMISSION_DISBURSE)
                 ->whereNotNull('payout_source_type')
                 ->whereNotNull('payout_source_id')
                 ->orderByDesc('id')
@@ -85,7 +85,7 @@ class PayoutController extends Controller
 
         $rows = $rows->map(function (array $row) use ($latestSelcom, $completedSelcomKeys) {
             $key = ($row['source'] === 'credit' ? 'agent_credit' : 'agent_sale') . ':' . $row['source_id'];
-            $row['selcom_checkout_completed'] = isset($completedSelcomKeys[$key]);
+            $row['disburse_completed'] = isset($completedSelcomKeys[$key]);
             $row['selcom'] = $latestSelcom->get($key);
 
             return $row;
@@ -99,7 +99,7 @@ class PayoutController extends Controller
         ];
 
         $bulkEligibleCount = $rows->filter(function (array $row) {
-            if (($row['selcom_checkout_completed'] ?? false) === true) {
+            if (($row['disburse_completed'] ?? false) === true) {
                 return false;
             }
 
