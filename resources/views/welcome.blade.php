@@ -144,9 +144,22 @@
                                         @endif
                                     @endforeach
                                 </ul>
-                            @elseif ($package->max_users)
-                                <p class="mt-4 text-sm text-slate-600">Up to {{ $package->max_users }} users</p>
                             @endif
+
+                            <dl class="mt-5 pt-4 border-t border-slate-200/70 grid grid-cols-3 gap-2 text-center">
+                                <div>
+                                    <dt class="text-xs font-semibold uppercase tracking-wide text-slate-400">Agents</dt>
+                                    <dd class="mt-0.5 text-sm font-bold text-[#232f3e]">{{ $package->limitLabel($package->max_agents) }}</dd>
+                                </div>
+                                <div>
+                                    <dt class="text-xs font-semibold uppercase tracking-wide text-slate-400">Admins</dt>
+                                    <dd class="mt-0.5 text-sm font-bold text-[#232f3e]">{{ $package->limitLabel($package->max_admins) }}</dd>
+                                </div>
+                                <div>
+                                    <dt class="text-xs font-semibold uppercase tracking-wide text-slate-400">Total users</dt>
+                                    <dd class="mt-0.5 text-sm font-bold text-[#232f3e]">{{ $package->limitLabel($package->max_users) }}</dd>
+                                </div>
+                            </dl>
                         </div>
                         <div class="px-6 pb-6 pt-0">
                             <a href="{{ route('vendor.subscribe', $package) }}"
