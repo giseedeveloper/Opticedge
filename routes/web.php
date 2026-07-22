@@ -169,6 +169,7 @@ Route::middleware(['auth', 'superadmin'])->prefix('superadmin')->name('superadmi
     Route::post('settings/test-selcom-status', [App\Http\Controllers\Superadmin\PlatformSettingController::class, 'testSelcomStatus'])->name('settings.test-selcom-status');
     Route::post('settings/test-business-disburse', [App\Http\Controllers\Superadmin\PlatformSettingController::class, 'testBusinessDisburse'])->name('settings.test-business-disburse');
     Route::post('settings/test-business-disburse-status', [App\Http\Controllers\Superadmin\PlatformSettingController::class, 'testBusinessDisburseStatus'])->name('settings.test-business-disburse-status');
+    Route::post('settings/selcom-business-key', [App\Http\Controllers\Superadmin\PlatformSettingController::class, 'uploadBusinessKey'])->name('settings.selcom-business-key');
 });
 
 Route::middleware(['auth', 'redirect.superadmin.from.admin', 'admin', 'tenant.subscription', 'subadmin.ability'])->prefix('admin')->name('admin.')->group(function () {

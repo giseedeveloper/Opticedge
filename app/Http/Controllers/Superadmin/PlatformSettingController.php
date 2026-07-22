@@ -161,6 +161,45 @@ class PlatformSettingController extends Controller
     }
 
     /**
+     * Upload the Selcom Business RSA private key (.pem). Stored under storage/app
+     * (outside the web root) with 0600 perms; the raw key is never logged or echoed.
+     */
+    public function uploadBusinessKey(Request $request): RedirectResponse
+    {
+        $request->validate(
+            ['business_key_file' => ['required', 'file', 'max:16']],
+            [],
+            ['business_key_file' => 'private key file']
+        );
+
+        $pem = (string) file_get_contents($request->file('business_key_file')->getRealPath());
+
+        if (@openssl_pkey_get_private($pem) === false) {
+            return back()->withErrors(['business_key_file' => 'That file is not a valid RSA private key (.pem).']);
+        }
+
+        $dir = storage_path('app/selcom');
+        if (! is_dir($dir) && ! @mkdir($dir, 0700, true) && ! is_dir($dir)) {
+            return back()->withErrors(['business_key_file' => 'Could not create the key directory on the server.']);
+        }
+
+        $path = $dir . DIRECTORY_SEPARATOR . 'selcom_business_private.pem';
+        if (file_put_contents($path, $pem) === false) {
+            return back()->withErrors(['business_key_file' => 'Could not save the key file on the server.']);
+        }
+        @chmod($path, 0600);
+
+        Setting::query()->withoutGlobalScopes()->updateOrCreate(
+            ['key' => 'selcom_biz_private_key_path', 'tenant_id' => null],
+            ['value' => $path]
+        );
+
+        return redirect()
+            ->route('superadmin.settings.index')
+            ->with('success', 'Selcom Business private key uploaded successfully.');
+    }
+
+    /**
      * Send a one-off TEST disbursement via the Selcom Business API. The environment
      * (sandbox/live) is chosen per-test and overrides the saved setting, so live
      * moves real money — the UI warns before sending.

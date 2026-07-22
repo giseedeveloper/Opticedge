@@ -413,6 +413,42 @@
                 <button type="submit" class="admin-prod-btn-primary px-8">Save changes</button>
             </div>
         </form>
+
+        <div x-show="tab === 'selcom'" x-cloak class="admin-clay-panel admin-prod-form-shell overflow-hidden mt-6">
+            <div class="admin-prod-form-head">
+                <h2 class="admin-prod-form-title">Selcom Business private key (.pem)</h2>
+                <p class="admin-prod-form-hint">Upload the RSA private key downloaded from the Selcom Business dashboard. It is stored on the server outside the web root and never leaves it — replacing it here rotates the key.</p>
+            </div>
+            <div class="admin-prod-form-body space-y-4">
+                @php
+                    $bizKeyPath = $settings['selcom_biz_private_key_path'] ?? config('selcom_business.private_key_path');
+                    $bizKeyPresent = is_string($bizKeyPath) && is_file($bizKeyPath);
+                @endphp
+
+                <div class="rounded-xl px-3 py-2 text-sm {{ $bizKeyPresent ? 'bg-emerald-50 text-emerald-800' : 'bg-amber-50 text-amber-800' }}">
+                    {{ $bizKeyPresent ? '✓ A private key is installed on the server.' : '⚠ No private key installed yet — disbursements and the balance check will not work until you upload one.' }}
+                </div>
+
+                @error('business_key_file')
+                    <div class="rounded-xl bg-red-50 text-red-800 text-sm px-3 py-2">{{ $message }}</div>
+                @enderror
+
+                <form action="{{ route('superadmin.settings.selcom-business-key') }}" method="POST" enctype="multipart/form-data"
+                    class="flex flex-col sm:flex-row sm:items-end gap-3">
+                    @csrf
+                    <div class="grow">
+                        <label for="business_key_file" class="admin-prod-label">Private key file</label>
+                        <input type="file" name="business_key_file" id="business_key_file" accept=".pem,.key,.txt"
+                            required class="admin-prod-input file:mr-3 file:rounded-lg file:border-0 file:bg-[#fa8900] file:px-3 file:py-1.5 file:text-white file:text-sm">
+                    </div>
+                    <button type="submit" class="admin-prod-btn-primary px-6 shrink-0"
+                        onclick="return confirm('{{ $bizKeyPresent ? 'Replace the existing Selcom Business private key?' : 'Upload this Selcom Business private key?' }}');">
+                        {{ $bizKeyPresent ? 'Replace key' : 'Upload key' }}
+                    </button>
+                </form>
+                <p class="text-xs text-slate-500">Only the <strong>.pem</strong> file goes here. The matching public <strong>API key</strong> and <strong>account number</strong> go in the Selcom configuration above.</p>
+            </div>
+        </div>
     </div>
 
     @push('scripts')
