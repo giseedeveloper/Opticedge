@@ -263,10 +263,28 @@ class StockController extends Controller
     /**
      * Show devices (product list items) for a stock: model and IMEI.
      */
-    public function showStock(Stock $stock)
+    public function showStock(Request $request, Stock $stock)
     {
-        $itemsQuery = ProductListItem::query()
-            ->where('stock_id', $stock->id)
+        $validHolders = ['admin', 'regional_manager', 'team_leader', 'agent'];
+        $holder = (string) $request->query('holder', '');
+        if (! in_array($holder, $validHolders, true)) {
+            $holder = '';
+        }
+
+        $baseQuery = ProductListItem::query()->where('stock_id', $stock->id);
+
+        // Limit is based on all unsold devices in the bucket, independent of the holder filter.
+        $available = (clone $baseQuery)->whereNull('sold_at')->count();
+        $atLimit = $available >= $stock->stock_limit;
+
+        // Count of unsold devices currently held at each hierarchy level (for the filter chips).
+        $holderCounts = [];
+        foreach ($validHolders as $role) {
+            $holderCounts[$role] = (clone $baseQuery)->heldByRole($role)->count();
+        }
+
+        $itemsQuery = (clone $baseQuery)
+            ->when($holder !== '', fn ($q) => $q->heldByRole($holder))
             ->with([
                 'category',
                 'product',
@@ -284,11 +302,9 @@ class StockController extends Controller
             ->orderBy('model')
             ->orderBy('imei_number');
 
-        $available = (clone $itemsQuery)->whereNull('sold_at')->count();
-        $atLimit = $available >= $stock->stock_limit;
         $items = $itemsQuery->paginate(50)->withQueryString();
 
-        return view('admin.stock.stock-show', compact('stock', 'atLimit', 'items', 'available'));
+        return view('admin.stock.stock-show', compact('stock', 'atLimit', 'items', 'available', 'holder', 'holderCounts'));
     }
 
     public function purchases(Request $request)

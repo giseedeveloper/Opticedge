@@ -17,6 +17,9 @@ class Selcompay extends Model
     /** Vendor package subscription during public signup. */
     public const PURPOSE_VENDOR_SUBSCRIPTION = 'vendor_subscription';
 
+    /** Selcom Checkout top-up that credits a vendor's disbursement wallet. */
+    public const PURPOSE_WALLET_TOPUP = 'wallet_topup';
+
     protected $fillable = [
         'transid',
         'order_id',

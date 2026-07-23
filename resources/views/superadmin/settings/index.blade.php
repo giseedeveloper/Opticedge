@@ -449,6 +449,35 @@
                 <p class="text-xs text-slate-500">Only the <strong>.pem</strong> file goes here. The matching public <strong>API key</strong> and <strong>account number</strong> go in the Selcom configuration above.</p>
             </div>
         </div>
+
+        <div x-show="tab === 'email'" x-cloak x-data="emailTest()" class="admin-clay-panel admin-prod-form-shell overflow-hidden mt-6">
+            <div class="admin-prod-form-head">
+                <h2 class="admin-prod-form-title">Send a test email</h2>
+                <p class="admin-prod-form-hint">Verify the SMTP settings above actually deliver mail. Save your changes first — this uses the last saved configuration, not unsaved edits.</p>
+            </div>
+            <div class="admin-prod-form-body space-y-4">
+                <div class="flex flex-col sm:flex-row sm:items-end gap-3">
+                    <div class="grow">
+                        <label for="test_email_to" class="admin-prod-label">Send to</label>
+                        <input type="email" id="test_email_to" x-model="email" placeholder="you@example.com"
+                            class="admin-prod-input" autocomplete="off">
+                    </div>
+                    <button type="button" @click="send()" :disabled="sending"
+                        class="admin-prod-btn-primary px-6 shrink-0 disabled:opacity-60 disabled:cursor-not-allowed">
+                        <span x-show="!sending">Send test email</span>
+                        <span x-show="sending" x-cloak>Sending…</span>
+                    </button>
+                </div>
+
+                <div x-show="message" x-cloak
+                    class="rounded-xl px-3 py-2 text-sm"
+                    :class="ok ? 'bg-emerald-50 text-emerald-800' : 'bg-red-50 text-red-800'">
+                    <span x-text="message"></span>
+                </div>
+
+                <p class="text-xs text-slate-500">A short plain-text message is sent to the address above so you can confirm delivery.</p>
+            </div>
+        </div>
     </div>
 
     @push('scripts')
@@ -517,6 +546,41 @@
                             this.message = 'Could not reach the server.';
                         } finally {
                             this.checking = false;
+                        }
+                    },
+                }));
+                Alpine.data('emailTest', () => ({
+                    email: @json(optional(auth()->user())->email ?? ''),
+                    sending: false,
+                    ok: false,
+                    message: '',
+                    async send() {
+                        if (this.sending) return;
+                        if (!this.email) {
+                            this.ok = false;
+                            this.message = 'Enter an email address to send to.';
+                            return;
+                        }
+                        this.sending = true;
+                        this.message = '';
+                        try {
+                            const res = await fetch(@json(route('superadmin.settings.test-email')), {
+                                method: 'POST',
+                                headers: {
+                                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                                    'Accept': 'application/json',
+                                    'Content-Type': 'application/json',
+                                },
+                                body: JSON.stringify({ email: this.email }),
+                            });
+                            const data = await res.json();
+                            this.ok = !!data.ok;
+                            this.message = data.message || (data.ok ? 'Sent.' : 'Could not send the test email.');
+                        } catch {
+                            this.ok = false;
+                            this.message = 'Could not reach the server.';
+                        } finally {
+                            this.sending = false;
                         }
                     },
                 }));

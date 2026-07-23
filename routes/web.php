@@ -145,6 +145,12 @@ Route::middleware(['auth', 'superadmin'])->prefix('superadmin')->name('superadmi
     Route::get('subscription-profits', [App\Http\Controllers\Superadmin\SubscriptionProfitController::class, 'index'])
         ->name('subscription-profits.index');
 
+    Route::get('subscription-revenue', [App\Http\Controllers\Superadmin\SubscriptionRevenueController::class, 'index'])
+        ->name('subscription-revenue.index');
+
+    Route::get('vendor-wallets', [App\Http\Controllers\Superadmin\VendorWalletController::class, 'index'])
+        ->name('vendor-wallets.index');
+
     Route::get('command', [CommandCenterController::class, 'index'])->name('command.center');
     Route::post('command/execute', [CommandCenterController::class, 'execute'])->name('command.execute');
     Route::post('command/migrate-force', [CommandCenterController::class, 'migrateForce'])->name('command.migrate-force');
@@ -164,6 +170,7 @@ Route::middleware(['auth', 'superadmin'])->prefix('superadmin')->name('superadmi
     Route::get('settings', [App\Http\Controllers\Superadmin\PlatformSettingController::class, 'index'])->name('settings.index');
     Route::post('settings', [App\Http\Controllers\Superadmin\PlatformSettingController::class, 'update'])->name('settings.update');
     Route::post('settings/test-selcom', [App\Http\Controllers\Superadmin\PlatformSettingController::class, 'testSelcom'])->name('settings.test-selcom');
+    Route::post('settings/test-email', [App\Http\Controllers\Superadmin\PlatformSettingController::class, 'testEmail'])->name('settings.test-email');
     Route::post('settings/test-selcom-mobile', [App\Http\Controllers\Superadmin\PlatformSettingController::class, 'testSelcomMobile'])->name('settings.test-selcom-mobile');
     Route::post('settings/test-selcom-card', [App\Http\Controllers\Superadmin\PlatformSettingController::class, 'testSelcomCard'])->name('settings.test-selcom-card');
     Route::post('settings/test-selcom-status', [App\Http\Controllers\Superadmin\PlatformSettingController::class, 'testSelcomStatus'])->name('settings.test-selcom-status');
@@ -240,7 +247,11 @@ Route::middleware(['auth', 'redirect.superadmin.from.admin', 'admin', 'tenant.su
 
             $distributorReceivables = $financialService->getDistributorReceivableBreakdown($financialStartDate, $financialEndDate);
             $agentCreditReceivables = $financialService->getAgentCreditReceivableSummary($financialStartDate, $financialEndDate);
-            
+
+            // Disbursement wallet balance for the current vendor (funds agent payouts).
+            $walletTenantId = (int) (auth()->user()->tenant_id ?? \App\Support\TenantContext::id() ?? 0);
+            $walletBalance = $walletTenantId > 0 ? app(\App\Services\WalletService::class)->balance($walletTenantId) : 0.0;
+
             return view('admin.dashboard', compact(
                 'totalCustomers',
                 'totalOrders',
@@ -259,7 +270,8 @@ Route::middleware(['auth', 'redirect.superadmin.from.admin', 'admin', 'tenant.su
                 'overduePurchases',
                 'overduePayables',
                 'distributorReceivables',
-                'agentCreditReceivables'
+                'agentCreditReceivables',
+                'walletBalance'
             ));
         }
         )->name('dashboard');
@@ -369,6 +381,12 @@ Route::middleware(['auth', 'redirect.superadmin.from.admin', 'admin', 'tenant.su
         Route::post('payout/agent-commission/business-bulk', [App\Http\Controllers\Admin\CommissionBusinessPayoutController::class, 'bulkStart'])->name('payout.business.bulk');
         Route::get('payout/business/{selcompay}/wait', [App\Http\Controllers\Admin\CommissionBusinessPayoutController::class, 'wait'])->name('payout.business.wait');
         Route::get('payout/business/{selcompay}/status', [App\Http\Controllers\Admin\CommissionBusinessPayoutController::class, 'status'])->name('payout.business.status');
+
+        // Disbursement wallet top-up (Selcom Checkout, money in) + ledger.
+        Route::post('payout/wallet/deposit', [App\Http\Controllers\Admin\WalletController::class, 'deposit'])->name('payout.wallet.deposit');
+        Route::get('payout/wallet/topup/{selcompay}/wait', [App\Http\Controllers\Admin\WalletController::class, 'wait'])->name('payout.wallet.wait');
+        Route::get('payout/wallet/topup/{selcompay}/status', [App\Http\Controllers\Admin\WalletController::class, 'status'])->name('payout.wallet.status');
+        Route::get('payout/wallet/ledger', [App\Http\Controllers\Admin\WalletController::class, 'ledger'])->name('payout.wallet.ledger');
 
         // Selcom Checkout (pull) — kept as the dev/test flow; not wired to the Pay out page buttons.
         Route::post('payout/agent-commission/selcom-bulk', [App\Http\Controllers\Admin\CommissionSelcomPayoutController::class, 'bulkStart'])->name('payout.commission-selcom.bulk');

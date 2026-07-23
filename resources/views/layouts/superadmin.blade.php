@@ -140,6 +140,10 @@
                     class="px-3 py-1.5 rounded-xl text-slate-600 hover:text-[#232f3e] hover:bg-white/70 transition-all shrink-0 {{ request()->routeIs('superadmin.packages.*') ? 'bg-white/80 text-[#232f3e] font-semibold' : '' }}">Packages</a>
                 <a href="{{ route('superadmin.subscription-profits.index') }}"
                     class="px-3 py-1.5 rounded-xl text-slate-600 hover:text-[#232f3e] hover:bg-white/70 transition-all shrink-0 {{ request()->routeIs('superadmin.subscription-profits.*') ? 'bg-white/80 text-[#232f3e] font-semibold' : '' }}">Subscription</a>
+                <a href="{{ route('superadmin.subscription-revenue.index') }}"
+                    class="px-3 py-1.5 rounded-xl text-slate-600 hover:text-[#232f3e] hover:bg-white/70 transition-all shrink-0 {{ request()->routeIs('superadmin.subscription-revenue.*') ? 'bg-white/80 text-[#232f3e] font-semibold' : '' }}">Revenue</a>
+                <a href="{{ route('superadmin.vendor-wallets.index') }}"
+                    class="px-3 py-1.5 rounded-xl text-slate-600 hover:text-[#232f3e] hover:bg-white/70 transition-all shrink-0 {{ request()->routeIs('superadmin.vendor-wallets.*') ? 'bg-white/80 text-[#232f3e] font-semibold' : '' }}">Wallets</a>
                 <a href="{{ route('superadmin.settings.index') }}"
                     class="px-3 py-1.5 rounded-xl text-slate-600 hover:text-[#232f3e] hover:bg-white/70 transition-all shrink-0 {{ request()->routeIs('superadmin.settings.*') ? 'bg-white/80 text-[#232f3e] font-semibold' : '' }}">Settings</a>
                 <a href="{{ route('superadmin.command.center') }}"
@@ -221,6 +225,26 @@
                                     d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                             </svg>
                             Subscription
+                        </a>
+                        <a href="{{ route('superadmin.subscription-revenue.index') }}"
+                            @if (request()->routeIs('superadmin.subscription-revenue.*')) aria-current="page" @endif
+                            class="admin-sidebar-item {{ request()->routeIs('superadmin.subscription-revenue.*') ? 'admin-sidebar-item-active' : '' }}">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+                                stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round"
+                                    d="M3 3v18h18M9 17V9m4 8V5m4 12v-6" />
+                            </svg>
+                            Revenue
+                        </a>
+                        <a href="{{ route('superadmin.vendor-wallets.index') }}"
+                            @if (request()->routeIs('superadmin.vendor-wallets.*')) aria-current="page" @endif
+                            class="admin-sidebar-item {{ request()->routeIs('superadmin.vendor-wallets.*') ? 'admin-sidebar-item-active' : '' }}">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+                                stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round"
+                                    d="M21 12a2.25 2.25 0 00-2.25-2.25H5.25A2.25 2.25 0 013 7.5m18 4.5v6a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 18V7.5m18 4.5h-3.75a1.5 1.5 0 100 3H21M3 7.5A2.25 2.25 0 015.25 5.25h12A2.25 2.25 0 0119.5 7.5" />
+                            </svg>
+                            Vendor wallets
                         </a>
                         <a href="{{ route('superadmin.settings.index') }}"
                             @if (request()->routeIs('superadmin.settings.*')) aria-current="page" @endif

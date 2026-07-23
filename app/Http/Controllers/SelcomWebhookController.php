@@ -59,6 +59,10 @@ class SelcomWebhookController extends Controller
                     if ($selcompay->purpose === Selcompay::PURPOSE_VENDOR_SUBSCRIPTION) {
                         app(VendorSubscriptionPaymentService::class)->handleWebhookCompleted($selcompay);
                     }
+
+                    if ($selcompay->purpose === Selcompay::PURPOSE_WALLET_TOPUP) {
+                        app(\App\Services\WalletTopupService::class)->creditFromSelcompay($selcompay);
+                    }
                 }
             } catch (\Illuminate\Database\QueryException $e) {
                 // MySQL errno 1062 = the uniq_completed_commission_payout guard rejecting a

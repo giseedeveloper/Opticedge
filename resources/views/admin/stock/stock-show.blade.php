@@ -40,6 +40,30 @@
             </div>
         @endif
 
+        @php
+            $holderFilters = [
+                '' => ['label' => 'All', 'count' => $available],
+                'admin' => ['label' => 'Admin', 'count' => $holderCounts['admin'] ?? 0],
+                'regional_manager' => ['label' => 'Regional manager', 'count' => $holderCounts['regional_manager'] ?? 0],
+                'team_leader' => ['label' => 'Team leader', 'count' => $holderCounts['team_leader'] ?? 0],
+                'agent' => ['label' => 'Agent', 'count' => $holderCounts['agent'] ?? 0],
+            ];
+        @endphp
+        <div class="mb-4">
+            <p class="admin-prod-eyebrow mb-2">Filter by current holder</p>
+            <div class="flex flex-wrap gap-2">
+                @foreach($holderFilters as $key => $meta)
+                    @php $active = $holder === $key; @endphp
+                    <a href="{{ route('admin.stock.stocks.show', array_merge(['stock' => $stock->id], $key === '' ? [] : ['holder' => $key])) }}"
+                        class="inline-flex items-center gap-2 rounded-full border px-4 py-1.5 text-sm font-semibold transition-colors
+                            {{ $active ? 'border-[#fa8900] bg-[#fa8900] text-white' : 'border-slate-200 bg-white/70 text-slate-600 hover:border-[#fa8900] hover:text-[#fa8900]' }}">
+                        {{ $meta['label'] }}
+                        <span class="rounded-full px-2 py-0.5 text-xs {{ $active ? 'bg-white/25 text-white' : 'bg-slate-100 text-slate-500' }}">{{ number_format($meta['count']) }}</span>
+                    </a>
+                @endforeach
+            </div>
+        </div>
+
         <div class="admin-clay-panel overflow-hidden">
             <div class="admin-prod-table-wrap admin-prod-table-wrap--flush overflow-x-auto">
                 <table data-no-datatable>
@@ -50,6 +74,7 @@
                             <th scope="col" class="admin-prod-th">Model</th>
                             <th scope="col" class="admin-prod-th">IMEI</th>
                             <th scope="col" class="admin-prod-th">Product / category</th>
+                            <th scope="col" class="admin-prod-th">Held by</th>
                             <th scope="col" class="admin-prod-th">In stock / sold</th>
                         </tr>
                     </thead>
@@ -72,6 +97,31 @@
                                     @endif
                                 </td>
                                 <td>
+                                    @php
+                                        $held = $item->currentHolder();
+                                        $holderBadge = match ($held['role']) {
+                                            'admin' => 'bg-slate-100 text-slate-700',
+                                            'regional_manager' => 'bg-indigo-100 text-indigo-700',
+                                            'team_leader' => 'bg-sky-100 text-sky-700',
+                                            'agent' => 'bg-emerald-100 text-emerald-700',
+                                            default => 'bg-slate-100 text-slate-400',
+                                        };
+                                        $holderRoleLabel = match ($held['role']) {
+                                            'admin' => 'Admin',
+                                            'regional_manager' => 'Regional manager',
+                                            'team_leader' => 'Team leader',
+                                            'agent' => 'Agent',
+                                            default => null,
+                                        };
+                                    @endphp
+                                    @if($held['role'])
+                                        <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold {{ $holderBadge }}">{{ $holderRoleLabel }}</span>
+                                        <span class="block text-xs text-slate-500 mt-0.5">{{ $held['label'] }}</span>
+                                    @else
+                                        <span class="text-slate-400 text-sm">—</span>
+                                    @endif
+                                </td>
+                                <td>
                                     @if($item->sold_at)
                                         <span class="admin-prod-status admin-prod-status--sold">Sold</span>
                                     @else
@@ -80,7 +130,7 @@
                                 </td>
                             </tr>
                             <tr x-show="open" x-cloak class="!border-b border-slate-200/80">
-                                <td colspan="6" class="p-0">
+                                <td colspan="7" class="p-0">
                                     @include('admin.stock.partials.imei-full-info', ['item' => $item])
                                 </td>
                             </tr>
@@ -88,7 +138,9 @@
                     @empty
                         <tbody>
                             <tr>
-                                <td colspan="6" class="text-center text-slate-500 py-10">No devices in this stock yet.</td>
+                                <td colspan="7" class="text-center text-slate-500 py-10">
+                                    {{ $holder === '' ? 'No devices in this stock yet.' : 'No devices currently held at this level.' }}
+                                </td>
                             </tr>
                         </tbody>
                     @endforelse

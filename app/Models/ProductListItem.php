@@ -326,6 +326,69 @@ class ProductListItem extends Model
     }
 
     /**
+     * Filter unsold devices to those currently held by a hierarchy role. The holder is
+     * the deepest assignment level a device has (agent > team leader > regional manager);
+     * with no assignment it is still in the admin warehouse. Mirrors the counts in
+     * {@see \App\Services\StockSummaryInsightsService::inventoryByRole()}.
+     *
+     * @param  'admin'|'regional_manager'|'team_leader'|'agent'  $role
+     */
+    public function scopeHeldByRole($query, string $role)
+    {
+        $query->whereNull('sold_at');
+
+        return match ($role) {
+            'admin' => $query
+                ->whereDoesntHave('regionalManagerProductListAssignment')
+                ->whereDoesntHave('teamLeaderProductListAssignment')
+                ->whereDoesntHave('agentProductListAssignment'),
+            'regional_manager' => $query
+                ->whereHas('regionalManagerProductListAssignment')
+                ->whereDoesntHave('teamLeaderProductListAssignment')
+                ->whereDoesntHave('agentProductListAssignment'),
+            'team_leader' => $query
+                ->whereHas('teamLeaderProductListAssignment')
+                ->whereDoesntHave('agentProductListAssignment'),
+            'agent' => $query
+                ->whereHas('agentProductListAssignment'),
+            default => $query,
+        };
+    }
+
+    /**
+     * Current hierarchy holder for display, using the same deepest-wins rule as
+     * {@see scopeHeldByRole()}. Returns a null role for sold devices.
+     *
+     * @return array{role: ?string, label: string}
+     */
+    public function currentHolder(): array
+    {
+        if ($this->sold_at !== null) {
+            return ['role' => null, 'label' => 'Sold'];
+        }
+
+        if ($this->agentProductListAssignment) {
+            $this->loadMissing('agentProductListAssignment.agent');
+
+            return ['role' => 'agent', 'label' => $this->agentProductListAssignment?->agent?->name ?? 'Agent'];
+        }
+
+        if ($this->teamLeaderProductListAssignment) {
+            $this->loadMissing('teamLeaderProductListAssignment.teamLeader');
+
+            return ['role' => 'team_leader', 'label' => $this->teamLeaderProductListAssignment?->teamLeader?->name ?? 'Team leader'];
+        }
+
+        if ($this->regionalManagerProductListAssignment) {
+            $this->loadMissing('regionalManagerProductListAssignment.regionalManager');
+
+            return ['role' => 'regional_manager', 'label' => $this->regionalManagerProductListAssignment?->regionalManager?->name ?? 'Regional manager'];
+        }
+
+        return ['role' => 'admin', 'label' => 'Admin warehouse'];
+    }
+
+    /**
      * Unsold warehouse devices on a specific purchase (and its stock), ready for admin hierarchy assignment.
      */
     public function scopeAssignableFromAdminOnPurchase($query, int $purchaseId, ?int $productId = null)

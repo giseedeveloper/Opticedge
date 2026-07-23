@@ -35,6 +35,44 @@
             </div>
         @endif
 
+        <div x-data="{ showDeposit: false }" class="admin-clay-panel p-5 mb-6">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div>
+                    <p class="text-xs font-bold uppercase tracking-wide text-slate-500">Disbursement wallet</p>
+                    <p class="mt-1 text-3xl font-extrabold tracking-tight text-[#232f3e]">{{ number_format($walletBalance ?? 0, 0) }} <span class="text-lg font-semibold text-slate-500">TZS</span></p>
+                    <p class="mt-1 text-xs text-slate-500">Agent commission payouts are funded from this balance. Top it up to pay commissions.</p>
+                </div>
+                <div class="flex flex-wrap gap-2 shrink-0">
+                    <a href="{{ route('admin.payout.wallet.ledger') }}" class="admin-prod-btn-ghost text-sm py-2 px-4">Wallet history</a>
+                    <button type="button" @click="showDeposit = !showDeposit" class="admin-prod-btn-primary text-sm py-2 px-4">
+                        <span x-show="!showDeposit">Deposit</span>
+                        <span x-show="showDeposit" x-cloak>Cancel</span>
+                    </button>
+                </div>
+            </div>
+
+            <form x-show="showDeposit" x-cloak method="POST" action="{{ route('admin.payout.wallet.deposit') }}"
+                class="mt-5 pt-5 border-t border-slate-200/70 flex flex-col sm:flex-row sm:items-end gap-3">
+                @csrf
+                <div class="grow">
+                    <label for="deposit_amount" class="admin-prod-label">Amount (TZS)</label>
+                    <input type="number" name="amount" id="deposit_amount" min="500" step="1" required
+                        class="admin-prod-input" placeholder="e.g. 100000">
+                </div>
+                <div class="grow">
+                    <label for="deposit_phone" class="admin-prod-label">Mobile money number</label>
+                    <input type="text" name="phone" id="deposit_phone" required
+                        value="{{ old('phone', auth()->user()->phone) }}"
+                        class="admin-prod-input" placeholder="07… / 2557…">
+                </div>
+                <button type="submit" class="admin-prod-btn-primary px-6 shrink-0"
+                    onclick="return confirm('Start a Selcom top-up? You will approve the payment on your phone.');">
+                    Top up wallet
+                </button>
+            </form>
+            <p x-show="showDeposit" x-cloak class="mt-2 text-xs text-slate-500">Money is collected via Selcom and credited to your wallet once the payment completes.</p>
+        </div>
+
         <div class="admin-clay-panel p-2 sm:p-3 mb-6">
             <div class="flex flex-wrap gap-2">
                 <button

@@ -92,9 +92,8 @@
     {{-- Packages --}}
     <section id="packages" class="max-w-6xl mx-auto px-4 pb-14 sm:pb-20" aria-labelledby="packages-heading">
         <header class="text-center mb-8 sm:mb-10">
-            <h2 id="packages-heading" class="text-2xl sm:text-3xl font-bold text-[#232f3e]">Subscription packages</h2>
-            <p class="mt-2 text-slate-600 max-w-xl mx-auto">Choose a plan that fits your vendor size. Contact us for
-                custom enterprise needs.</p>
+            <h2 id="packages-heading" class="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-[#232f3e]">Choose the Perfect Plan for Your Business</h2>
+            <p class="mt-3 text-slate-600 max-w-2xl mx-auto">Professional solutions for mobile phone dealers, brands, and finance partners.</p>
         </header>
 
         @if ($packages->isEmpty())
@@ -108,70 +107,116 @@
                 <p class="mt-1 text-sm text-slate-600">Check back soon — subscription packages will appear here.</p>
             </div>
         @else
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                @foreach ($packages as $package)
-                    <article
-                        class="admin-clay-panel flex flex-col {{ $loop->first ? 'ring-2 ring-[#fa8900]/35' : '' }}"
-                        aria-labelledby="package-{{ $package->id }}-name">
-                        <div class="p-6 flex-1 flex flex-col">
-                            @if ($loop->first)
-                                <span
-                                    class="inline-block self-start mb-3 rounded-lg bg-[#fa8900]/15 text-[#c76a00] px-2.5 py-0.5 text-xs font-bold uppercase tracking-wide">Popular</span>
-                            @endif
-                            <h3 id="package-{{ $package->id }}-name" class="text-xl font-bold text-[#232f3e]">
-                                {{ $package->name }}</h3>
-                            @if ($package->description)
-                                <p class="mt-2 text-sm text-slate-600 leading-relaxed">{{ $package->description }}</p>
-                            @endif
-                            <p class="mt-5">
-                                <span class="text-3xl font-extrabold text-[#232f3e]">{{ $package->formattedPrice() }}</span>
-                                <span class="text-slate-600 text-sm">/ {{ strtolower($package->intervalLabel()) }}</span>
-                            </p>
-                            @if (is_array($package->features_json) && count($package->features_json) > 0)
-                                <ul class="mt-5 space-y-2.5 flex-1" role="list">
-                                    @foreach ($package->features_json as $key => $value)
-                                        @if ($value)
-                                            <li class="flex gap-2.5 text-sm text-slate-600">
-                                                <x-icons.check class="text-emerald-600" />
-                                                <span>
-                                                    @if (is_string($key) && $key !== '0')
-                                                        {{ $featureLabels[$key] ?? ucfirst(str_replace('_', ' ', $key)) }}
-                                                    @else
-                                                        {{ $value }}
-                                                    @endif
-                                                </span>
-                                            </li>
-                                        @endif
-                                    @endforeach
-                                </ul>
-                            @endif
+            @php
+                // Accent palette cycled across package columns (Bronze / Silver / Gold look).
+                $accents = [
+                    ['name' => 'text-sky-600', 'sub' => 'text-sky-500', 'head' => 'bg-sky-50/70', 'btn' => 'bg-sky-600 hover:bg-sky-700'],
+                    ['name' => 'text-emerald-600', 'sub' => 'text-emerald-500', 'head' => 'bg-emerald-50/70', 'btn' => 'bg-emerald-600 hover:bg-emerald-700'],
+                    ['name' => 'text-amber-500', 'sub' => 'text-amber-500', 'head' => 'bg-amber-50/80', 'btn' => 'bg-amber-500 hover:bg-amber-600'],
+                ];
+                $accentFor = fn ($i) => $accents[$i % count($accents)];
+            @endphp
 
-                            <dl class="mt-5 pt-4 border-t border-slate-200/70 grid grid-cols-3 gap-2 text-center">
-                                <div>
-                                    <dt class="text-xs font-semibold uppercase tracking-wide text-slate-400">Agents</dt>
-                                    <dd class="mt-0.5 text-sm font-bold text-[#232f3e]">{{ $package->limitLabel($package->max_agents) }}</dd>
-                                </div>
-                                <div>
-                                    <dt class="text-xs font-semibold uppercase tracking-wide text-slate-400">Admins</dt>
-                                    <dd class="mt-0.5 text-sm font-bold text-[#232f3e]">{{ $package->limitLabel($package->max_admins) }}</dd>
-                                </div>
-                                <div>
-                                    <dt class="text-xs font-semibold uppercase tracking-wide text-slate-400">Total users</dt>
-                                    <dd class="mt-0.5 text-sm font-bold text-[#232f3e]">{{ $package->limitLabel($package->max_users) }}</dd>
-                                </div>
-                            </dl>
-                        </div>
-                        <div class="px-6 pb-6 pt-0">
-                            <a href="{{ route('vendor.subscribe', $package) }}"
-                                class="cursor-pointer block w-full text-center py-3 rounded-xl font-bold text-white bg-[#232f3e] hover:bg-[#1a2430] transition-colors duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#fa8900]"
-                                aria-label="Get started with {{ $package->name }}">
-                                Get started
-                            </a>
-                        </div>
-                    </article>
-                @endforeach
+            <div class="admin-clay-panel overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="w-full min-w-[720px] border-collapse text-sm">
+                        <thead>
+                            <tr class="border-b border-slate-200/70">
+                                <th scope="col" class="text-left align-bottom p-4 sm:p-5 w-44 text-xs font-bold uppercase tracking-wide text-slate-500">
+                                    Feature
+                                </th>
+                                @foreach ($packages as $package)
+                                    @php $a = $accentFor($loop->index); @endphp
+                                    <th scope="col" class="text-center align-bottom p-4 sm:p-5 {{ $a['head'] }} {{ $loop->first ? 'ring-1 ring-inset ring-[#fa8900]/30' : '' }}">
+                                        @if ($loop->first)
+                                            <span class="inline-block mb-1.5 rounded-lg bg-[#fa8900]/15 text-[#c76a00] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide">Most popular</span>
+                                        @endif
+                                        <span class="block text-lg sm:text-xl font-extrabold {{ $a['name'] }}">{{ $package->name }}</span>
+                                        <span class="block text-xs text-slate-500">{{ $package->intervalLabel() }}</span>
+                                    </th>
+                                @endforeach
+                            </tr>
+                        </thead>
+                        <tbody class="[&>tr]:border-b [&>tr]:border-slate-200/60">
+                            <tr>
+                                <th scope="row" class="text-left p-4 sm:p-5 font-semibold text-slate-700 bg-slate-50/50">Pricing / Trial</th>
+                                @foreach ($packages as $package)
+                                    @php $a = $accentFor($loop->index); @endphp
+                                    <td class="text-center p-4 sm:p-5 {{ $loop->first ? 'bg-[#fa8900]/[0.03]' : '' }}">
+                                        <span class="block font-bold text-[#232f3e]">{{ $package->formattedPrice() }} <span class="font-normal text-slate-500">/ {{ strtolower($package->intervalLabel()) }}</span></span>
+                                        <span class="block mt-0.5 text-xs font-semibold {{ $a['sub'] }}">{{ $package->trialLabel() }}</span>
+                                    </td>
+                                @endforeach
+                            </tr>
+                            <tr>
+                                <th scope="row" class="text-left p-4 sm:p-5 font-semibold text-slate-700 bg-slate-50/50">Field Agents</th>
+                                @foreach ($packages as $package)
+                                    <td class="text-center p-4 sm:p-5 text-slate-700 {{ $loop->first ? 'bg-[#fa8900]/[0.03]' : '' }}">{{ $package->limitLabel($package->max_agents) }}</td>
+                                @endforeach
+                            </tr>
+                            <tr>
+                                <th scope="row" class="text-left p-4 sm:p-5 font-semibold text-slate-700 bg-slate-50/50">Admins</th>
+                                @foreach ($packages as $package)
+                                    <td class="text-center p-4 sm:p-5 text-slate-700 {{ $loop->first ? 'bg-[#fa8900]/[0.03]' : '' }}">{{ $package->limitLabel($package->max_admins) }}</td>
+                                @endforeach
+                            </tr>
+                            <tr>
+                                <th scope="row" class="text-left p-4 sm:p-5 font-semibold text-slate-700 bg-slate-50/50">Best For</th>
+                                @foreach ($packages as $package)
+                                    <td class="text-center align-top p-4 sm:p-5 text-slate-600 leading-relaxed {{ $loop->first ? 'bg-[#fa8900]/[0.03]' : '' }}">{{ $package->description ?: '—' }}</td>
+                                @endforeach
+                            </tr>
+                            <tr>
+                                <th scope="row" class="text-left p-4 sm:p-5 font-semibold text-slate-700 bg-slate-50/50">Key Features</th>
+                                @foreach ($packages as $package)
+                                    @php $labels = $package->enabledFeatureLabels(); @endphp
+                                    <td class="text-center align-top p-4 sm:p-5 text-slate-600 leading-relaxed {{ $loop->first ? 'bg-[#fa8900]/[0.03]' : '' }}">{{ count($labels) ? implode(', ', $labels) : '—' }}</td>
+                                @endforeach
+                            </tr>
+                            <tr>
+                                <td class="p-4 sm:p-5 bg-slate-50/50"></td>
+                                @foreach ($packages as $package)
+                                    @php $a = $accentFor($loop->index); @endphp
+                                    <td class="text-center p-4 sm:p-5 {{ $loop->first ? 'bg-[#fa8900]/[0.03]' : '' }}">
+                                        <a href="{{ route('vendor.subscribe', $package) }}"
+                                            class="cursor-pointer inline-block w-full max-w-[180px] text-center py-2.5 px-4 rounded-xl font-bold text-white {{ $a['btn'] }} transition-colors duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#fa8900]"
+                                            aria-label="Get started with {{ $package->name }}">
+                                            Get started
+                                        </a>
+                                    </td>
+                                @endforeach
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
             </div>
         @endif
+
+        {{-- Core capabilities --}}
+        @php
+            $coreCapabilities = [
+                ['title' => 'Robust Governance', 'desc' => 'Hierarchical stock tracking (Admin › Reg. Mgr › Team Lead › Agent) with real-time audit control.'],
+                ['title' => 'Agent Talent Hub', 'desc' => 'Streamlined recruitment platform with verified performance records, ratings, and reviews.'],
+                ['title' => 'Real-Time Analytics', 'desc' => 'Intuitive, actionable dashboards for tracking sales and performance metrics.'],
+                ['title' => 'Mobile Field Enablement', 'desc' => 'Seamless, on-the-go access for all field operations.'],
+                ['title' => '24/7 Dedicated Support', 'desc' => 'Round-the-clock assistance to ensure seamless operations.'],
+            ];
+        @endphp
+        <div class="admin-clay-panel p-6 sm:p-10 mt-10">
+            <h3 class="text-xl sm:text-2xl font-bold text-[#232f3e]">Core Capabilities</h3>
+            <ul class="mt-6 grid sm:grid-cols-2 gap-x-8 gap-y-4 list-none p-0 m-0">
+                @foreach ($coreCapabilities as $cap)
+                    <li class="flex gap-3">
+                        <span class="mt-1 shrink-0 text-[#fa8900]">
+                            <x-icons.check />
+                        </span>
+                        <span class="text-sm text-slate-600 leading-relaxed">
+                            <strong class="text-[#232f3e] font-bold">{{ $cap['title'] }}:</strong> {{ $cap['desc'] }}
+                        </span>
+                    </li>
+                @endforeach
+            </ul>
+        </div>
     </section>
 
     {{-- Final CTA --}}

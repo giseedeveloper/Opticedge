@@ -26,6 +26,7 @@ class SelcomBusinessDisbursementService
     public function __construct(
         protected SelcomBusinessCredentialResolver $credentials,
         protected AgentCommissionExpenseService $expenses,
+        protected WalletService $wallet,
     ) {
     }
 
@@ -92,6 +93,23 @@ class SelcomBusinessDisbursementService
             }
 
             return $this->fail('A disbursement is already pending for this line.');
+        }
+
+        // Payouts are funded from the vendor's pre-funded disbursement wallet.
+        // Block (with a clear message) when the wallet cannot cover this commission.
+        $tenantId = (int) ($line->tenant_id ?? \App\Support\TenantContext::id() ?? 0);
+        if ($tenantId <= 0) {
+            return $this->fail('Cannot determine the vendor for this commission line.');
+        }
+
+        if (! $this->wallet->hasSufficientBalance($tenantId, $amount)) {
+            $balance = $this->wallet->balance($tenantId);
+
+            return $this->fail(sprintf(
+                'Insufficient wallet balance. Your disbursement wallet has %s TZS but this payout needs %s TZS. Please deposit funds into your wallet first.',
+                number_format($balance, 0),
+                number_format($amount, 0),
+            ));
         }
 
         $creds = $this->credentials->resolve();
@@ -167,6 +185,25 @@ class SelcomBusinessDisbursementService
             return $this->fail('Could not save payout record. Please check the transaction status before retrying.');
         }
 
+        // Reserve the amount from the vendor wallet (idempotent per payout record).
+        // Money has already left Selcom, so a rare balance race is logged, not fatal.
+        try {
+            $this->wallet->debit(
+                $tenantId,
+                (float) $amountInt,
+                \App\Models\WalletTransaction::TYPE_PAYOUT,
+                'selcompay',
+                $selcompay->id,
+                'Agent commission ' . $sourceType . ' #' . $line->id,
+            );
+        } catch (\Throwable $e) {
+            Log::error('Wallet debit after disbursement failed', [
+                'selcompay_id' => $selcompay->id,
+                'tenant_id' => $tenantId,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
         if ($selcompay->payment_status === 'completed') {
             $this->expenses->bookFromSelcompay($selcompay);
 
@@ -230,6 +267,7 @@ class SelcomBusinessDisbursementService
 
         if ($state === 'failed') {
             $selcompay->update(['payment_status' => 'failed']);
+            $this->wallet->reversePayout((int) $selcompay->id, 'Reversal: disbursement failed');
 
             return ['status' => 'failed', 'message' => $this->messageFrom($response) ?: 'Disbursement failed.'];
         }
@@ -238,6 +276,7 @@ class SelcomBusinessDisbursementService
         $createdAt = \Carbon\Carbon::parse($selcompay->created_at);
         if ($createdAt->diffInMinutes(now()) > 10) {
             $selcompay->update(['payment_status' => 'timeout']);
+            $this->wallet->reversePayout((int) $selcompay->id, 'Reversal: disbursement timed out');
 
             return ['status' => 'timeout', 'message' => 'Timed out waiting for Selcom confirmation.'];
         }

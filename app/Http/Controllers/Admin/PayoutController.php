@@ -6,11 +6,16 @@ use App\Http\Controllers\Controller;
 use App\Models\AgentCredit;
 use App\Models\AgentSale;
 use App\Models\Selcompay;
+use App\Services\WalletService;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\View\View;
 
 class PayoutController extends Controller
 {
+    public function __construct(protected WalletService $wallet)
+    {
+    }
+
     /**
      * Pay out hub: tabs for different disbursement workflows.
      */
@@ -109,10 +114,14 @@ class PayoutController extends Controller
                 && (! $sel || in_array($sel->payment_status, ['failed', 'timeout'], true));
         })->count();
 
+        $tenantId = (int) (auth()->user()->tenant_id ?? \App\Support\TenantContext::id() ?? 0);
+        $walletBalance = $tenantId > 0 ? $this->wallet->balance($tenantId) : 0.0;
+
         return view('admin.payout.index', [
             'rows' => $rows,
             'totals' => $totals,
             'bulkEligibleCount' => $bulkEligibleCount,
+            'walletBalance' => $walletBalance,
         ]);
     }
 }

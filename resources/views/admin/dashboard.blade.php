@@ -481,6 +481,29 @@
             @endisset
         </div>
 
+        <!-- Disbursement wallet -->
+        @isset($walletBalance)
+        <div class="mt-6">
+            <a href="{{ route('admin.payout.index') }}"
+                class="group admin-clay-panel-interactive p-6 transition-all relative overflow-hidden flex items-center justify-between gap-4">
+                <div class="flex items-center gap-4 relative z-10">
+                    <div class="p-3 bg-amber-50 text-[#fa8900] rounded-full group-hover:bg-[#fa8900] group-hover:text-white transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round"
+                                d="M21 12a2.25 2.25 0 00-2.25-2.25H5.25A2.25 2.25 0 013 7.5m18 4.5v6a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 18V7.5m18 4.5h-3.75a1.5 1.5 0 100 3H21M3 7.5A2.25 2.25 0 015.25 5.25h12A2.25 2.25 0 0119.5 7.5" />
+                        </svg>
+                    </div>
+                    <div>
+                        <p class="text-sm font-medium text-slate-500">Disbursement wallet</p>
+                        <p class="text-2xl font-bold text-slate-900">{{ number_format($walletBalance, 0) }} TZS</p>
+                        <p class="text-xs text-slate-400 mt-0.5">Funds agent commission payouts — click to top up.</p>
+                    </div>
+                </div>
+                <span class="shrink-0 text-xs font-semibold text-[#fa8900] opacity-0 group-hover:opacity-100 transition-opacity">Go to Pay out →</span>
+            </a>
+        </div>
+        @endisset
+
         <!-- Sales Metrics Cards -->
         @if(isset($salesMetrics))
         <div class="mt-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">

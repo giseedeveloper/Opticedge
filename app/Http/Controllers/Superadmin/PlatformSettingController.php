@@ -10,6 +10,7 @@ use App\Support\PlatformPaymentSettings;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\View\View;
 
 class PlatformSettingController extends Controller
@@ -124,6 +125,48 @@ class PlatformSettingController extends Controller
         $result = $payments->testSelcomConnection();
 
         return response()->json($result, $result['ok'] ? 200 : 422);
+    }
+
+    /**
+     * Send a one-off test email using the currently-saved SMTP settings. The mail
+     * config is applied from the DB at boot (see AppServiceProvider), so the values
+     * must be saved before testing — this uses whatever is live, not the unsaved form.
+     */
+    public function testEmail(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'email' => 'required|email|max:255',
+        ]);
+
+        $from = trim((string) config('mail.from.address', ''));
+        if ($from === '') {
+            return response()->json([
+                'ok' => false,
+                'message' => 'No sender "From address" is configured. Fill in the email settings, click "Save changes", then test.',
+            ], 200);
+        }
+
+        try {
+            Mail::raw(
+                "This is a test email from OpticEdge platform settings.\n\n"
+                . "If you received this, the SMTP configuration is working correctly.\n\n"
+                . 'Sent at ' . now()->toDayDateTimeString() . '.',
+                function ($message) use ($data) {
+                    $message->to($data['email'])
+                        ->subject('OpticEdge test email');
+                }
+            );
+        } catch (\Throwable $e) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'Failed to send: ' . $e->getMessage(),
+            ], 200);
+        }
+
+        return response()->json([
+            'ok' => true,
+            'message' => 'Test email sent to ' . $data['email'] . '. Check the inbox (and the spam folder).',
+        ], 200);
     }
 
     public function testSelcomMobile(Request $request, SelcomPaymentTestService $tester): JsonResponse
