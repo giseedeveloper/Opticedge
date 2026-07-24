@@ -429,6 +429,7 @@ Route::middleware(['auth', 'redirect.superadmin.from.admin', 'admin', 'tenant.su
             Route::post('add-product', [App\Http\Controllers\Admin\StockController::class, 'storeProductFromForm'])->name('store-add-product');
             Route::post('decode-barcodes', [App\Http\Controllers\Admin\StockController::class, 'decodeBarcodeImages'])->name('decode-barcodes');
             Route::get('purchase/{id}', [App\Http\Controllers\Admin\StockController::class, 'showPurchase'])->name('purchase.show');
+            Route::post('purchase/{purchase}/imeis/bulk-delete', [App\Http\Controllers\Admin\StockController::class, 'bulkDestroyPurchaseImeis'])->name('purchase.imeis.bulk-destroy');
             Route::delete('purchase/{purchase}/items/{productListItem}', [App\Http\Controllers\Admin\StockController::class, 'destroyPurchaseItem'])->name('purchase.item.destroy');
             Route::get('purchases', [App\Http\Controllers\Admin\StockController::class , 'purchases'])->name('purchases');
             Route::get('purchases/export-csv', [App\Http\Controllers\Admin\StockController::class, 'exportPurchasesCsv'])->name('purchases.export-csv');

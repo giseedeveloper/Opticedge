@@ -13,6 +13,11 @@
                 'team_leader' => ['label' => 'TL', 'count' => $holderCounts['team_leader'] ?? 0],
                 'agent' => ['label' => 'Agent', 'count' => $holderCounts['agent'] ?? 0],
             ];
+            $deletableIds = $items->getCollection()
+                ->filter(fn ($item) => (bool) ($item->can_bulk_delete ?? false))
+                ->pluck('id')
+                ->values()
+                ->all();
         @endphp
         <a href="{{ route('admin.stock.stocks', $holder !== '' ? ['holder' => $holder] : []) }}" class="admin-prod-back mb-4">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -47,6 +52,9 @@
                 @endif
             </div>
         </div>
+        @if(session('success'))
+            <div class="admin-prod-alert admin-prod-alert--success mb-4" role="status">{{ session('success') }}</div>
+        @endif
         @if($errors->any())
             <div class="admin-prod-alert admin-prod-alert--warning mb-4" role="alert">{{ $errors->first() }}</div>
         @endif
@@ -66,11 +74,90 @@
             </div>
         </div>
 
-        <div class="admin-clay-panel overflow-hidden">
+        <div
+            class="admin-clay-panel overflow-hidden"
+            x-data="{
+                selected: {},
+                openRows: {},
+                deletableIds: @js($deletableIds),
+                get selectedCount() {
+                    return Object.values(this.selected).filter(Boolean).length;
+                },
+                get allSelected() {
+                    return this.deletableIds.length > 0
+                        && this.deletableIds.every((id) => !!this.selected[id]);
+                },
+                toggleAll() {
+                    const next = !this.allSelected;
+                    this.deletableIds.forEach((id) => { this.selected[id] = next; });
+                },
+                toggleRow(id) {
+                    this.openRows[id] = !this.openRows[id];
+                },
+                confirmDelete() {
+                    if (this.selectedCount < 1) {
+                        alert('Select at least one IMEI to delete.');
+                        return false;
+                    }
+                    return confirm('Delete ' + this.selectedCount + ' selected IMEI(s) from this purchase? This cannot be undone.');
+                }
+            }"
+        >
+            <form
+                id="purchase-imei-bulk-form"
+                method="POST"
+                action="{{ route('admin.stock.purchase.imeis.bulk-destroy', $purchase) }}"
+                @submit="if (!confirmDelete()) $event.preventDefault()"
+            >
+                @csrf
+                @if($holder !== '')
+                    <input type="hidden" name="holder" value="{{ $holder }}">
+                @endif
+
+                <div class="px-4 py-3 border-b border-slate-200/70 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                    <p class="text-sm text-slate-600">
+                        <span class="font-semibold text-[#232f3e]" x-text="selectedCount">0</span>
+                        selected
+                        @if(count($deletableIds) > 0)
+                            <span class="text-slate-400">· {{ count($deletableIds) }} deletable on this page</span>
+                        @endif
+                    </p>
+                    <div class="flex flex-wrap gap-2">
+                        <button
+                            type="button"
+                            class="admin-prod-btn-ghost text-sm py-2 px-4"
+                            @click="toggleAll()"
+                            @disabled(count($deletableIds) === 0)
+                        >
+                            <span x-text="allSelected ? 'Clear selection' : 'Select all deletable'">Select all deletable</span>
+                        </button>
+                        <button
+                            type="submit"
+                            class="admin-prod-btn-primary text-sm py-2 px-4 bg-rose-600 border-rose-600 hover:bg-rose-700"
+                            :disabled="selectedCount < 1"
+                            :class="selectedCount < 1 ? 'opacity-50 cursor-not-allowed' : ''"
+                        >
+                            Delete selected
+                        </button>
+                    </div>
+                </div>
+            </form>
+
             <div class="admin-prod-table-wrap admin-prod-table-wrap--flush overflow-x-auto">
                 <table data-no-datatable>
                     <thead>
                         <tr>
+                            <th scope="col" class="admin-prod-th w-10" aria-label="Select">
+                                <input
+                                    type="checkbox"
+                                    class="rounded border-slate-300 text-[#fa8900] focus:ring-[#fa8900]"
+                                    :checked="allSelected"
+                                    :indeterminate="selectedCount > 0 && !allSelected"
+                                    @change="toggleAll()"
+                                    @disabled(count($deletableIds) === 0)
+                                    title="Select all deletable on this page"
+                                >
+                            </th>
                             <th scope="col" class="admin-prod-th admin-prod-th--index" aria-label="Expand"></th>
                             <th scope="col" class="admin-prod-th admin-prod-th--index">#</th>
                             <th scope="col" class="admin-prod-th">Model</th>
@@ -82,11 +169,26 @@
                         </tr>
                     </thead>
                     @forelse($items as $index => $item)
-                        <tbody x-data="{ open: false }" class="border-b border-slate-100/80 last:border-0">
-                            <tr class="cursor-pointer hover:bg-white/50" @click="open = !open" role="button" tabindex="0"
-                                @keydown.enter.prevent="open = !open" @keydown.space.prevent="open = !open">
+                        @php $canDelete = (bool) ($item->can_bulk_delete ?? false); @endphp
+                        <tbody class="border-b border-slate-100/80 last:border-0">
+                            <tr class="cursor-pointer hover:bg-white/50" @click="toggleRow({{ $item->id }})" role="button" tabindex="0"
+                                @keydown.enter.prevent="toggleRow({{ $item->id }})" @keydown.space.prevent="toggleRow({{ $item->id }})">
+                                <td class="w-10" @click.stop>
+                                    @if($canDelete)
+                                        <input
+                                            form="purchase-imei-bulk-form"
+                                            type="checkbox"
+                                            name="item_ids[]"
+                                            value="{{ $item->id }}"
+                                            class="rounded border-slate-300 text-[#fa8900] focus:ring-[#fa8900]"
+                                            x-model="selected[{{ $item->id }}]"
+                                        >
+                                    @else
+                                        <span class="inline-block w-4" title="Locked — sold, pending transfer/return, or linked"></span>
+                                    @endif
+                                </td>
                                 <td class="text-slate-400 select-none w-10">
-                                    <span x-text="open ? '▼' : '▶'" class="inline-block w-5 text-center text-xs"></span>
+                                    <span x-text="openRows[{{ $item->id }}] ? '▼' : '▶'" class="inline-block w-5 text-center text-xs"></span>
                                 </td>
                                 <td class="text-slate-500 text-sm">{{ ($items->firstItem() ?? 1) + $index }}</td>
                                 <td class="font-medium text-[#232f3e]">{{ $item->model ?? '–' }}</td>
@@ -129,22 +231,25 @@
                                     @endif
                                 </td>
                                 <td class="admin-prod-cell-actions" @click.stop>
-                                    @if($item->sold_at || $item->agent_sale_id || $item->agent_credit_id || $item->pending_sale_id || $item->agentProductListAssignment)
-                                        <span class="text-slate-400 text-xs">Locked</span>
-                                    @else
+                                    @if($canDelete)
                                         <form method="POST" action="{{ route('admin.stock.purchase.item.destroy', ['purchase' => $purchase->id, 'productListItem' => $item->id]) }}" class="inline">
                                             @csrf
                                             @method('DELETE')
+                                            @if($holder !== '')
+                                                <input type="hidden" name="holder" value="{{ $holder }}">
+                                            @endif
                                             <button type="submit" class="admin-prod-link text-xs text-rose-600"
                                                 onclick="return confirm('Delete this IMEI from this purchase?');">
                                                 Delete
                                             </button>
                                         </form>
+                                    @else
+                                        <span class="text-slate-400 text-xs">Locked</span>
                                     @endif
                                 </td>
                             </tr>
-                            <tr x-show="open" x-cloak class="!border-b border-slate-200/80">
-                                <td colspan="8" class="p-0">
+                            <tr x-show="openRows[{{ $item->id }}]" x-cloak class="!border-b border-slate-200/80">
+                                <td colspan="9" class="p-0">
                                     @include('admin.stock.partials.imei-full-info', ['item' => $item])
                                 </td>
                             </tr>
@@ -152,7 +257,7 @@
                     @empty
                         <tbody>
                             <tr>
-                                <td colspan="8" class="text-center text-slate-500 py-10">
+                                <td colspan="9" class="text-center text-slate-500 py-10">
                                     {{ $holder === '' ? 'No items for this purchase yet.' : 'No devices currently held at this level.' }}
                                 </td>
                             </tr>
