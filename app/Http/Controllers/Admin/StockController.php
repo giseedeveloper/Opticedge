@@ -607,7 +607,6 @@ class StockController extends Controller
                 'Total Buy',
                 'Total Sell',
                 'Profit',
-                'Commission Paid',
                 'Payment Channel',
             ]);
 
@@ -623,7 +622,6 @@ class StockController extends Controller
                     number_format((float) ($sale->total_purchase_value ?? 0), 2, '.', ''),
                     number_format((float) ($sale->total_selling_value ?? 0), 2, '.', ''),
                     number_format((float) ($sale->profit ?? 0), 2, '.', ''),
-                    number_format((float) ($sale->commission_paid ?? 0), 2, '.', ''),
                     $sale->paymentOption?->name ?? '',
                 ]);
             }

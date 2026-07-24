@@ -91,7 +91,6 @@
                             <th scope="col" class="admin-prod-th">Total buy</th>
                             <th scope="col" class="admin-prod-th">Total sell</th>
                             <th scope="col" class="admin-prod-th">Profit</th>
-                            <th scope="col" class="admin-prod-th">Commission</th>
                             <th scope="col" class="admin-prod-th">Channel</th>
                             <th scope="col" class="admin-prod-th admin-prod-th--end">Action</th>
                         </tr>
@@ -111,10 +110,6 @@
                                 <td class="font-variant-numeric text-sm">{{ number_format($sale->total_purchase_value ?? 0, 0) }}</td>
                                 <td class="font-variant-numeric font-bold">{{ number_format($sale->total_selling_value ?? 0, 0) }}</td>
                                 <td class="font-variant-numeric text-green-700">{{ number_format($sale->profit ?? 0, 0) }}</td>
-                                <td class="admin-prod-cell-actions">
-                                    <span class="font-variant-numeric font-semibold text-[#232f3e]">{{ number_format($sale->commission_paid ?? 0, 0) }}</span>
-                                    <p class="text-[11px] text-slate-500 mt-0.5">Auto · edit on Pay out</p>
-                                </td>
                                 <td>
                                     @if($sale->payment_option_id)
                                         <span class="text-slate-600 text-sm">{{ $sale->paymentOption?->name ?? '—' }}</span>

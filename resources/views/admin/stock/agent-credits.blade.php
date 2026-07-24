@@ -97,7 +97,6 @@
                             <th scope="col" class="admin-prod-th">Sell</th>
                             <th scope="col" class="admin-prod-th">Profit</th>
                             <th scope="col" class="admin-prod-th">Channel</th>
-                            <th scope="col" class="admin-prod-th min-w-[180px]">Commision</th>
                             <th scope="col" class="admin-prod-th">Status</th>
                             <th scope="col" class="admin-prod-th admin-prod-th--end">Action</th>
                         </tr>
@@ -118,10 +117,6 @@
                                 <td class="font-variant-numeric text-green-700">{{ number_format($credit->displayProfit(), 0) }}</td>
                                 <td class="align-middle">
                                     <span class="text-slate-600 text-sm">{{ $credit->paymentOption?->name ?? $defaultWatuChannel?->name ?? '—' }}</span>
-                                </td>
-                                <td class="admin-prod-cell-actions">
-                                    <span class="font-variant-numeric font-semibold text-[#232f3e]">{{ number_format($credit->commission_paid ?? 0, 0) }}</span>
-                                    <p class="text-[11px] text-slate-500 mt-0.5">Auto · edit on Pay out</p>
                                 </td>
                                 <td>
                                     <span class="admin-prod-dealer-status admin-prod-dealer-status--active">sold</span>
