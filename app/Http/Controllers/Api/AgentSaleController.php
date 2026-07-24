@@ -75,6 +75,13 @@ class AgentSaleController extends Controller
         ]);
 
         $sale = AgentSale::findOrFail($id);
+
+        if (app(\App\Services\DefaultAgentCommissionService::class)->lineIsDisbursed('sale', (int) $sale->id)) {
+            return response()->json([
+                'message' => 'This commission has already been disbursed and cannot be edited.',
+            ], 422);
+        }
+
         $sale->commission_paid = (float) $validated['commission_paid'];
         $sale->save();
 

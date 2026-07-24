@@ -101,7 +101,7 @@ class AgentSaleCreditMigrationService
                 'product_id' => (int) $sale->product_id,
                 'total_amount' => $total,
                 'paid_amount' => 0,
-                'commission_paid' => 0,
+                'commission_paid' => (float) ($sale->commission_paid ?? 0),
                 'payment_status' => 'pending',
                 'payment_option_id' => $watu->id,
                 'installment_count' => null,

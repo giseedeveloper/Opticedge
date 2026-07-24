@@ -112,14 +112,8 @@
                                 <td class="font-variant-numeric font-bold">{{ number_format($sale->total_selling_value ?? 0, 0) }}</td>
                                 <td class="font-variant-numeric text-green-700">{{ number_format($sale->profit ?? 0, 0) }}</td>
                                 <td class="admin-prod-cell-actions">
-                                    <form action="{{ route('admin.stock.agent-sales-update-commission', $sale->id) }}" method="POST"
-                                        class="inline-flex items-center gap-2 flex-wrap justify-end">
-                                        @csrf
-                                        @method('PATCH')
-                                        <input type="number" name="commission_paid" value="{{ $sale->commission_paid ?? 0 }}" step="0.01" min="0"
-                                            class="admin-prod-input w-32 py-1.5 text-sm">
-                                        <button type="submit" class="admin-prod-link text-sm whitespace-nowrap">Save commission</button>
-                                    </form>
+                                    <span class="font-variant-numeric font-semibold text-[#232f3e]">{{ number_format($sale->commission_paid ?? 0, 0) }}</span>
+                                    <p class="text-[11px] text-slate-500 mt-0.5">Auto · edit on Pay out</p>
                                 </td>
                                 <td>
                                     @if($sale->payment_option_id)

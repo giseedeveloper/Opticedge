@@ -374,6 +374,9 @@ Route::middleware(['auth', 'redirect.superadmin.from.admin', 'admin', 'tenant.su
         Route::resource('expenses', App\Http\Controllers\Admin\ExpenseController::class)->except(['show']);
 
         Route::get('payout', [App\Http\Controllers\Admin\PayoutController::class, 'index'])->name('payout.index');
+        Route::post('payout/default-commission', [App\Http\Controllers\Admin\PayoutController::class, 'updateDefaultCommission'])->name('payout.default-commission');
+        Route::post('payout/agent-commission/group', [App\Http\Controllers\Admin\PayoutController::class, 'updateGroupCommission'])->name('payout.group.commission');
+        Route::post('payout/agent-commission/group/pay', [App\Http\Controllers\Admin\PayoutController::class, 'payGroup'])->name('payout.group.pay');
 
         // LIVE agent commission disbursement via the Selcom Business API (money out).
         Route::post('payout/agent-commission/business/{source}/{id}/pay', [App\Http\Controllers\Admin\CommissionBusinessPayoutController::class, 'pay'])

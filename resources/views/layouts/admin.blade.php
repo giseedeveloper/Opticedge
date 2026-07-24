@@ -227,8 +227,6 @@
                     'admin.stock.add-product',
                     'admin.stock.store-add-product',
                     'admin.stock.decode-barcodes',
-                ]);
-                $navStockMatrix = request()->routeIs([
                     'admin.stock.stock-matrix',
                 ]);
                 $navStockPurchases = request()->routeIs([
@@ -414,9 +412,6 @@
                                 <a href="{{ route('admin.stock.stocks') }}"
                                     @if ($navStockStocks) aria-current="page" @endif
                                     class="admin-sidebar-sublink {{ $navStockStocks ? 'admin-sidebar-sublink-active' : '' }}">Stocks</a>
-                                <a href="{{ route('admin.stock.stock-matrix') }}"
-                                    @if ($navStockMatrix) aria-current="page" @endif
-                                    class="admin-sidebar-sublink {{ $navStockMatrix ? 'admin-sidebar-sublink-active' : '' }}">Stock by Model</a>
                                 <a href="{{ route('admin.stock.imei-search') }}"
                                     @if ($navStockImei) aria-current="page" @endif
                                     class="admin-sidebar-sublink {{ $navStockImei ? 'admin-sidebar-sublink-active' : '' }}">IMEI search</a>

@@ -96,6 +96,9 @@ class PendingSaleController extends Controller
             $agentSaleAttrs['payment_option_id'] = $pendingSale->payment_option_id;
         }
 
+        $qty = max(1, (int) ($pendingSale->quantity_sold ?? 1));
+        $agentSaleAttrs = app(\App\Services\DefaultAgentCommissionService::class)
+            ->applyToCreateAttrs($agentSaleAttrs, 'agent_sales', $qty);
         $agentSale = AgentSale::create($agentSaleAttrs);
 
         \App\Models\ProductListItem::where('pending_sale_id', $pendingSale->id)

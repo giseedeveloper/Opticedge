@@ -2,12 +2,15 @@
 
 namespace App\Services;
 
+use App\Jobs\DisburseCommissionLinesJob;
 use App\Models\AgentCredit;
 use App\Models\AgentSale;
 use App\Models\Selcompay;
 use App\Models\User;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 
 /**
  * Sends agent commission OUT to the agent via the Selcom Business (disbursement)
@@ -284,18 +287,119 @@ class SelcomBusinessDisbursementService
         return ['status' => 'pending', 'message' => 'Still processing…'];
     }
 
+    public function runCacheKey(int $tenantId): string
+    {
+        return 'selcom_disburse_run:'.$tenantId;
+    }
+
     /**
-     * Disburse every eligible commission line in one action.
+     * @return array<string, mixed>|null
+     */
+    public function getRunStatus(int $tenantId): ?array
+    {
+        $payload = Cache::get($this->runCacheKey($tenantId));
+
+        return is_array($payload) ? $payload : null;
+    }
+
+    /**
+     * Queue many commission lines for background Selcom Business disbursement.
+     * Uses afterResponse so the browser is freed even when QUEUE_CONNECTION=sync.
+     *
+     * @param  list<array{type?: string, source?: string, id?: int, source_id?: int}>  $items
+     * @return array{ok: bool, message: string, run_id: ?string, candidates: int, queued: bool}
+     */
+    public function queueDisburseLines(int $tenantId, array $items, ?int $userId = null): array
+    {
+        $normalized = $this->normalizeLineItems($items);
+        if ($normalized === []) {
+            return [
+                'ok' => false,
+                'message' => 'No eligible commission lines to disburse.',
+                'run_id' => null,
+                'candidates' => 0,
+                'queued' => false,
+            ];
+        }
+
+        $existing = $this->getRunStatus($tenantId);
+        if ($existing && in_array($existing['status'] ?? '', ['queued', 'running'], true)) {
+            return [
+                'ok' => false,
+                'message' => 'A disbursement run is already in progress for this vendor. Wait for it to finish, then try again.',
+                'run_id' => $existing['run_id'] ?? null,
+                'candidates' => (int) ($existing['candidates'] ?? 0),
+                'queued' => false,
+            ];
+        }
+
+        $runId = (string) Str::uuid();
+        $this->putRunStatus($tenantId, [
+            'run_id' => $runId,
+            'status' => 'queued',
+            'candidates' => count($normalized),
+            'processed' => 0,
+            'started' => 0,
+            'skipped' => 0,
+            'failures' => [],
+            'stopped_early' => null,
+            'message' => 'Queued '.count($normalized).' commission line(s) for Selcom disbursement.',
+            'updated_at' => now()->toIso8601String(),
+        ]);
+
+        DisburseCommissionLinesJob::dispatch($tenantId, $normalized, $runId, $userId)
+            ->afterResponse();
+
+        return [
+            'ok' => true,
+            'message' => 'Queued '.count($normalized).' commission line(s). Processing continues in the background — refresh this page to see progress.',
+            'run_id' => $runId,
+            'candidates' => count($normalized),
+            'queued' => true,
+        ];
+    }
+
+    /**
+     * Collect every eligible credit/sale line (requires TenantContext).
+     *
+     * @return list<array{type: string, id: int}>
+     */
+    public function collectEligibleLineItems(): array
+    {
+        if (! Schema::hasTable('selcompays') || ! Schema::hasColumn('selcompays', 'purpose')) {
+            return [];
+        }
+
+        $items = collect();
+
+        foreach (AgentCredit::query()->where('commission_paid', '>', self::EPS)->orderByDesc('id')->get() as $c) {
+            $items->push([
+                'type' => 'credit',
+                'id' => (int) $c->id,
+                'sort' => $c->date?->timestamp ?? $c->created_at->timestamp,
+            ]);
+        }
+
+        foreach (AgentSale::query()->where('commission_paid', '>', self::EPS)->orderByDesc('id')->get() as $s) {
+            $items->push([
+                'type' => 'sale',
+                'id' => (int) $s->id,
+                'sort' => $s->date?->timestamp ?? $s->created_at->timestamp,
+            ]);
+        }
+
+        return $items->sortByDesc('sort')->values()
+            ->map(fn (array $row) => ['type' => $row['type'], 'id' => $row['id']])
+            ->all();
+    }
+
+    /**
+     * Disburse every eligible commission line (sync). Prefer {@see queueDisburseLines} for large batches.
      *
      * @return array{started: int, skipped: int, failures: array<int, string>, stopped_early: ?string, candidates: int}
      */
     public function bulkDisburseEligibleLines(): array
     {
-        $started = 0;
-        $skipped = 0;
-        $failures = [];
-        $stoppedEarly = null;
-
         if (! Schema::hasTable('selcompays') || ! Schema::hasColumn('selcompays', 'purpose')) {
             return [
                 'started' => 0,
@@ -306,25 +410,55 @@ class SelcomBusinessDisbursementService
             ];
         }
 
-        $items = collect();
+        return $this->processDisburseLines($this->collectEligibleLineItems());
+    }
 
-        foreach (AgentCredit::query()->where('commission_paid', '>', self::EPS)->orderByDesc('id')->get() as $c) {
-            $items->push(['type' => 'credit', 'id' => $c->id, 'sort' => $c->date?->timestamp ?? $c->created_at->timestamp]);
-        }
-
-        foreach (AgentSale::query()->where('commission_paid', '>', self::EPS)->orderByDesc('id')->get() as $s) {
-            $items->push(['type' => 'sale', 'id' => $s->id, 'sort' => $s->date?->timestamp ?? $s->created_at->timestamp]);
-        }
-
-        $items = $items->sortByDesc('sort')->values();
-        $candidates = $items->count();
+    /**
+     * @param  list<array{type: string, id: int}>  $items
+     * @param  (callable(array{started: int, skipped: int, failures: array<int, string>, stopped_early: ?string, candidates: int, processed: int}): void)|null  $onProgress
+     * @return array{started: int, skipped: int, failures: array<int, string>, stopped_early: ?string, candidates: int, processed: int}
+     */
+    public function processDisburseLines(array $items, ?callable $onProgress = null): array
+    {
+        $started = 0;
+        $skipped = 0;
+        $failures = [];
+        $stoppedEarly = null;
+        $candidates = count($items);
+        $processed = 0;
 
         foreach ($items as $item) {
-            $result = $this->disburse($item['type'], $item['id']);
+            $type = $item['type'] ?? '';
+            $id = (int) ($item['id'] ?? 0);
+            $processed++;
+
+            if (! in_array($type, ['credit', 'sale'], true) || $id <= 0) {
+                $skipped++;
+                $this->emitProgress($onProgress, [
+                    'started' => $started,
+                    'skipped' => $skipped,
+                    'failures' => $failures,
+                    'stopped_early' => $stoppedEarly,
+                    'candidates' => $candidates,
+                    'processed' => $processed,
+                ]);
+
+                continue;
+            }
+
+            $result = $this->disburse($type, $id);
 
             if ($result['ok']) {
                 $started++;
                 usleep(350000);
+                $this->emitProgress($onProgress, [
+                    'started' => $started,
+                    'skipped' => $skipped,
+                    'failures' => $failures,
+                    'stopped_early' => $stoppedEarly,
+                    'candidates' => $candidates,
+                    'processed' => $processed,
+                ]);
 
                 continue;
             }
@@ -342,6 +476,14 @@ class SelcomBusinessDisbursementService
                 || str_contains($lower, 'commission line not found')
             ) {
                 $skipped++;
+                $this->emitProgress($onProgress, [
+                    'started' => $started,
+                    'skipped' => $skipped,
+                    'failures' => $failures,
+                    'stopped_early' => $stoppedEarly,
+                    'candidates' => $candidates,
+                    'processed' => $processed,
+                ]);
 
                 continue;
             }
@@ -349,11 +491,27 @@ class SelcomBusinessDisbursementService
             if (str_contains($lower, 'not configured') || str_contains($lower, 'not migrated') || str_contains($lower, 'private key')) {
                 $stoppedEarly = $msg;
                 $failures[] = $msg;
+                $this->emitProgress($onProgress, [
+                    'started' => $started,
+                    'skipped' => $skipped,
+                    'failures' => $failures,
+                    'stopped_early' => $stoppedEarly,
+                    'candidates' => $candidates,
+                    'processed' => $processed,
+                ]);
                 break;
             }
 
-            $label = $item['type'] === 'credit' ? 'Credit #' . $item['id'] : 'Sale #' . $item['id'];
-            $failures[] = $label . ': ' . $msg;
+            $label = $type === 'credit' ? 'Credit #'.$id : 'Sale #'.$id;
+            $failures[] = $label.': '.$msg;
+            $this->emitProgress($onProgress, [
+                'started' => $started,
+                'skipped' => $skipped,
+                'failures' => $failures,
+                'stopped_early' => $stoppedEarly,
+                'candidates' => $candidates,
+                'processed' => $processed,
+            ]);
         }
 
         return [
@@ -362,7 +520,120 @@ class SelcomBusinessDisbursementService
             'failures' => $failures,
             'stopped_early' => $stoppedEarly,
             'candidates' => $candidates,
+            'processed' => $processed,
         ];
+    }
+
+    public function markRunRunning(int $tenantId, string $runId, int $candidates): void
+    {
+        $this->putRunStatus($tenantId, array_merge($this->getRunStatus($tenantId) ?? [], [
+            'run_id' => $runId,
+            'status' => 'running',
+            'candidates' => $candidates,
+            'message' => 'Disbursing commission lines via Selcom…',
+            'updated_at' => now()->toIso8601String(),
+        ]));
+    }
+
+    /**
+     * @param  array{started?: int, skipped?: int, failures?: array<int, string>, stopped_early?: ?string, candidates?: int, processed?: int}  $partial
+     */
+    public function markRunProgress(int $tenantId, string $runId, array $partial): void
+    {
+        $this->putRunStatus($tenantId, array_merge($this->getRunStatus($tenantId) ?? [], [
+            'run_id' => $runId,
+            'status' => 'running',
+            'candidates' => (int) ($partial['candidates'] ?? 0),
+            'processed' => (int) ($partial['processed'] ?? 0),
+            'started' => (int) ($partial['started'] ?? 0),
+            'skipped' => (int) ($partial['skipped'] ?? 0),
+            'failures' => $partial['failures'] ?? [],
+            'stopped_early' => $partial['stopped_early'] ?? null,
+            'message' => sprintf(
+                'Processed %d of %d line(s)…',
+                (int) ($partial['processed'] ?? 0),
+                (int) ($partial['candidates'] ?? 0),
+            ),
+            'updated_at' => now()->toIso8601String(),
+        ]));
+    }
+
+    /**
+     * @param  array{started: int, skipped: int, failures: array<int, string>, stopped_early: ?string, candidates: int, processed?: int}  $summary
+     */
+    public function markRunFinished(int $tenantId, string $runId, array $summary): void
+    {
+        $this->putRunStatus($tenantId, [
+            'run_id' => $runId,
+            'status' => 'completed',
+            'candidates' => (int) ($summary['candidates'] ?? 0),
+            'processed' => (int) ($summary['processed'] ?? $summary['candidates'] ?? 0),
+            'started' => (int) ($summary['started'] ?? 0),
+            'skipped' => (int) ($summary['skipped'] ?? 0),
+            'failures' => $summary['failures'] ?? [],
+            'stopped_early' => $summary['stopped_early'] ?? null,
+            'message' => sprintf(
+                'Finished: %d submitted, %d skipped of %d line(s).',
+                (int) ($summary['started'] ?? 0),
+                (int) ($summary['skipped'] ?? 0),
+                (int) ($summary['candidates'] ?? 0),
+            ),
+            'updated_at' => now()->toIso8601String(),
+        ]);
+    }
+
+    public function markRunFailed(int $tenantId, string $runId, string $message): void
+    {
+        $existing = $this->getRunStatus($tenantId) ?? [];
+
+        $this->putRunStatus($tenantId, array_merge($existing, [
+            'run_id' => $runId,
+            'status' => 'failed',
+            'message' => $message,
+            'failures' => array_values(array_unique(array_merge(
+                $existing['failures'] ?? [],
+                [$message],
+            ))),
+            'updated_at' => now()->toIso8601String(),
+        ]));
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    protected function putRunStatus(int $tenantId, array $payload): void
+    {
+        Cache::put($this->runCacheKey($tenantId), $payload, now()->addHours(6));
+    }
+
+    /**
+     * @param  list<array{type?: string, source?: string, id?: int, source_id?: int}>  $items
+     * @return list<array{type: string, id: int}>
+     */
+    protected function normalizeLineItems(array $items): array
+    {
+        $out = [];
+        foreach ($items as $item) {
+            $type = $item['type'] ?? $item['source'] ?? '';
+            $id = (int) ($item['id'] ?? $item['source_id'] ?? 0);
+            if (! in_array($type, ['credit', 'sale'], true) || $id <= 0) {
+                continue;
+            }
+            $out[] = ['type' => $type, 'id' => $id];
+        }
+
+        return $out;
+    }
+
+    /**
+     * @param  (callable(array<string, mixed>): void)|null  $onProgress
+     * @param  array<string, mixed>  $partial
+     */
+    protected function emitProgress(?callable $onProgress, array $partial): void
+    {
+        if ($onProgress) {
+            $onProgress($partial);
+        }
     }
 
     protected function makeApi(array $creds): SelcomBusinessApiService

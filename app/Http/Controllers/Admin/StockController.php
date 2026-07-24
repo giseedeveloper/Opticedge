@@ -45,6 +45,19 @@ class StockController extends Controller
      */
     public function stocks(Request $request)
     {
+        $tab = (string) $request->query('tab', 'stocks');
+        if (! in_array($tab, ['stocks', 'by-model'], true)) {
+            $tab = 'stocks';
+        }
+
+        if ($tab === 'by-model') {
+            $matrix = app(StockSummaryInsightsService::class)->stockInHandMatrix();
+
+            return view('admin.stock.stocks', array_merge($matrix, [
+                'tab' => 'by-model',
+            ]));
+        }
+
         $validHolders = ['admin', 'regional_manager', 'team_leader', 'agent'];
         $holder = (string) $request->query('holder', '');
         if (! in_array($holder, $validHolders, true)) {
@@ -179,6 +192,7 @@ class StockController extends Controller
         $holderTotal = (int) ($stockInsights['inventory']['total'] ?? array_sum($holderCounts));
 
         return view('admin.stock.stocks', [
+            'tab' => 'stocks',
             'stocks' => $stocksData,
             'hasPurchases' => $usingPurchases,
             'stockDashboard' => $stockDashboard,
@@ -190,15 +204,11 @@ class StockController extends Controller
     }
 
     /**
-     * Stock-in-hand matrix: model rows x current-holder columns (Admin / Regional Manager /
-     * Team Leader / Agent), quantity per cell. Holder = deepest hierarchy assignment on the
-     * IMEI row (see StockSummaryInsightsService::stockInHandMatrix()).
+     * Legacy URL: Stock by Model now lives as a tab on the Stocks page.
      */
-    public function stockMatrix(StockSummaryInsightsService $insights)
+    public function stockMatrix()
     {
-        $matrix = $insights->stockInHandMatrix();
-
-        return view('admin.stock.stock-matrix', $matrix);
+        return redirect()->route('admin.stock.stocks', ['tab' => 'by-model']);
     }
 
     /**
@@ -230,10 +240,27 @@ class StockController extends Controller
     /**
      * Show items for one purchase: model, category, IMEI (product_list rows for this purchase).
      */
-    public function showPurchase($id)
+    public function showPurchase(Request $request, $id)
     {
+        $validHolders = ['admin', 'regional_manager', 'team_leader', 'agent'];
+        $holder = (string) $request->query('holder', '');
+        if (! in_array($holder, $validHolders, true)) {
+            $holder = '';
+        }
+
         $purchase = Purchase::with(['lines.product.category', 'product.category'])->findOrFail($id);
-        $items = $purchase->productListItems()
+
+        $baseQuery = ProductListItem::query()->where('purchase_id', $purchase->id);
+
+        $available = (clone $baseQuery)->whereNull('sold_at')->count();
+
+        $holderCounts = [];
+        foreach ($validHolders as $role) {
+            $holderCounts[$role] = (clone $baseQuery)->heldByRole($role)->count();
+        }
+
+        $items = (clone $baseQuery)
+            ->when($holder !== '', fn ($q) => $q->heldByRole($holder))
             ->with([
                 'category:id,name',
                 'product:id,name,category_id',
@@ -255,6 +282,9 @@ class StockController extends Controller
         return view('admin.stock.purchase-show', [
             'purchase' => $purchase,
             'items' => $items,
+            'holder' => $holder,
+            'holderCounts' => $holderCounts,
+            'available' => $available,
         ]);
     }
 
@@ -635,6 +665,11 @@ class StockController extends Controller
         if (! Schema::hasColumn('agent_sales', 'commission_paid')) {
             return redirect()->route('admin.stock.agent-sales', $request->query())
                 ->withErrors(['error' => 'The database is missing the commission column. Run php artisan migrate.']);
+        }
+
+        if (app(\App\Services\DefaultAgentCommissionService::class)->lineIsDisbursed('sale', (int) $sale->id)) {
+            return redirect()->route('admin.stock.agent-sales', $request->query())
+                ->withErrors(['error' => 'This commission has already been disbursed and cannot be edited.']);
         }
 
         try {
@@ -3192,6 +3227,9 @@ class StockController extends Controller
         if (Schema::hasColumn('agent_sales', 'payment_option_id') && $pendingSale->payment_option_id) {
             $agentSaleAttrs['payment_option_id'] = $pendingSale->payment_option_id;
         }
+        $qty = max(1, (int) ($pendingSale->quantity_sold ?? 1));
+        $agentSaleAttrs = app(\App\Services\DefaultAgentCommissionService::class)
+            ->applyToCreateAttrs($agentSaleAttrs, 'agent_sales', $qty);
         $agentSale = AgentSale::create($agentSaleAttrs);
 
         // Update product_list items linked to this pending sale

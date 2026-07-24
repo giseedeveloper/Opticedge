@@ -510,6 +510,12 @@ class AgentCreditController extends Controller
         $newCommission = (float) $validated['commission_paid'];
         $eps = 0.0001;
 
+        if (app(\App\Services\DefaultAgentCommissionService::class)->lineIsDisbursed('credit', (int) $credit->id)) {
+            return redirect()
+                ->route('admin.stock.agent-credits', $request->query())
+                ->withErrors(['error' => 'This commission has already been disbursed and cannot be edited.']);
+        }
+
         try {
             DB::transaction(function () use ($credit, $newCommission, $eps) {
                 $credit->refresh();

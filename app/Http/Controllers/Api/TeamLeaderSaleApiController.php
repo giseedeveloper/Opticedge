@@ -234,6 +234,8 @@ class TeamLeaderSaleApiController extends Controller
                 $creditAttrs['profit'] = $totalCredit - $buyPrice;
             }
 
+            $creditAttrs = app(\App\Services\DefaultAgentCommissionService::class)
+                ->applyToCreateAttrs($creditAttrs, 'agent_credits', 1);
             $credit = AgentCredit::create($creditAttrs);
 
             if ($down > $eps && $paymentOptionId) {

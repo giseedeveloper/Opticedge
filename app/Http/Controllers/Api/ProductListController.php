@@ -842,6 +842,8 @@ class ProductListController extends Controller
                 $creditAttrs['selling_price'] = $totalCredit;
                 $creditAttrs['profit'] = $totalCredit - $buyPrice;
             }
+            $creditAttrs = app(\App\Services\DefaultAgentCommissionService::class)
+                ->applyToCreateAttrs($creditAttrs, 'agent_credits', 1);
             $credit = AgentCredit::create($creditAttrs);
 
             if ($down > $eps && $paymentOptionId) {
@@ -1132,6 +1134,8 @@ class ProductListController extends Controller
                     $attrs['payment_option_id'] = $paymentOpt->id;
                 }
 
+                $attrs = app(\App\Services\DefaultAgentCommissionService::class)
+                    ->applyToCreateAttrs($attrs, 'agent_sales', 1);
                 $sale = AgentSale::create($attrs);
 
                 $paymentOpt->increment('balance', $sellingPrice);
@@ -1229,6 +1233,8 @@ class ProductListController extends Controller
                 $attrs['payment_option_id'] = $paymentOpt->id;
             }
 
+            $attrs = app(\App\Services\DefaultAgentCommissionService::class)
+                ->applyToCreateAttrs($attrs, 'agent_sales', 1);
             $sale = AgentSale::create($attrs);
 
             // Record the incoming cash/channel amount

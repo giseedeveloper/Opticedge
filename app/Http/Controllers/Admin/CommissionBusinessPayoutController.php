@@ -45,15 +45,37 @@ class CommissionBusinessPayoutController extends Controller
     }
 
     /**
-     * Pay all eligible commission lines in one action.
+     * Pay all eligible commission lines in the background (queued job).
      */
     public function bulkStart(): RedirectResponse
     {
-        $summary = $this->service->bulkDisburseEligibleLines();
+        $tenantId = (int) (auth()->user()->tenant_id ?? \App\Support\TenantContext::id() ?? 0);
+        if ($tenantId <= 0) {
+            return redirect()
+                ->route('admin.payout.index')
+                ->withErrors(['selcom' => 'Your account is not linked to a vendor.']);
+        }
+
+        $items = $this->service->collectEligibleLineItems();
+        $result = $this->service->queueDisburseLines($tenantId, $items, auth()->id());
+
+        if (! $result['ok']) {
+            return redirect()
+                ->route('admin.payout.index')
+                ->withErrors(['selcom' => $result['message']]);
+        }
 
         return redirect()
             ->route('admin.payout.index')
-            ->with('bulk_selcom_summary', $summary);
+            ->with('success', $result['message'])
+            ->with('bulk_selcom_summary', [
+                'queued' => true,
+                'candidates' => $result['candidates'],
+                'started' => 0,
+                'skipped' => 0,
+                'failures' => [],
+                'message' => $result['message'],
+            ]);
     }
 
     public function wait(Selcompay $selcompay): View

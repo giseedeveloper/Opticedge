@@ -75,13 +75,17 @@ class WalletController extends Controller
 
         $balance = $tenantId > 0 ? $this->wallet->balance($tenantId) : 0.0;
 
+        $tab = $request->query('tab', 'deposit') === 'disburse' ? 'disburse' : 'deposit';
+
         $transactions = WalletTransaction::query()
             ->where('tenant_id', $tenantId)
+            ->when($tab === 'deposit', fn ($q) => $q->where('direction', 'credit'))
+            ->when($tab === 'disburse', fn ($q) => $q->where('direction', 'debit'))
             ->latest('id')
             ->paginate(50)
             ->withQueryString();
 
-        return view('admin.payout.wallet-ledger', compact('balance', 'transactions'));
+        return view('admin.payout.wallet-ledger', compact('balance', 'transactions', 'tab'));
     }
 
     protected function tenantId(Request $request): int

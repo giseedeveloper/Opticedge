@@ -13,12 +13,35 @@
             <div>
                 <p class="admin-prod-eyebrow">Pay out</p>
                 <h1 class="admin-prod-title">Wallet history</h1>
-                <p class="admin-prod-subtitle">Deposits and payouts on your disbursement wallet.</p>
+                <p class="admin-prod-subtitle">
+                    @if ($tab === 'disburse')
+                        Agent commission payouts from your disbursement wallet.
+                    @else
+                        Top-ups and other credits into your disbursement wallet.
+                    @endif
+                </p>
             </div>
             <div class="admin-clay-panel px-5 py-3 shrink-0 text-right">
                 <p class="text-xs font-bold uppercase tracking-wide text-slate-500">Balance</p>
                 <p class="text-2xl font-extrabold tracking-tight text-[#232f3e]">{{ number_format($balance, 0) }} TZS</p>
             </div>
+        </div>
+
+        <div class="admin-prod-filter-row mb-4" role="tablist" aria-label="Wallet history type">
+            <a href="{{ route('admin.payout.wallet.ledger', ['tab' => 'deposit']) }}"
+                class="admin-prod-filter-tab {{ $tab === 'deposit' ? 'admin-prod-filter-tab--active' : '' }}"
+                @if ($tab === 'deposit') aria-current="page" @endif
+                role="tab"
+                aria-selected="{{ $tab === 'deposit' ? 'true' : 'false' }}">
+                Deposit
+            </a>
+            <a href="{{ route('admin.payout.wallet.ledger', ['tab' => 'disburse']) }}"
+                class="admin-prod-filter-tab {{ $tab === 'disburse' ? 'admin-prod-filter-tab--active' : '' }}"
+                @if ($tab === 'disburse') aria-current="page" @endif
+                role="tab"
+                aria-selected="{{ $tab === 'disburse' ? 'true' : 'false' }}">
+                Disburse
+            </a>
         </div>
 
         <div class="admin-clay-panel overflow-hidden">
@@ -58,7 +81,13 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="5" class="text-center text-slate-500 py-10">No wallet activity yet. Use <strong>Deposit</strong> on the Pay out page to top up.</td>
+                                <td colspan="5" class="text-center text-slate-500 py-10">
+                                    @if ($tab === 'disburse')
+                                        No disbursements yet. Agent commission payouts will appear here.
+                                    @else
+                                        No deposits yet. Use <strong>Deposit</strong> on the Pay out page to top up.
+                                    @endif
+                                </td>
                             </tr>
                         @endforelse
                     </tbody>

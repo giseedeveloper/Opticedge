@@ -120,14 +120,8 @@
                                     <span class="text-slate-600 text-sm">{{ $credit->paymentOption?->name ?? $defaultWatuChannel?->name ?? '—' }}</span>
                                 </td>
                                 <td class="admin-prod-cell-actions">
-                                    <form action="{{ route('admin.stock.agent-credits-update-commission', ['id' => $credit->id] + request()->query()) }}" method="POST"
-                                        class="inline-flex items-center gap-2 flex-wrap justify-end">
-                                        @csrf
-                                        @method('PATCH')
-                                        <input type="number" name="commission_paid" value="{{ $credit->commission_paid ?? 0 }}" step="0.01" min="0"
-                                            class="admin-prod-input w-40 py-1.5 text-sm">
-                                        <button type="submit" class="admin-prod-link text-sm whitespace-nowrap">Save</button>
-                                    </form>
+                                    <span class="font-variant-numeric font-semibold text-[#232f3e]">{{ number_format($credit->commission_paid ?? 0, 0) }}</span>
+                                    <p class="text-[11px] text-slate-500 mt-0.5">Auto · edit on Pay out</p>
                                 </td>
                                 <td>
                                     <span class="admin-prod-dealer-status admin-prod-dealer-status--active">sold</span>
