@@ -11,15 +11,12 @@
         editDevices: 0,
         editAmount: 0
     }">
-        <div class="admin-prod-toolbar flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+        <div class="admin-prod-toolbar">
             <div>
                 <p class="admin-prod-eyebrow">Operations</p>
                 <h1 class="admin-prod-title">Pay out</h1>
                 <p class="admin-prod-subtitle">Default commission is applied on each sale automatically. Review daily agent totals, then disburse via Selcom.</p>
             </div>
-            <button type="button" @click="showDefaultModal = true" class="admin-prod-btn-primary text-sm py-2.5 px-4 shrink-0">
-                Set default commission
-            </button>
         </div>
 
         @if ($errors->has('selcom'))
@@ -175,7 +172,7 @@
 
             @if ($dateTabs->isEmpty())
                 <div class="admin-clay-panel p-8 text-center text-slate-500">
-                    No commissions yet. Set a default commission above, then new agent sales will appear here by date.
+                    No commissions yet. Use Change on the default commission card above, then new agent sales will appear here by date.
                 </div>
             @else
                 <div class="admin-clay-panel p-2 sm:p-3 mb-4 overflow-x-auto">
