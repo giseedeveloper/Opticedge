@@ -422,6 +422,7 @@ Route::middleware(['auth', 'redirect.superadmin.from.admin', 'admin', 'tenant.su
             Route::get('add-product/purchases/{purchase}/models', [App\Http\Controllers\Admin\StockController::class, 'modelsForPurchaseAddProduct'])->name('add-product.purchase.models');
             Route::get('stocks/{stock}/models', [App\Http\Controllers\Admin\StockController::class, 'modelsForStock'])->name('stocks.models');
             Route::get('stocks/{stock}', [App\Http\Controllers\Admin\StockController::class, 'showStock'])->name('stocks.show');
+            Route::post('stocks/{stock}/imeis/bulk-delete', [App\Http\Controllers\Admin\StockController::class, 'bulkDestroyStockImeis'])->name('stocks.imeis.bulk-destroy');
             Route::get('stocks/{stock}/receipts', [App\Http\Controllers\Admin\StockController::class, 'viewStockReceipts'])->name('stock-receipts');
             Route::get('add-product', [App\Http\Controllers\Admin\StockController::class, 'addProductForm'])->name('add-product');
             Route::post('add-product/validate-imeis', [App\Http\Controllers\Admin\StockController::class, 'validateAddProductImeis'])->name('add-product.validate-imeis');

@@ -390,7 +390,80 @@ class StockController extends Controller
 
         $items = $itemsQuery->paginate(50)->withQueryString();
 
+        $items->getCollection()->transform(function (ProductListItem $item) {
+            $item->setAttribute('can_bulk_delete', $this->lostImeiRemovalBlocker($item) === null);
+
+            return $item;
+        });
+
         return view('admin.stock.stock-show', compact('stock', 'atLimit', 'items', 'available', 'holder', 'holderCounts'));
+    }
+
+    /**
+     * Bulk-delete selected IMEIs from a stock detail (view IMEI) page.
+     * Uses the same rules as lost-IMEI removal (unsold; no open transfer/return).
+     */
+    public function bulkDestroyStockImeis(Request $request, Stock $stock)
+    {
+        $validated = $request->validate([
+            'item_ids' => 'required|array|min:1|max:200',
+            'item_ids.*' => 'integer|min:1',
+        ]);
+
+        $ids = array_values(array_unique(array_map('intval', $validated['item_ids'])));
+        $holder = (string) $request->input('holder', '');
+        $redirectParams = array_merge(
+            ['stock' => $stock->id],
+            in_array($holder, ['admin', 'regional_manager', 'team_leader', 'agent'], true) ? ['holder' => $holder] : []
+        );
+
+        $items = ProductListItem::query()
+            ->where('stock_id', $stock->id)
+            ->whereIn('id', $ids)
+            ->get();
+
+        if ($items->isEmpty()) {
+            return redirect()
+                ->route('admin.stock.stocks.show', $redirectParams)
+                ->withErrors(['error' => 'No matching IMEIs found in this stock.']);
+        }
+
+        $deleted = 0;
+        $skipped = [];
+
+        foreach ($items as $item) {
+            $blocker = $this->lostImeiRemovalBlocker($item);
+            if ($blocker !== null) {
+                $label = $item->imei_number ?? ('#'.$item->id);
+                $skipped[] = $label.': '.$blocker;
+                continue;
+            }
+
+            $this->hardDeleteProductListItem($item);
+            $deleted++;
+        }
+
+        $redirect = redirect()->route('admin.stock.stocks.show', $redirectParams);
+
+        if ($deleted > 0) {
+            $redirect->with('success', $deleted === 1
+                ? '1 IMEI deleted successfully.'
+                : $deleted.' IMEIs deleted successfully.');
+        }
+
+        if ($skipped !== []) {
+            $msg = count($skipped).' IMEI(s) could not be deleted. '.implode(' ', array_slice($skipped, 0, 5));
+            if (count($skipped) > 5) {
+                $msg .= ' …';
+            }
+            $redirect->withErrors(['error' => $msg]);
+        }
+
+        if ($deleted === 0 && $skipped === []) {
+            $redirect->withErrors(['error' => 'No IMEIs were deleted.']);
+        }
+
+        return $redirect;
     }
 
     public function purchases(Request $request)

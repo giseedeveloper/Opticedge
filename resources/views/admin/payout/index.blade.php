@@ -213,6 +213,7 @@
                                 <thead>
                                     <tr>
                                         <th scope="col" class="admin-prod-th">Agent name</th>
+                                        <th scope="col" class="admin-prod-th">Team leader</th>
                                         <th scope="col" class="admin-prod-th">Mobile</th>
                                         <th scope="col" class="admin-prod-th">Devices sold</th>
                                         <th scope="col" class="admin-prod-th">Total commission (TZS)</th>
@@ -230,6 +231,7 @@
                                         @endphp
                                         <tr class="{{ $disbursed ? 'opacity-70' : '' }}">
                                             <td class="font-semibold text-[#232f3e]">{{ $agentRow['agent_name'] }}</td>
+                                            <td class="text-slate-700">{{ $agentRow['team_leader_name'] ?? '—' }}</td>
                                             <td class="font-variant-numeric whitespace-nowrap">{{ $agentRow['mobile'] }}</td>
                                             <td class="font-variant-numeric font-semibold">{{ (int) $agentRow['devices'] }}</td>
                                             <td class="font-bold font-variant-numeric">{{ number_format($agentRow['commission_amount'], 0) }}</td>

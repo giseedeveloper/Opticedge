@@ -32,6 +32,13 @@
             </div>
         </div>
 
+        @if(session('success'))
+            <div class="admin-prod-alert admin-prod-alert--success mb-4" role="status">{{ session('success') }}</div>
+        @endif
+        @if($errors->any())
+            <div class="admin-prod-alert admin-prod-alert--warning mb-4" role="alert">{{ $errors->first() }}</div>
+        @endif
+
         @if($atLimit)
             <div class="admin-prod-alert admin-prod-alert--warning mb-4" role="status">
                 Stock at limit. Add inventory via
@@ -48,6 +55,11 @@
                 'team_leader' => ['label' => 'TL', 'count' => $holderCounts['team_leader'] ?? 0],
                 'agent' => ['label' => 'Agent', 'count' => $holderCounts['agent'] ?? 0],
             ];
+            $deletableIds = $items->getCollection()
+                ->filter(fn ($item) => (bool) ($item->can_bulk_delete ?? false))
+                ->pluck('id')
+                ->values()
+                ->all();
         @endphp
         <div class="mb-4">
             <p class="admin-prod-eyebrow mb-2">Filter by current holder</p>
@@ -64,89 +76,179 @@
             </div>
         </div>
 
-        <div class="admin-clay-panel overflow-hidden">
-            <div class="admin-prod-table-wrap admin-prod-table-wrap--flush overflow-x-auto">
-                <table data-no-datatable>
-                    <thead>
-                        <tr>
-                            <th scope="col" class="admin-prod-th admin-prod-th--index" aria-label="Expand"></th>
-                            <th scope="col" class="admin-prod-th admin-prod-th--index">#</th>
-                            <th scope="col" class="admin-prod-th">Model</th>
-                            <th scope="col" class="admin-prod-th">IMEI</th>
-                            <th scope="col" class="admin-prod-th">Product / category</th>
-                            <th scope="col" class="admin-prod-th">Held by</th>
-                            <th scope="col" class="admin-prod-th">In stock / sold</th>
-                        </tr>
-                    </thead>
-                    @forelse($items as $index => $item)
-                        <tbody x-data="{ open: false }" class="border-b border-slate-100/80 last:border-0">
-                            <tr class="cursor-pointer hover:bg-white/50" @click="open = !open" role="button" tabindex="0"
-                                @keydown.enter.prevent="open = !open" @keydown.space.prevent="open = !open">
-                                <td class="text-slate-400 select-none w-10" title="Click row for full IMEI details">
-                                    <span x-text="open ? '▼' : '▶'" class="inline-block w-5 text-center text-xs"></span>
-                                </td>
-                                <td class="text-slate-500 text-sm">{{ ($items->firstItem() ?? 1) + $index }}</td>
-                                <td class="font-medium text-[#232f3e]">{{ $item->model ?? '–' }}</td>
-                                <td class="font-mono text-sm" @click.stop>
-                                    <a href="{{ route('admin.stock.imei-item', $item) }}" class="text-[#232f3e] hover:underline">{{ $item->imei_number ?? '–' }}</a>
-                                </td>
-                                <td>
-                                    {{ $item->product?->name ?? '–' }}
-                                    @if($item->category)
-                                        <span class="text-slate-400"> / {{ $item->category->name }}</span>
-                                    @endif
-                                </td>
-                                <td>
-                                    @php
-                                        $held = $item->currentHolder();
-                                        $holderBadge = match ($held['role']) {
-                                            'admin' => 'bg-slate-100 text-slate-700',
-                                            'regional_manager' => 'bg-indigo-100 text-indigo-700',
-                                            'team_leader' => 'bg-sky-100 text-sky-700',
-                                            'agent' => 'bg-emerald-100 text-emerald-700',
-                                            default => 'bg-slate-100 text-slate-400',
-                                        };
-                                        $holderRoleLabel = match ($held['role']) {
-                                            'admin' => 'Admin',
-                                            'regional_manager' => 'Regional manager',
-                                            'team_leader' => 'Team leader',
-                                            'agent' => 'Agent',
-                                            default => null,
-                                        };
-                                    @endphp
-                                    @if($held['role'])
-                                        <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold {{ $holderBadge }}">{{ $holderRoleLabel }}</span>
-                                        <span class="block text-xs text-slate-500 mt-0.5">{{ $held['label'] }}</span>
-                                    @else
-                                        <span class="text-slate-400 text-sm">—</span>
-                                    @endif
-                                </td>
-                                <td>
-                                    @if($item->sold_at)
-                                        <span class="admin-prod-status admin-prod-status--sold">Sold</span>
-                                    @else
-                                        <span class="admin-prod-status admin-prod-status--ok">Available</span>
-                                    @endif
-                                </td>
-                            </tr>
-                            <tr x-show="open" x-cloak class="!border-b border-slate-200/80">
-                                <td colspan="7" class="p-0">
-                                    @include('admin.stock.partials.imei-full-info', ['item' => $item])
-                                </td>
-                            </tr>
-                        </tbody>
-                    @empty
-                        <tbody>
+        <form
+            method="POST"
+            action="{{ route('admin.stock.stocks.imeis.bulk-destroy', $stock) }}"
+            x-data="{
+                selected: {},
+                openRows: {},
+                deletableIds: @js($deletableIds),
+                get selectedCount() {
+                    return Object.values(this.selected).filter(Boolean).length;
+                },
+                get allSelected() {
+                    return this.deletableIds.length > 0
+                        && this.deletableIds.every((id) => !!this.selected[id]);
+                },
+                toggleAll() {
+                    const next = !this.allSelected;
+                    this.deletableIds.forEach((id) => { this.selected[id] = next; });
+                },
+                toggleRow(id) {
+                    this.openRows[id] = !this.openRows[id];
+                },
+                confirmDelete() {
+                    if (this.selectedCount < 1) {
+                        alert('Select at least one IMEI to delete.');
+                        return false;
+                    }
+                    return confirm('Delete ' + this.selectedCount + ' selected IMEI(s) from this stock? This cannot be undone.');
+                }
+            }"
+            @submit="if (!confirmDelete()) $event.preventDefault()"
+        >
+            @csrf
+            @if(($holder ?? '') !== '')
+                <input type="hidden" name="holder" value="{{ $holder }}">
+            @endif
+
+            <div class="admin-clay-panel overflow-hidden">
+                <div class="px-4 py-3 border-b border-slate-200/70 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                    <p class="text-sm text-slate-600">
+                        <span class="font-semibold text-[#232f3e]" x-text="selectedCount">0</span>
+                        selected
+                        @if(count($deletableIds) > 0)
+                            <span class="text-slate-400">· {{ count($deletableIds) }} deletable on this page</span>
+                        @endif
+                    </p>
+                    <div class="flex flex-wrap gap-2">
+                        <button
+                            type="button"
+                            class="admin-prod-btn-ghost text-sm py-2 px-4"
+                            @click="toggleAll()"
+                            @disabled(count($deletableIds) === 0)
+                        >
+                            <span x-text="allSelected ? 'Clear selection' : 'Select all deletable'">Select all deletable</span>
+                        </button>
+                        <button
+                            type="submit"
+                            class="admin-prod-btn-primary text-sm py-2 px-4 bg-rose-600 border-rose-600 hover:bg-rose-700"
+                            :disabled="selectedCount < 1"
+                            :class="selectedCount < 1 ? 'opacity-50 cursor-not-allowed' : ''"
+                        >
+                            Delete selected
+                        </button>
+                    </div>
+                </div>
+
+                <div class="admin-prod-table-wrap admin-prod-table-wrap--flush overflow-x-auto">
+                    <table data-no-datatable>
+                        <thead>
                             <tr>
-                                <td colspan="7" class="text-center text-slate-500 py-10">
-                                    {{ $holder === '' ? 'No devices in this stock yet.' : 'No devices currently held at this level.' }}
-                                </td>
+                                <th scope="col" class="admin-prod-th w-10" aria-label="Select">
+                                    <input
+                                        type="checkbox"
+                                        class="rounded border-slate-300 text-[#fa8900] focus:ring-[#fa8900]"
+                                        :checked="allSelected"
+                                        :indeterminate="selectedCount > 0 && !allSelected"
+                                        @change="toggleAll()"
+                                        @disabled(count($deletableIds) === 0)
+                                        title="Select all deletable on this page"
+                                    >
+                                </th>
+                                <th scope="col" class="admin-prod-th admin-prod-th--index" aria-label="Expand"></th>
+                                <th scope="col" class="admin-prod-th admin-prod-th--index">#</th>
+                                <th scope="col" class="admin-prod-th">Model</th>
+                                <th scope="col" class="admin-prod-th">IMEI</th>
+                                <th scope="col" class="admin-prod-th">Product / category</th>
+                                <th scope="col" class="admin-prod-th">Held by</th>
+                                <th scope="col" class="admin-prod-th">In stock / sold</th>
                             </tr>
-                        </tbody>
-                    @endforelse
-                </table>
+                        </thead>
+                        @forelse($items as $index => $item)
+                            @php $canDelete = (bool) ($item->can_bulk_delete ?? false); @endphp
+                            <tbody class="border-b border-slate-100/80 last:border-0">
+                                <tr class="cursor-pointer hover:bg-white/50" @click="toggleRow({{ $item->id }})" role="button" tabindex="0"
+                                    @keydown.enter.prevent="toggleRow({{ $item->id }})" @keydown.space.prevent="toggleRow({{ $item->id }})">
+                                    <td class="w-10" @click.stop>
+                                        @if($canDelete)
+                                            <input
+                                                type="checkbox"
+                                                name="item_ids[]"
+                                                value="{{ $item->id }}"
+                                                class="rounded border-slate-300 text-[#fa8900] focus:ring-[#fa8900]"
+                                                x-model="selected[{{ $item->id }}]"
+                                            >
+                                        @else
+                                            <span class="inline-block w-4" title="Locked — sold, pending transfer/return, or linked"></span>
+                                        @endif
+                                    </td>
+                                    <td class="text-slate-400 select-none w-10" title="Click row for full IMEI details">
+                                        <span x-text="openRows[{{ $item->id }}] ? '▼' : '▶'" class="inline-block w-5 text-center text-xs"></span>
+                                    </td>
+                                    <td class="text-slate-500 text-sm">{{ ($items->firstItem() ?? 1) + $index }}</td>
+                                    <td class="font-medium text-[#232f3e]">{{ $item->model ?? '–' }}</td>
+                                    <td class="font-mono text-sm" @click.stop>
+                                        <a href="{{ route('admin.stock.imei-item', $item) }}" class="text-[#232f3e] hover:underline">{{ $item->imei_number ?? '–' }}</a>
+                                    </td>
+                                    <td>
+                                        {{ $item->product?->name ?? '–' }}
+                                        @if($item->category)
+                                            <span class="text-slate-400"> / {{ $item->category->name }}</span>
+                                        @endif
+                                    </td>
+                                    <td>
+                                        @php
+                                            $held = $item->currentHolder();
+                                            $holderBadge = match ($held['role']) {
+                                                'admin' => 'bg-slate-100 text-slate-700',
+                                                'regional_manager' => 'bg-indigo-100 text-indigo-700',
+                                                'team_leader' => 'bg-sky-100 text-sky-700',
+                                                'agent' => 'bg-emerald-100 text-emerald-700',
+                                                default => 'bg-slate-100 text-slate-400',
+                                            };
+                                            $holderRoleLabel = match ($held['role']) {
+                                                'admin' => 'Admin',
+                                                'regional_manager' => 'Regional manager',
+                                                'team_leader' => 'Team leader',
+                                                'agent' => 'Agent',
+                                                default => null,
+                                            };
+                                        @endphp
+                                        @if($held['role'])
+                                            <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold {{ $holderBadge }}">{{ $holderRoleLabel }}</span>
+                                            <span class="block text-xs text-slate-500 mt-0.5">{{ $held['label'] }}</span>
+                                        @else
+                                            <span class="text-slate-400 text-sm">—</span>
+                                        @endif
+                                    </td>
+                                    <td>
+                                        @if($item->sold_at)
+                                            <span class="admin-prod-status admin-prod-status--sold">Sold</span>
+                                        @else
+                                            <span class="admin-prod-status admin-prod-status--ok">Available</span>
+                                        @endif
+                                    </td>
+                                </tr>
+                                <tr x-show="openRows[{{ $item->id }}]" x-cloak class="!border-b border-slate-200/80">
+                                    <td colspan="8" class="p-0">
+                                        @include('admin.stock.partials.imei-full-info', ['item' => $item])
+                                    </td>
+                                </tr>
+                            </tbody>
+                        @empty
+                            <tbody>
+                                <tr>
+                                    <td colspan="8" class="text-center text-slate-500 py-10">
+                                        {{ $holder === '' ? 'No devices in this stock yet.' : 'No devices currently held at this level.' }}
+                                    </td>
+                                </tr>
+                            </tbody>
+                        @endforelse
+                    </table>
+                </div>
+                @include('admin.partials.table-pagination', ['paginator' => $items, 'label' => 'devices'])
             </div>
-            @include('admin.partials.table-pagination', ['paginator' => $items, 'label' => 'devices'])
-        </div>
+        </form>
     </div>
 </x-admin-layout>

@@ -39,7 +39,11 @@ class AdminPayoutApiController extends Controller
 
         $raw = collect();
 
-        foreach (AgentCredit::query()->with(['agent:id,name,phone'])->where('commission_paid', '>', self::EPS)->orderByDesc('id')->limit(200)->get() as $c) {
+        foreach (AgentCredit::query()->with([
+            'agent:id,name,phone,team_leader_id',
+            'agent.teamLeader:id,name',
+            'teamLeader:id,name',
+        ])->where('commission_paid', '>', self::EPS)->orderByDesc('id')->limit(200)->get() as $c) {
             $agentId = (int) ($c->agent_id ?: 0);
             if ($agentId <= 0) {
                 continue;
@@ -53,6 +57,9 @@ class AdminPayoutApiController extends Controller
                 'agent_id' => $agentId,
                 'agent_name' => $c->agent?->name ?? '—',
                 'mobile' => $c->agent?->phone ?? '—',
+                'team_leader_name' => $c->teamLeader?->name
+                    ?? $c->agent?->teamLeader?->name
+                    ?? '—',
                 'quantity' => 1,
                 'commission_amount' => (float) $c->commission_paid,
                 'disburse_completed' => isset($completedKeys[$sourceKey]),
@@ -62,7 +69,11 @@ class AdminPayoutApiController extends Controller
             ]);
         }
 
-        foreach (AgentSale::query()->with(['agent:id,name,phone'])->where('commission_paid', '>', self::EPS)->orderByDesc('id')->limit(200)->get() as $s) {
+        foreach (AgentSale::query()->with([
+            'agent:id,name,phone,team_leader_id',
+            'agent.teamLeader:id,name',
+            'teamLeader:id,name',
+        ])->where('commission_paid', '>', self::EPS)->orderByDesc('id')->limit(200)->get() as $s) {
             $agentId = (int) ($s->agent_id ?: 0);
             if ($agentId <= 0) {
                 continue;
@@ -76,6 +87,9 @@ class AdminPayoutApiController extends Controller
                 'agent_id' => $agentId,
                 'agent_name' => $s->agent?->name ?? ($s->seller_name ?: '—'),
                 'mobile' => $s->agent?->phone ?? '—',
+                'team_leader_name' => $s->teamLeader?->name
+                    ?? $s->agent?->teamLeader?->name
+                    ?? '—',
                 'quantity' => max(1, (int) ($s->quantity_sold ?? 1)),
                 'commission_amount' => (float) $s->commission_paid,
                 'disburse_completed' => isset($completedKeys[$sourceKey]),
@@ -89,12 +103,17 @@ class AdminPayoutApiController extends Controller
             $first = $items->first();
             $allDisbursed = $items->every(fn ($i) => ! empty($i['disburse_completed']));
             $anyDisbursed = $items->contains(fn ($i) => ! empty($i['disburse_completed']));
+            $teamLeaderName = $items
+                ->pluck('team_leader_name')
+                ->first(fn ($name) => is_string($name) && $name !== '' && $name !== '—')
+                ?? '—';
 
             return [
                 'date' => $first['date'],
                 'agent_id' => $first['agent_id'],
                 'agent_name' => $first['agent_name'],
                 'mobile' => $first['mobile'],
+                'team_leader_name' => $teamLeaderName,
                 'devices' => (int) $items->sum('quantity'),
                 'commission_amount' => round($items->sum('commission_amount'), 2),
                 'disburse_completed' => $allDisbursed,

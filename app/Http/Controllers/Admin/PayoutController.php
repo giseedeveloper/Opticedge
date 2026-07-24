@@ -262,7 +262,11 @@ class PayoutController extends Controller
         $raw = collect();
 
         $creditQuery = AgentCredit::query()
-            ->with(['agent:id,name,phone', 'teamLeader:id,name,phone'])
+            ->with([
+                'agent:id,name,phone,team_leader_id',
+                'agent.teamLeader:id,name',
+                'teamLeader:id,name,phone',
+            ])
             ->where('commission_paid', '>', self::EPS)
             ->orderByDesc('id');
 
@@ -286,6 +290,9 @@ class PayoutController extends Controller
                 'agent_id' => $agentId,
                 'agent_name' => $c->agent?->name ?? '—',
                 'mobile' => $c->agent?->phone ?? '—',
+                'team_leader_name' => $c->teamLeader?->name
+                    ?? $c->agent?->teamLeader?->name
+                    ?? '—',
                 'line' => [
                     'source' => 'credit',
                     'source_id' => $c->id,
@@ -300,7 +307,11 @@ class PayoutController extends Controller
         }
 
         $saleQuery = AgentSale::query()
-            ->with(['agent:id,name,phone'])
+            ->with([
+                'agent:id,name,phone,team_leader_id',
+                'agent.teamLeader:id,name',
+                'teamLeader:id,name,phone',
+            ])
             ->where('commission_paid', '>', self::EPS)
             ->orderByDesc('id');
 
@@ -324,6 +335,9 @@ class PayoutController extends Controller
                 'agent_id' => $agentId,
                 'agent_name' => $s->agent?->name ?? ($s->seller_name ?: '—'),
                 'mobile' => $s->agent?->phone ?? '—',
+                'team_leader_name' => $s->teamLeader?->name
+                    ?? $s->agent?->teamLeader?->name
+                    ?? '—',
                 'line' => [
                     'source' => 'sale',
                     'source_id' => $s->id,
@@ -348,6 +362,10 @@ class PayoutController extends Controller
             $allBooked = collect($lines)->every(fn ($l) => ! empty($l['payout_booked']));
             $canPay = ! $allDisbursed && ! $anyPending && $commission > self::EPS
                 && collect($lines)->contains(fn ($l) => empty($l['disburse_completed']) && empty($l['pay_pending']) && ($l['commission_amount'] ?? 0) > self::EPS);
+            $teamLeaderName = $items
+                ->pluck('team_leader_name')
+                ->first(fn ($name) => is_string($name) && $name !== '' && $name !== '—')
+                ?? '—';
 
             return [
                 'group_key' => $first['group_key'],
@@ -355,6 +373,7 @@ class PayoutController extends Controller
                 'agent_id' => $first['agent_id'],
                 'agent_name' => $first['agent_name'],
                 'mobile' => $first['mobile'],
+                'team_leader_name' => $teamLeaderName,
                 'devices' => $devices,
                 'commission_amount' => $commission,
                 'payout_booked' => $allBooked,

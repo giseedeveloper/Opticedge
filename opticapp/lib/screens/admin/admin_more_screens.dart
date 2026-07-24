@@ -197,6 +197,7 @@ class PayoutScreen extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(r['agent_name']?.toString() ?? '–', style: const TextStyle(fontWeight: FontWeight.w600)),
+                    Text('TL: ${r['team_leader_name']?.toString().isNotEmpty == true ? r['team_leader_name'] : '–'}'),
                     Text('${r['source']} #${r['source_id']} · ${r['mobile'] ?? ''}'),
                   ],
                 ),

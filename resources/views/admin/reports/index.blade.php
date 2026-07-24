@@ -18,12 +18,12 @@
             ];
             $summaryBranchQuery = isset($reportBranchFilter) && $reportBranchFilter ? ['branch_id' => $reportBranchFilter] : [];
             $agentColorBands = [
-                'bg-orange-100/80',
-                'bg-sky-100/80',
-                'bg-emerald-100/80',
-                'bg-violet-100/80',
-                'bg-amber-100/80',
-                'bg-rose-100/80',
+                'bg-orange-100',
+                'bg-sky-100',
+                'bg-emerald-100',
+                'bg-violet-100',
+                'bg-amber-100',
+                'bg-rose-100',
             ];
             $agentCellBands = [
                 'bg-orange-100/40',
@@ -146,40 +146,56 @@
                             border-radius: 0.75rem;
                             max-height: 600px;
                             overflow-y: auto;
+                            --admin-report-head-row1: 2.75rem;
                         }
-                        
+
                         .admin-report-table-container table {
                             min-width: 720px;
+                            border-collapse: separate;
+                            border-spacing: 0;
                         }
-                        
-                        .admin-report-table-container thead tr th {
+
+                        /* Product names row stays at top while scrolling */
+                        .admin-report-table-container thead tr:first-child th {
                             position: sticky;
                             top: 0;
-                            z-index: 10;
-                            background-color: inherit;
+                            z-index: 12;
+                            box-shadow: 0 1px 0 0 rgb(226 232 240);
                         }
-                        
-                        .admin-report-table-wrap-sticky {
-                            position: relative;
+
+                        /* Opening / Sales / Closing row sticks just under the product names */
+                        .admin-report-table-container thead tr:nth-child(2) th {
+                            position: sticky;
+                            top: var(--admin-report-head-row1);
+                            z-index: 11;
+                            box-shadow: 0 1px 0 0 rgb(226 232 240);
                         }
-                        
+
+                        /* Agent corner: sticky top + left (rowspan covers both header rows) */
+                        .admin-report-table-container thead tr:first-child th:first-child {
+                            left: 0;
+                            z-index: 16;
+                            background-color: #f8fafc;
+                        }
+
                         .admin-report-table-container tbody tr td:first-child {
                             position: sticky;
                             left: 0;
                             z-index: 5;
-                            background-color: white;
+                            background-color: #fff;
                             white-space: nowrap;
                             overflow: hidden;
                             text-overflow: ellipsis;
                             min-width: 150px;
                         }
-                        
+
                         .admin-report-table-container tbody tr.totals-row td:first-child {
                             background-color: #f1f5f9;
+                            z-index: 6;
                         }
                     </style>
-                    
-                    <div class="admin-report-table-container rounded-xl">
+
+                    <div class="admin-report-table-container rounded-xl" data-admin-report-scroll>
                         @php
                             $reportProducts = $asr['rows'];
                             $reportTotals = $asr['totals'];
@@ -190,17 +206,17 @@
                         <table class="text-sm">
                             <thead>
                                 <tr>
-                                    <th scope="col" class="admin-prod-th align-bottom" rowspan="2">Agent</th>
-                                    <th scope="col" class="admin-prod-th text-center bg-slate-100/80" colspan="3">Total</th>
+                                    <th scope="col" class="admin-prod-th align-bottom bg-slate-50" rowspan="2">Agent</th>
+                                    <th scope="col" class="admin-prod-th text-center bg-slate-100" colspan="3">Total</th>
                                     @foreach($reportProducts as $productRow)
                                         @php $productBand = $agentColorBands[$loop->index % count($agentColorBands)]; @endphp
                                         <th scope="col" class="admin-prod-th text-center {{ $productBand }}" colspan="3">{{ $productRow['name'] }}</th>
                                     @endforeach
                                 </tr>
                                 <tr>
-                                    <th scope="col" class="admin-prod-th admin-prod-th--end text-xs bg-slate-100/80">Opening</th>
-                                    <th scope="col" class="admin-prod-th admin-prod-th--end text-xs bg-slate-100/80">Sales</th>
-                                    <th scope="col" class="admin-prod-th admin-prod-th--end text-xs bg-slate-100/80">Closing</th>
+                                    <th scope="col" class="admin-prod-th admin-prod-th--end text-xs bg-slate-100">Opening</th>
+                                    <th scope="col" class="admin-prod-th admin-prod-th--end text-xs bg-slate-100">Sales</th>
+                                    <th scope="col" class="admin-prod-th admin-prod-th--end text-xs bg-slate-100">Closing</th>
                                     @foreach($reportProducts as $productRow)
                                         @php $productBand = $agentColorBands[$loop->index % count($agentColorBands)]; @endphp
                                         <th scope="col" class="admin-prod-th admin-prod-th--end text-xs {{ $productBand }}">Opening</th>
@@ -252,6 +268,19 @@
                             </tbody> 
                         </table>
                     </div>
+                    <script>
+                        (function () {
+                            const scroller = document.querySelector('[data-admin-report-scroll]');
+                            if (!scroller) return;
+                            const firstRow = scroller.querySelector('thead tr:first-child');
+                            if (!firstRow) return;
+                            const sync = () => {
+                                scroller.style.setProperty('--admin-report-head-row1', firstRow.getBoundingClientRect().height + 'px');
+                            };
+                            sync();
+                            window.addEventListener('resize', sync);
+                        })();
+                    </script>
                     @if(request('branch_id'))
                         <p class="mt-2 text-xs text-slate-600 bg-slate-50/90 border border-slate-200/80 rounded-lg px-3 py-2">
                             Branch filter is on: agent rows show this branch’s team (assigned branch) plus any rep with stock or sales in this branch’s scope, even if their profile branch is not set yet.
