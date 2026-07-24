@@ -58,19 +58,27 @@
                     </div>
                     <dl class="space-y-2">
                         <div class="flex items-center justify-between gap-3 text-sm">
-                            <dt class="text-slate-500">Admin</dt>
+                            <dt class="text-slate-500">
+                                <a href="{{ route('admin.stock.stocks', ['holder' => 'admin']) }}" class="admin-prod-link">Admin</a>
+                            </dt>
                             <dd class="font-semibold text-slate-900 tabular-nums">{{ number_format($insights['inventory']['admin']) }}</dd>
                         </div>
                         <div class="flex items-center justify-between gap-3 text-sm">
-                            <dt class="text-slate-500">Regional managers</dt>
+                            <dt class="text-slate-500">
+                                <a href="{{ route('admin.stock.stocks', ['holder' => 'regional_manager']) }}" class="admin-prod-link">RM</a>
+                            </dt>
                             <dd class="font-semibold text-slate-900 tabular-nums">{{ number_format($insights['inventory']['regional_managers']) }}</dd>
                         </div>
                         <div class="flex items-center justify-between gap-3 text-sm">
-                            <dt class="text-slate-500">Team leaders</dt>
+                            <dt class="text-slate-500">
+                                <a href="{{ route('admin.stock.stocks', ['holder' => 'team_leader']) }}" class="admin-prod-link">TL</a>
+                            </dt>
                             <dd class="font-semibold text-slate-900 tabular-nums">{{ number_format($insights['inventory']['team_leaders']) }}</dd>
                         </div>
                         <div class="flex items-center justify-between gap-3 text-sm">
-                            <dt class="text-slate-500">Agents</dt>
+                            <dt class="text-slate-500">
+                                <a href="{{ route('admin.stock.stocks', ['holder' => 'agent']) }}" class="admin-prod-link">Agent</a>
+                            </dt>
                             <dd class="font-semibold text-slate-900 tabular-nums">{{ number_format($insights['inventory']['agents']) }}</dd>
                         </div>
                     </dl>
@@ -113,7 +121,40 @@
             </div>
         </x-admin-page-dashboard>
 
-        <div class="mt-6 admin-clay-panel overflow-hidden">
+        @php
+            $holder = $holder ?? '';
+            $holderCounts = $holderCounts ?? ['admin' => 0, 'regional_manager' => 0, 'team_leader' => 0, 'agent' => 0];
+            $holderTotal = $holderTotal ?? array_sum($holderCounts);
+            $holderFilters = [
+                '' => ['label' => 'All', 'count' => $holderTotal],
+                'admin' => ['label' => 'Admin', 'count' => $holderCounts['admin'] ?? 0],
+                'regional_manager' => ['label' => 'RM', 'count' => $holderCounts['regional_manager'] ?? 0],
+                'team_leader' => ['label' => 'TL', 'count' => $holderCounts['team_leader'] ?? 0],
+                'agent' => ['label' => 'Agent', 'count' => $holderCounts['agent'] ?? 0],
+            ];
+            $holderLabels = [
+                'admin' => 'Admin',
+                'regional_manager' => 'RM',
+                'team_leader' => 'TL',
+                'agent' => 'Agent',
+            ];
+        @endphp
+        <div class="mt-6 mb-2">
+            <p class="admin-prod-eyebrow mb-2">Filter by holder role</p>
+            <div class="flex flex-wrap gap-2">
+                @foreach($holderFilters as $key => $meta)
+                    @php $active = $holder === $key; @endphp
+                    <a href="{{ route('admin.stock.stocks', $key === '' ? [] : ['holder' => $key]) }}"
+                        class="inline-flex items-center gap-2 rounded-full border px-4 py-1.5 text-sm font-semibold transition-colors
+                            {{ $active ? 'border-[#fa8900] bg-[#fa8900] text-white' : 'border-slate-200 bg-white/70 text-slate-600 hover:border-[#fa8900] hover:text-[#fa8900]' }}">
+                        {{ $meta['label'] }}
+                        <span class="rounded-full px-2 py-0.5 text-xs {{ $active ? 'bg-white/25 text-white' : 'bg-slate-100 text-slate-500' }}">{{ number_format($meta['count']) }}</span>
+                    </a>
+                @endforeach
+            </div>
+        </div>
+
+        <div class="mt-4 admin-clay-panel overflow-hidden">
             <div class="admin-prod-table-wrap admin-prod-table-wrap--flush overflow-x-auto">
                 <table>
                     <thead>
@@ -121,6 +162,9 @@
                             <th scope="col" class="admin-prod-th">Name</th>
                             <th scope="col" class="admin-prod-th">Stock quantity</th>
                             <th scope="col" class="admin-prod-th">Added</th>
+                            @if($holder !== '')
+                                <th scope="col" class="admin-prod-th">Held by {{ $holderLabels[$holder] ?? $holder }}</th>
+                            @endif
                             <th scope="col" class="admin-prod-th">Status</th>
                             <th scope="col" class="admin-prod-th">Stock status</th>
                             <th scope="col" class="admin-prod-th admin-prod-th--end">Actions</th>
@@ -134,16 +178,23 @@
                                         <a href="{{ route('admin.stock.purchase.show', $stock->id) }}"
                                             class="admin-prod-link">{{ $stock->name }}</a>
                                     @else
-                                        <a href="{{ route('admin.stock.stocks.show', $stock->id) }}"
+                                        <a href="{{ route('admin.stock.stocks.show', array_merge(['stock' => $stock->id], $holder !== '' ? ['holder' => $holder] : [])) }}"
                                             class="admin-prod-link">{{ $stock->name }}</a>
                                     @endif
                                     <div class="text-xs font-normal text-slate-500 mt-1">
                                         {{ number_format($stock->imei_count ?? 0) }} device(s) with IMEI
-                                        <span class="text-slate-400">— expand row for assignment / sale details</span>
+                                        @if($holder !== '')
+                                            <span class="text-slate-400">— {{ number_format($stock->held_count ?? 0) }} held by {{ $holderLabels[$holder] ?? $holder }}</span>
+                                        @else
+                                            <span class="text-slate-400">— expand row for assignment / sale details</span>
+                                        @endif
                                     </div>
                                 </td>
                                 <td class="font-variant-numeric text-slate-600">{{ number_format($stock->stock_quantity) }}</td>
                                 <td class="font-variant-numeric text-slate-600">{{ number_format($stock->added) }}</td>
+                                @if($holder !== '')
+                                    <td class="font-variant-numeric text-slate-600">{{ number_format($stock->held_count ?? 0) }}</td>
+                                @endif
                                 <td>
                                     @if($stock->status === 'complete')
                                         <span class="admin-prod-status admin-prod-status--ok">Complete</span>
@@ -186,8 +237,13 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="6" class="text-center text-slate-500 py-10">
-                                    @if(isset($hasPurchases) && $hasPurchases)
+                                <td colspan="{{ $holder !== '' ? 7 : 6 }}" class="text-center text-slate-500 py-10">
+                                    @if($holder !== '')
+                                        <p class="font-medium text-slate-700 mb-2">No stocks with devices held by {{ $holderLabels[$holder] ?? $holder }}.</p>
+                                        <p class="text-sm mt-2 text-slate-600">
+                                            <a href="{{ route('admin.stock.stocks') }}" class="admin-prod-link">Clear filter</a>
+                                        </p>
+                                    @elseif(isset($hasPurchases) && $hasPurchases)
                                         <p class="font-medium text-slate-700 mb-2">No stocks found, but you have
                                             {{ $purchasesCount }} purchase(s) in the system.</p>
                                         <p class="text-sm mt-2 text-slate-600">View

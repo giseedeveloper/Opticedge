@@ -70,4 +70,24 @@ class OrderController extends Controller
 
         return redirect()->back()->with('success', 'Order updated successfully.');
     }
+
+    public function destroy(Order $order)
+    {
+        $amount = (float) ($order->total_price ?? 0);
+        $optionId = $order->payment_option_id;
+
+        if ($amount > 0 && $optionId) {
+            $option = PaymentOption::find($optionId);
+            if ($option) {
+                $option->decrement('balance', $amount);
+            }
+        }
+
+        $order->items()->delete();
+        $order->delete();
+
+        return redirect()
+            ->route('admin.orders.index')
+            ->with('success', 'Order deleted successfully.');
+    }
 }

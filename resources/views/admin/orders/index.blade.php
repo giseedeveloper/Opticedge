@@ -10,6 +10,10 @@
             </div>
         </div>
 
+        @if(session('success'))
+            <div class="admin-prod-alert admin-prod-alert--success" role="status">{{ session('success') }}</div>
+        @endif
+
         <x-admin-page-dashboard label="Summary (all orders)" class="mb-6">
             <dl class="grid grid-cols-2 md:grid-cols-3 gap-4">
                 <div>
@@ -62,7 +66,18 @@
                                 </td>
                                 <td class="text-slate-600 text-sm font-variant-numeric">{{ $order->created_at->format('M j, Y') }}</td>
                                 <td class="admin-prod-cell-actions">
-                                    <a href="{{ route('admin.orders.show', $order) }}" class="admin-prod-link">View</a>
+                                    <div class="inline-flex items-center gap-3 justify-end">
+                                        <a href="{{ route('admin.orders.show', $order) }}" class="admin-prod-link">View</a>
+                                        <form action="{{ route('admin.orders.destroy', $order) }}" method="POST"
+                                            class="inline"
+                                            onsubmit="return confirm('Delete order #{{ $order->id }} permanently? This cannot be undone.');">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button type="submit" class="admin-prod-link text-sm text-rose-700 hover:text-rose-800">
+                                                Delete
+                                            </button>
+                                        </form>
+                                    </div>
                                 </td>
                             </tr>
                         @empty

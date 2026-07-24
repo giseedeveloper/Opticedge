@@ -44,8 +44,8 @@
             $holderFilters = [
                 '' => ['label' => 'All', 'count' => $available],
                 'admin' => ['label' => 'Admin', 'count' => $holderCounts['admin'] ?? 0],
-                'regional_manager' => ['label' => 'Regional manager', 'count' => $holderCounts['regional_manager'] ?? 0],
-                'team_leader' => ['label' => 'Team leader', 'count' => $holderCounts['team_leader'] ?? 0],
+                'regional_manager' => ['label' => 'RM', 'count' => $holderCounts['regional_manager'] ?? 0],
+                'team_leader' => ['label' => 'TL', 'count' => $holderCounts['team_leader'] ?? 0],
                 'agent' => ['label' => 'Agent', 'count' => $holderCounts['agent'] ?? 0],
             ];
         @endphp

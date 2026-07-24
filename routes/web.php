@@ -310,7 +310,7 @@ Route::middleware(['auth', 'redirect.superadmin.from.admin', 'admin', 'tenant.su
         Route::delete('subadmins/{user}', [App\Http\Controllers\Admin\AgentController::class, 'destroy'])->name('subadmins.destroy');
 
         // Orders
-        Route::resource('orders', App\Http\Controllers\Admin\OrderController::class)->only(['index', 'show', 'update']);
+        Route::resource('orders', App\Http\Controllers\Admin\OrderController::class)->only(['index', 'show', 'update', 'destroy']);
 
         // Customers
         Route::get('customers', [App\Http\Controllers\Admin\CustomerController::class , 'index'])->name('customers.index');

@@ -97,7 +97,7 @@
                         <p class="admin-prod-form-hint max-w-3xl">
                             Agents are listed <strong>down the first column</strong>; product models run <strong>across the top</strong> (Opening / Sales / Closing per model).
                             <strong>Opening</strong> is at the start of the From date; <strong>sales</strong> are summed across From–To; <strong>closing</strong> = opening − sales.
-                            <strong>Total</strong> (column) = that agent’s sum across all models; <strong>Totals</strong> (row) = sum across all agents for each model. Shop stock is excluded.
+                            <strong>Total</strong> (column) = that agent’s sum across all models; <strong>Totals</strong> (row at top) = sum across all agents for each model. Shop stock is excluded.
                         </p>
                     </div>
                     <a href="{{ route('admin.reports.agent-stock-export', ['date_from' => $asr['report_date_from'] ?? $asr['report_date'], 'date_to' => $asr['report_date_to'] ?? $asr['report_date'], 'branch_id' => request('branch_id')]) }}"
@@ -210,6 +210,23 @@
                                 </tr>
                             </thead>
                             <tbody>
+                                <tr class="border-b-2 border-slate-300 font-semibold text-[#232f3e] totals-row h-12">
+                                    <td class="bg-slate-100 px-3 py-3">Totals</td>
+                                    <td class="text-right font-variant-numeric bg-slate-50/50 px-3 py-3">{{ number_format($grandAgentsO) }}</td>
+                                    <td class="text-right font-variant-numeric bg-slate-50/50 px-3 py-3">{{ number_format($grandAgentsS) }}</td>
+                                    <td class="text-right font-variant-numeric bg-slate-50/50 px-3 py-3">{{ number_format($grandAgentsC) }}</td>
+                                    @foreach($reportProducts as $productRow)
+                                        @php
+                                            $productO = collect($productRow['agents'] ?? [])->sum('opening');
+                                            $productS = collect($productRow['agents'] ?? [])->sum('sales');
+                                            $productC = collect($productRow['agents'] ?? [])->sum('closing');
+                                            $productCellBand = $agentCellBands[$loop->index % count($agentCellBands)];
+                                        @endphp
+                                        <td class="text-right font-variant-numeric {{ $productCellBand }} px-3 py-3">{{ number_format($productO) }}</td>
+                                        <td class="text-right font-variant-numeric {{ $productCellBand }} px-3 py-3">{{ number_format($productS) }}</td>
+                                        <td class="text-right font-variant-numeric {{ $productCellBand }} px-3 py-3">{{ number_format($productC) }}</td>
+                                    @endforeach
+                                </tr>
                                 @foreach($asr['agents'] as $agent)
                                     @php
                                         $branchLabel = $agent->branch?->name;
@@ -232,23 +249,6 @@
                                         @endforeach
                                     </tr>
                                 @endforeach
-                                <tr class="border-t-2 border-slate-300 font-semibold text-[#232f3e] totals-row h-12">
-                                    <td class="bg-slate-100 px-3 py-3">Totals</td>
-                                    <td class="text-right font-variant-numeric bg-slate-50/50 px-3 py-3">{{ number_format($grandAgentsO) }}</td>
-                                    <td class="text-right font-variant-numeric bg-slate-50/50 px-3 py-3">{{ number_format($grandAgentsS) }}</td>
-                                    <td class="text-right font-variant-numeric bg-slate-50/50 px-3 py-3">{{ number_format($grandAgentsC) }}</td>
-                                    @foreach($reportProducts as $productRow)
-                                        @php
-                                            $productO = collect($productRow['agents'] ?? [])->sum('opening');
-                                            $productS = collect($productRow['agents'] ?? [])->sum('sales');
-                                            $productC = collect($productRow['agents'] ?? [])->sum('closing');
-                                            $productCellBand = $agentCellBands[$loop->index % count($agentCellBands)];
-                                        @endphp
-                                        <td class="text-right font-variant-numeric {{ $productCellBand }} px-3 py-3">{{ number_format($productO) }}</td>
-                                        <td class="text-right font-variant-numeric {{ $productCellBand }} px-3 py-3">{{ number_format($productS) }}</td>
-                                        <td class="text-right font-variant-numeric {{ $productCellBand }} px-3 py-3">{{ number_format($productC) }}</td>
-                                    @endforeach
-                                </tr>
                             </tbody> 
                         </table>
                     </div>
@@ -257,7 +257,7 @@
                             Branch filter is on: agent rows show this branch’s team (assigned branch) plus any rep with stock or sales in this branch’s scope, even if their profile branch is not set yet.
                         </p>
                     @endif
-                    <p class="mt-3 text-xs text-slate-500">Scroll horizontally for more models. <strong>Total</strong> column = each agent’s sum across models; <strong>Totals</strong> row = each model summed across agents. Shop stock is excluded.</p>
+                    <p class="mt-3 text-xs text-slate-500">Scroll horizontally for more models. <strong>Total</strong> column = each agent’s sum across models; <strong>Totals</strong> row (at top) = each model summed across agents. Shop stock is excluded.</p>
                 @endif
             </div>
         </div>

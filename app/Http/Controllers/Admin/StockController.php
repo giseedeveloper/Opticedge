@@ -40,16 +40,24 @@ class StockController extends Controller
 {
     /**
      * Stocks page: list all stocks with stock quantity, added (from purchases), and status.
+     * Optional ?holder=admin|regional_manager|team_leader|agent filters to buckets that
+     * currently hold unsold devices at that role (same custody rules as stock detail).
      */
-    public function stocks()
+    public function stocks(Request $request)
     {
+        $validHolders = ['admin', 'regional_manager', 'team_leader', 'agent'];
+        $holder = (string) $request->query('holder', '');
+        if (! in_array($holder, $validHolders, true)) {
+            $holder = '';
+        }
+
         $usingPurchases = false;
 
         try {
             // Get all stocks
             $stocks = Stock::orderBy('name')->get();
-            
-            $stocksData = $stocks->map(function ($stock) {
+
+            $stocksData = $stocks->map(function ($stock) use ($holder) {
                 try {
                     // Added quantity must reflect real devices already entered (IMEI rows),
                     // not purchase target quantity.
@@ -64,6 +72,9 @@ class StockController extends Controller
 
                 $imeiCount = $added;
                 $unsoldCount = (int) ProductListItem::where('stock_id', $stock->id)->whereNull('sold_at')->count();
+                $heldCount = $holder !== ''
+                    ? (int) ProductListItem::where('stock_id', $stock->id)->heldByRole($holder)->count()
+                    : $unsoldCount;
 
                 return (object) [
                     'id' => $stock->id,
@@ -75,11 +86,16 @@ class StockController extends Controller
                         ? 'pending'
                         : ($unsoldCount > 0 ? 'in_stock' : 'sold_out'),
                     'imei_count' => $imeiCount,
+                    'held_count' => $heldCount,
                 ];
             });
-            
+
+            if ($holder !== '') {
+                $stocksData = $stocksData->filter(fn ($row) => ($row->held_count ?? 0) > 0)->values();
+            }
+
             // If no stocks exist but purchases exist, build rows from purchases instead
-            if ($stocksData->isEmpty()) {
+            if ($stocksData->isEmpty() && $holder === '') {
                 $purchases = Purchase::stockPurchases()->withCount([
                     'productListItems',
                     'productListItems as unsold_items_count' => function ($q) {
@@ -106,8 +122,37 @@ class StockController extends Controller
                                 ? 'pending'
                                 : ($unsoldCount > 0 ? 'in_stock' : 'sold_out'),
                             'imei_count' => $added,
+                            'held_count' => $unsoldCount,
                         ];
                     });
+                }
+            } elseif ($stocks->isEmpty() && $holder !== '') {
+                // Purchase-fallback mode with holder filter: only purchases that hold that role.
+                $purchases = Purchase::stockPurchases()->orderBy('date', 'desc')->get();
+
+                if ($purchases->isNotEmpty()) {
+                    $usingPurchases = true;
+
+                    $stocksData = $purchases->map(function ($purchase) use ($holder) {
+                        $limit = (int) ($purchase->quantity ?? 0);
+                        $added = (int) ProductListItem::where('purchase_id', $purchase->id)->count();
+                        $status = ($limit > 0 && $added === $limit) ? 'complete' : 'pending';
+                        $unsoldCount = (int) ProductListItem::where('purchase_id', $purchase->id)->whereNull('sold_at')->count();
+                        $heldCount = (int) ProductListItem::where('purchase_id', $purchase->id)->heldByRole($holder)->count();
+
+                        return (object) [
+                            'id' => $purchase->id,
+                            'name' => $purchase->name ?? 'Unnamed Purchase',
+                            'stock_quantity' => $limit,
+                            'added' => $added,
+                            'status' => $status,
+                            'stock_status' => $added === 0
+                                ? 'pending'
+                                : ($unsoldCount > 0 ? 'in_stock' : 'sold_out'),
+                            'imei_count' => $added,
+                            'held_count' => $heldCount,
+                        ];
+                    })->filter(fn ($row) => ($row->held_count ?? 0) > 0)->values();
                 }
             }
         } catch (\Exception $e) {
@@ -125,11 +170,22 @@ class StockController extends Controller
 
         $stockInsights = app(StockSummaryInsightsService::class)->summaryCounts();
 
+        $holderCounts = [
+            'admin' => (int) ($stockInsights['inventory']['admin'] ?? 0),
+            'regional_manager' => (int) ($stockInsights['inventory']['regional_managers'] ?? 0),
+            'team_leader' => (int) ($stockInsights['inventory']['team_leaders'] ?? 0),
+            'agent' => (int) ($stockInsights['inventory']['agents'] ?? 0),
+        ];
+        $holderTotal = (int) ($stockInsights['inventory']['total'] ?? array_sum($holderCounts));
+
         return view('admin.stock.stocks', [
             'stocks' => $stocksData,
             'hasPurchases' => $usingPurchases,
             'stockDashboard' => $stockDashboard,
             'stockInsights' => $stockInsights,
+            'holder' => $holder,
+            'holderCounts' => $holderCounts,
+            'holderTotal' => $holderTotal,
         ]);
     }
 
